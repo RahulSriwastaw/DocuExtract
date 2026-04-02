@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+    <script>
+      // Debugging fetch overrides
+      (function() {
+        const originalFetch = window.fetch;
+        let currentFetch = originalFetch;
+        try {
+          Object.defineProperty(window, 'fetch', {
+            get() { return currentFetch; },
+            set(v) { 
+              console.warn('Attempt to override fetch caught! Stack:', new Error().stack);
+              // We can choose to allow it or not. 
+              // If we allow it, the error "has only a getter" goes away.
+              currentFetch = v; 
+            },
+            configurable: true
+          });
+        } catch (e) {
+          console.error('Failed to define fetch proxy:', e);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

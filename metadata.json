@@ -1,0 +1,5 @@
+{
+  "name": "Remix: AI Questions Export Tool",
+  "description": "A standalone web tool to upload PDFs, extract questions using AI, edit and generate solutions, store in Airtable, and export to Word/PDF/JSON.",
+  "requestFramePermissions": []
+}
