@@ -49,8 +49,7 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
 
     let allExtractedQuestions: Question[] = [];
     try {
-      const { GoogleGenAI, Type } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY!;
 
       if (file.type === 'application/pdf') {
         setStage("Analyzing PDF structure...");
@@ -72,6 +71,7 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
         
         let pagesProcessed = 0;
         const startTime = Date.now();
+        const startTime = Date.now();
 
         const processPage = async (pageNum: number): Promise<Question[]> => {
           const page = await pdf.getPage(pageNum);
@@ -86,60 +86,181 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
           
           const pageBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-          const prompt = `Extract ALL questions from this page. For each question, extract: id, question_text (the full question text), options (as an array of strings), answer (A/B/C/D/E). Return a JSON array. Be extremely concise. Use null for empty fields. If there are no questions on this page, return an empty array []. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.`;
+          const prompt = `Extract ALL questions from this page. For each question, extract: id, question_text (the full question text), options (as an array of strings), answer (A/B/C/D/E). Return ONLY a JSON array. Be extremely concise. Use null for empty fields. If there are no questions on this page, return an empty array []. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.`;
 
-          const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: {
-              parts: [
-                { inlineData: { mimeType: "image/jpeg", data: pageBase64 } },
-                { text: prompt }
-              ]
-            },
-            config: {
-              responseMimeType: "application/json",
-              maxOutputTokens: 8192,
-              responseSchema: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    id: { type: Type.STRING },
-                    question_text: { type: Type.STRING },
-                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    answer: { type: Type.STRING }
-                  },
-                  required: ["id", "question_text", "options", "answer"]
+          let pageSuccess = false;
+          let retries = 0;
+          const maxRetries = 2;
+          let extracted: Question[] = [];
+
+          while (!pageSuccess && retries <= maxRetries) {
+            try {
+              const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${NVIDIA_API_KEY}`
+                },
+                body: JSON.stringify({
+                  model: 'meta/llama-3.2-90b-vision-instruct',
+                  messages: [
+                    {
+                      role: 'user',
+                      content: [
+                        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${pageBase64}` } },
+                        { type: 'text', text: prompt }
+                      ]
+                    }
+                  ],
+                  max_tokens: 8192,
+                  temperature: 0.1,
+                  stream: false
+                })
+              });
+
+              if (!response.ok) {
+                throw new Error(`NVIDIA API error: ${response.status} ${response.statusText}`);
+              }
+
+              const data = await response.json();
+              let responseText = data.choices?.[0]?.message?.content || '[]';
+              
+              const extractJsonArray = (text: string): string => {
+                const firstBracket = text.indexOf('[');
+                const lastBracket = text.lastIndexOf(']');
+                if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+                  return text.substring(firstBracket, lastBracket + 1);
+                }
+                if (firstBracket !== -1) {
+                  return text.substring(firstBracket);
+                }
+                return text;
+              };
+
+              responseText = extractJsonArray(responseText).trim();
+
+              // Pre-process to fix literal newlines inside strings
+              let fixedText = '';
+              let inStringPre = false;
+              let escapedPre = false;
+              for (let i = 0; i < responseText.length; i++) {
+                const char = responseText[i];
+                if (inStringPre) {
+                  if (char === '\\') {
+                    escapedPre = !escapedPre;
+                    fixedText += char;
+                  } else if (char === '"' && !escapedPre) {
+                    inStringPre = false;
+                    fixedText += char;
+                  } else if (char === '\n') {
+                    fixedText += '\\n';
+                    escapedPre = false;
+                  } else if (char === '\r') {
+                    fixedText += '\\r';
+                    escapedPre = false;
+                  } else if (char === '\t') {
+                    fixedText += '\\t';
+                    escapedPre = false;
+                  } else {
+                    fixedText += char;
+                    escapedPre = false;
+                  }
+                } else {
+                  if (char === '"') {
+                    inStringPre = true;
+                  }
+                  fixedText += char;
                 }
               }
-            }
-          });
+              if (inStringPre) fixedText += '"';
+              responseText = fixedText;
 
-          const batchData: any[] = JSON.parse(response.text || '[]');
-          return batchData.map((q: any) => ({
-            id: q.id || Math.random().toString(36).substr(2, 9),
-            question_unique_id: q.id,
-            text: q.question_text,
-            options: q.options,
-            correctOption: q.answer,
-            answer: q.answer,
-            status: 'Draft',
-            difficulty: 'Medium',
-            question_hin: '',
-            question_eng: '',
-            subject: '',
-            chapter: '',
-            type: 'MCQ',
-            page_no: pageNum.toString(),
-            collection: '',
-            section: '',
-            year: '',
-            date: '',
-            exam: '',
-            previous_of: '',
-            solution_hin: '',
-            solution_eng: ''
-          }));
+              let batchData: any[] = [];
+              let wasRepaired = false;
+
+              try {
+                batchData = JSON.parse(responseText);
+              } catch (e) {
+                console.warn(`Page ${pageNum} JSON parse failed (Attempt ${retries + 1}), attempting robust repair...`, e);
+                const repairJson = (text: string): any[] | null => {
+                  let json = text.trim();
+                  const firstBracket = json.indexOf('[');
+                  if (firstBracket === -1) return null;
+                  if (firstBracket > 0) json = json.substring(firstBracket);
+                  
+                  let inString = false, escaped = false, lastValidBraceIndex = -1;
+                  for (let i = 0; i < json.length; i++) {
+                    const char = json[i];
+                    if (char === '\\' && inString) escaped = !escaped;
+                    else if (char === '"' && !escaped) { inString = !inString; escaped = false; }
+                    else { if (!inString && char === '}') lastValidBraceIndex = i; escaped = false; }
+                  }
+                  
+                  if (lastValidBraceIndex !== -1) {
+                    try { 
+                      let repaired = json.substring(0, lastValidBraceIndex + 1);
+                      repaired = repaired.trim();
+                      if (repaired.endsWith(',')) {
+                        repaired = repaired.substring(0, repaired.length - 1);
+                      }
+                      repaired += ']';
+                      return JSON.parse(repaired); 
+                    } catch (err) { 
+                      return repairJson(json.substring(0, lastValidBraceIndex)); 
+                    }
+                  }
+                  return null;
+                };
+                const repaired = repairJson(responseText);
+                if (repaired) {
+                  batchData = repaired;
+                  wasRepaired = true;
+                } else {
+                  throw e;
+                }
+              }
+
+              if (Array.isArray(batchData) && batchData.length > 0) {
+                extracted = batchData.map((q: any) => {
+                  return {
+                    id: q.id || Math.random().toString(36).substr(2, 9),
+                    question_unique_id: q.id,
+                    text: q.question_text,
+                    options: q.options,
+                    correctOption: q.answer,
+                    answer: q.answer,
+                    status: 'Draft',
+                    difficulty: 'Medium',
+                    // Initialize other fields as null/empty
+                    question_hin: '',
+                    question_eng: '',
+                    subject: '',
+                    chapter: '',
+                    type: 'MCQ',
+                    page_no: pageNum.toString(),
+                    collection: '',
+                    section: '',
+                    year: '',
+                    date: '',
+                    exam: '',
+                    previous_of: '',
+                    solution_hin: '',
+                    solution_eng: ''
+                  };
+                });
+              }
+              pageSuccess = true; // Successfully processed
+            } catch (err) {
+              console.error(`Error processing page ${pageNum} (Attempt ${retries + 1}):`, err);
+              retries++;
+              if (retries <= maxRetries) {
+                console.log(`Retrying page ${pageNum}...`);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+              }
+            }
+          }
+
+          return extracted;
         };
 
         const CONCURRENCY_LIMIT = 10;
@@ -187,15 +308,40 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
         setStage("Sending to AI for analysis...");
         setProgress(50);
         
-        const prompt = `Extract ALL questions from the following text. For each question, extract: id, question_text (the full question text), options (as an array of strings), answer (A/B/C/D/E). Return a JSON array. Be extremely concise. Use null for empty fields. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.\n\nText:\n${text}`;
+        const prompt = `Extract ALL questions from the following text. For each question, extract: id, question_text (the full question text), options (as an array of strings), answer (A/B/C/D/E). Return ONLY a JSON array. Be extremely concise. Use null for empty fields. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.\n\nText:\n${text}`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: prompt,
-          config: { responseMimeType: "application/json" }
+        const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${NVIDIA_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: 'meta/llama-3.1-70b-instruct',
+            messages: [
+              { role: 'user', content: prompt }
+            ],
+            max_tokens: 8192,
+            temperature: 0.1,
+            stream: false
+          })
         });
 
-        const extracted: any[] = JSON.parse(response.text || '[]');
+        if (!response.ok) {
+          throw new Error(`NVIDIA API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        let responseText = data.choices?.[0]?.message?.content || '[]';
+        
+        // Extract JSON array from response
+        const firstBracket = responseText.indexOf('[');
+        const lastBracket = responseText.lastIndexOf(']');
+        if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+          responseText = responseText.substring(firstBracket, lastBracket + 1);
+        }
+
+        const extracted: any[] = JSON.parse(responseText);
         allExtractedQuestions = extracted.map((q: any) => ({
           id: q.id || Math.random().toString(36).substr(2, 9),
           question_unique_id: q.id,

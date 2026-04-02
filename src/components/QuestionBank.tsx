@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Folder, Loader2, Database, Search, ArrowLeft, FileText, RefreshCw, Clock, ExternalLink, BookOpen, Layout, LayoutGrid, List, Edit, Trash2, Tag, Copy, Plus, Check, ChevronDown, X, AlertCircle, ChevronRight, FolderPlus, Move, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -518,8 +517,8 @@ export default function QuestionBank() {
     }
     
     try {
-      // Use process.env.GEMINI_API_KEY as per instructions
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
+      // Use NVIDIA NIM API
+      const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || process.env.API_KEY;
       
       const batchSize = 3; // Reduced batch size to be safer
       const delay = 3000; // Increased delay to 3 seconds
@@ -540,14 +539,32 @@ export default function QuestionBank() {
           }
 
           console.log('Prompt:', prompt);
-          const response = await ai.models.generateContent({
-            model: 'gemini-3.1-flash-lite-preview',
-            contents: prompt,
-            config: { responseMimeType: 'application/json' }
-          });
           
-          console.log('AI Response:', response.text);
-          const updatedQ = JSON.parse(response.text || '{}');
+          const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${NVIDIA_API_KEY}`
+            },
+            body: JSON.stringify({
+              model: 'meta/llama-3.1-70b-instruct',
+              messages: [
+                { role: 'user', content: prompt }
+              ],
+              max_tokens: 4096,
+              temperature: 0.1,
+              stream: false
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`NVIDIA API error: ${response.status} ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          const responseText = data.choices?.[0]?.message?.content || '{}';
+          console.log('AI Response:', responseText);
+          const updatedQ = JSON.parse(responseText || '{}');
           return { ...q, ...updatedQ, id: q.id };
         }));
         
