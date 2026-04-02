@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Question } from '@/src/types';
+import mammoth from 'mammoth';
 
 interface UploadProps {
   onExtractionComplete: (questions: Question[], fileName: string) => void;
@@ -10,9 +11,9 @@ interface UploadProps {
 
 const STAGES = [
   "Initializing...",
-  "Reading PDF file...",
+  "Reading file...",
   "Sending to AI for full analysis...",
-  "AI is extracting ALL questions from ALL pages (this may take a moment)...",
+  "AI is extracting ALL questions (this may take a moment)...",
   "Finalizing results..."
 ];
 
@@ -46,18 +47,22 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
     setTimeLeft(null);
     setCurrentPage(0);
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64String = reader.result as string;
-      const base64Data = base64String.split(',')[1];
-      
-      try {
+    let allExtractedQuestions: Question[] = [];
+    try {
+      const { GoogleGenAI, Type } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+
+      if (file.type === 'application/pdf') {
         setStage("Analyzing PDF structure...");
         setProgress(5);
         
-        // Get total pages using pdfjs-dist
+        const base64Data = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.readAsDataURL(file);
+        });
+
         const pdfjs = await import('pdfjs-dist');
-        // Set worker using unpkg and .mjs extension for v5+
         pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
         
         const loadingTask = pdfjs.getDocument({ data: Uint8Array.from(atob(base64Data), c => c.charCodeAt(0)) });
@@ -65,12 +70,8 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
         const total = pdf.numPages;
         setTotalPages(total);
         
-        const { GoogleGenAI, Type } = await import('@google/genai');
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-        
-        let allExtractedQuestions: Question[] = [];
-        const startTime = Date.now();
         let pagesProcessed = 0;
+        const startTime = Date.now();
 
         const processPage = async (pageNum: number): Promise<Question[]> => {
           const page = await pdf.getPage(pageNum);
@@ -87,184 +88,63 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
 
           const prompt = `Extract ALL questions from this page. For each question, extract: id, question_text (the full question text), options (as an array of strings), answer (A/B/C/D/E). Return a JSON array. Be extremely concise. Use null for empty fields. If there are no questions on this page, return an empty array []. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.`;
 
-          let pageSuccess = false;
-          let retries = 0;
-          const maxRetries = 2;
-          let extracted: Question[] = [];
-
-          while (!pageSuccess && retries <= maxRetries) {
-            try {
-              const response = await ai.models.generateContent({
-                model: "gemini-3-flash-preview",
-                contents: {
-                  parts: [
-                    { inlineData: { mimeType: "image/jpeg", data: pageBase64 } },
-                    { text: prompt }
-                  ]
-                },
-                config: {
-                  responseMimeType: "application/json",
-                  maxOutputTokens: 8192,
-                  responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        id: { type: Type.STRING },
-                        question_text: { type: Type.STRING },
-                        options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        answer: { type: Type.STRING }
-                      },
-                      required: ["id", "question_text", "options", "answer"]
-                    }
-                  }
+          const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: {
+              parts: [
+                { inlineData: { mimeType: "image/jpeg", data: pageBase64 } },
+                { text: prompt }
+              ]
+            },
+            config: {
+              responseMimeType: "application/json",
+              maxOutputTokens: 8192,
+              responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    id: { type: Type.STRING },
+                    question_text: { type: Type.STRING },
+                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    answer: { type: Type.STRING }
+                  },
+                  required: ["id", "question_text", "options", "answer"]
                 }
-              });
-
-              let responseText = response.text || '[]';
-              
-              const extractJsonArray = (text: string): string => {
-                const firstBracket = text.indexOf('[');
-                const lastBracket = text.lastIndexOf(']');
-                if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-                  return text.substring(firstBracket, lastBracket + 1);
-                }
-                if (firstBracket !== -1) {
-                  return text.substring(firstBracket);
-                }
-                return text;
-              };
-
-              responseText = extractJsonArray(responseText).trim();
-
-              // Pre-process to fix literal newlines inside strings
-              let fixedText = '';
-              let inStringPre = false;
-              let escapedPre = false;
-              for (let i = 0; i < responseText.length; i++) {
-                const char = responseText[i];
-                if (inStringPre) {
-                  if (char === '\\') {
-                    escapedPre = !escapedPre;
-                    fixedText += char;
-                  } else if (char === '"' && !escapedPre) {
-                    inStringPre = false;
-                    fixedText += char;
-                  } else if (char === '\n') {
-                    fixedText += '\\n';
-                    escapedPre = false;
-                  } else if (char === '\r') {
-                    fixedText += '\\r';
-                    escapedPre = false;
-                  } else if (char === '\t') {
-                    fixedText += '\\t';
-                    escapedPre = false;
-                  } else {
-                    fixedText += char;
-                    escapedPre = false;
-                  }
-                } else {
-                  if (char === '"') {
-                    inStringPre = true;
-                  }
-                  fixedText += char;
-                }
-              }
-              if (inStringPre) fixedText += '"';
-              responseText = fixedText;
-
-              let batchData: any[] = [];
-              let wasRepaired = false;
-
-              try {
-                batchData = JSON.parse(responseText);
-              } catch (e) {
-                console.warn(`Page ${pageNum} JSON parse failed (Attempt ${retries + 1}), attempting robust repair...`, e);
-                const repairJson = (text: string): any[] | null => {
-                  let json = text.trim();
-                  const firstBracket = json.indexOf('[');
-                  if (firstBracket === -1) return null;
-                  if (firstBracket > 0) json = json.substring(firstBracket);
-                  
-                  let inString = false, escaped = false, lastValidBraceIndex = -1;
-                  for (let i = 0; i < json.length; i++) {
-                    const char = json[i];
-                    if (char === '\\' && inString) escaped = !escaped;
-                    else if (char === '"' && !escaped) { inString = !inString; escaped = false; }
-                    else { if (!inString && char === '}') lastValidBraceIndex = i; escaped = false; }
-                  }
-                  
-                  if (lastValidBraceIndex !== -1) {
-                    try { 
-                      let repaired = json.substring(0, lastValidBraceIndex + 1);
-                      repaired = repaired.trim();
-                      if (repaired.endsWith(',')) {
-                        repaired = repaired.substring(0, repaired.length - 1);
-                      }
-                      repaired += ']';
-                      return JSON.parse(repaired); 
-                    } catch (err) { 
-                      return repairJson(json.substring(0, lastValidBraceIndex)); 
-                    }
-                  }
-                  return null;
-                };
-                const repaired = repairJson(responseText);
-                if (repaired) {
-                  batchData = repaired;
-                  wasRepaired = true;
-                } else {
-                  throw e;
-                }
-              }
-
-              if (Array.isArray(batchData) && batchData.length > 0) {
-                extracted = batchData.map((q: any) => {
-                  return {
-                    id: q.id || Math.random().toString(36).substr(2, 9),
-                    question_unique_id: q.id,
-                    text: q.question_text,
-                    options: q.options,
-                    correctOption: q.answer,
-                    answer: q.answer,
-                    status: 'Draft',
-                    difficulty: 'Medium',
-                    // Initialize other fields as null/empty
-                    question_hin: '',
-                    question_eng: '',
-                    subject: '',
-                    chapter: '',
-                    type: 'MCQ',
-                    page_no: pageNum.toString(),
-                    collection: '',
-                    section: '',
-                    year: '',
-                    date: '',
-                    exam: '',
-                    previous_of: '',
-                    solution_hin: '',
-                    solution_eng: ''
-                  };
-                });
-              }
-              pageSuccess = true; // Successfully processed
-            } catch (err) {
-              console.error(`Error processing page ${pageNum} (Attempt ${retries + 1}):`, err);
-              retries++;
-              if (retries <= maxRetries) {
-                console.log(`Retrying page ${pageNum}...`);
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
               }
             }
-          }
-          
-          return extracted;
+          });
+
+          const batchData: any[] = JSON.parse(response.text || '[]');
+          return batchData.map((q: any) => ({
+            id: q.id || Math.random().toString(36).substr(2, 9),
+            question_unique_id: q.id,
+            text: q.question_text,
+            options: q.options,
+            correctOption: q.answer,
+            answer: q.answer,
+            status: 'Draft',
+            difficulty: 'Medium',
+            question_hin: '',
+            question_eng: '',
+            subject: '',
+            chapter: '',
+            type: 'MCQ',
+            page_no: pageNum.toString(),
+            collection: '',
+            section: '',
+            year: '',
+            date: '',
+            exam: '',
+            previous_of: '',
+            solution_hin: '',
+            solution_eng: ''
+          }));
         };
 
-        const CONCURRENCY_LIMIT = 10; // Process 10 pages at a time
+        const CONCURRENCY_LIMIT = 10;
         for (let i = 1; i <= total; i += CONCURRENCY_LIMIT) {
           const batchPromises: Promise<Question[]>[] = [];
-          
           for (let j = 0; j < CONCURRENCY_LIMIT && i + j <= total; j++) {
             const pageNum = i + j;
             batchPromises.push(
@@ -273,7 +153,6 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
                 setCurrentPage(pagesProcessed);
                 setStage(`Extracting questions (Processed ${pagesProcessed} of ${total})...`);
                 setProgress(Math.min(10 + (pagesProcessed / total * 85), 95));
-
                 const elapsed = (Date.now() - startTime) / 1000;
                 const pagesPerSec = pagesProcessed > 0 ? pagesProcessed / elapsed : 0;
                 if (pagesPerSec > 0 && total > pagesProcessed) {
@@ -283,31 +162,77 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
               })
             );
           }
-          
           const batchResults = await Promise.all(batchPromises);
           for (const results of batchResults) {
             allExtractedQuestions = [...allExtractedQuestions, ...results];
           }
-          
-          // Small delay between batches to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 500));
         }
+      } else {
+        // TXT/DOCX logic
+        setStage("Reading file content...");
+        setProgress(20);
         
-        setStage(STAGES[4]);
-        setProgress(100);
-        setTimeLeft(0);
+        let text = '';
+        if (file.type === 'text/plain') {
+          text = await file.text();
+        } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          text = result.value;
+        } else {
+          throw new Error("Unsupported file type.");
+        }
+
+        setStage("Sending to AI for analysis...");
+        setProgress(50);
         
-        console.log('Total extraction complete', allExtractedQuestions.length, 'questions found');
-        onExtractionComplete(allExtractedQuestions, file.name);
-      } catch (error: any) {
-        console.error('Extraction failed:', error);
-        setStatus(`Extraction failed: ${error.message || 'Please try again.'}`);
-      } finally {
-        setLoading(false);
+        const prompt = `Extract ALL questions from the following text. For each question, extract: id, question_text (the full question text), options (as an array of strings), answer (A/B/C/D/E). Return a JSON array. Be extremely concise. Use null for empty fields. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.\n\nText:\n${text}`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: prompt,
+          config: { responseMimeType: "application/json" }
+        });
+
+        const extracted: any[] = JSON.parse(response.text || '[]');
+        allExtractedQuestions = extracted.map((q: any) => ({
+          id: q.id || Math.random().toString(36).substr(2, 9),
+          question_unique_id: q.id,
+          text: q.question_text,
+          options: q.options,
+          correctOption: q.answer,
+          answer: q.answer,
+          status: 'Draft',
+          difficulty: 'Medium',
+          question_hin: '',
+          question_eng: '',
+          subject: '',
+          chapter: '',
+          type: 'MCQ',
+          page_no: '1',
+          collection: '',
+          section: '',
+          year: '',
+          date: '',
+          exam: '',
+          previous_of: '',
+          solution_hin: '',
+          solution_eng: ''
+        }));
       }
-    };
-    reader.readAsDataURL(file);
+
+      onExtractionComplete(allExtractedQuestions, file.name);
+      setStage(STAGES[4]);
+      setProgress(100);
+    } catch (error: any) {
+      console.error('Extraction failed:', error);
+      setStatus(`Extraction failed: ${error.message || 'Please try again.'}`);
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -319,7 +244,7 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
         <Input 
           id="pdf" 
           type="file" 
-          accept=".pdf" 
+          accept=".pdf,.txt,.docx" 
           onChange={handleFileChange} 
           ref={ref} 
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
@@ -332,7 +257,7 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
             </div>
             <div>
               <p className="text-lg font-medium text-slate-900">Click to upload or drag and drop</p>
-              <p className="text-sm text-slate-500 mt-1">PDF files only (max 10MB)</p>
+              <p className="text-sm text-slate-500 mt-1">PDF, TXT, or DOCX files (max 10MB)</p>
             </div>
           </div>
         ) : (

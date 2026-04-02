@@ -263,6 +263,65 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
     }
   };
 
+  const handleBulkAiEdit = async () => {
+    if (selectedIds.length === 0) return alert('Please select at least one question.');
+    
+    const selectedQuestions = questions.filter(q => selectedIds.includes(q.id));
+    const BATCH_SIZE = 10;
+    const processedResults: Question[] = [];
+    
+    try {
+      setIsSaving(true);
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      
+      for (let i = 0; i < selectedQuestions.length; i += BATCH_SIZE) {
+        const batch = selectedQuestions.slice(i, i + BATCH_SIZE);
+        
+        const prompt = `Task: ${aiTask}\nCustom Prompt: ${aiPrompt}\n\nProcess the following list of questions and return an array of updated question objects in JSON format. Do not include any other text.\n\nQuestions to process:\n${JSON.stringify(batch)}`;
+        
+        const callAi = async (retries = 3, delay = 2000): Promise<any> => {
+          try {
+            return await ai.models.generateContent({
+              model: "gemini-3-flash-preview",
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+            });
+          } catch (error: any) {
+            // Check if error is rate limit (429)
+            if (error.status === 429 && retries > 0) {
+              console.warn(`Rate limited, retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              return callAi(retries - 1, delay * 2);
+            }
+            throw error;
+          }
+        };
+        
+        const response = await callAi();
+        const processedBatch: Question[] = JSON.parse(response.text || '[]');
+        processedResults.push(...processedBatch);
+      }
+      
+      setQuestions(prev => prev.map(q => {
+        const updated = processedResults.find(pq => pq.id === q.id);
+        return updated ? updated : q;
+      }));
+      
+      setIsAiModalOpen(false);
+      alert('Bulk AI Edit applied successfully!');
+    } catch (error: any) {
+      console.error('Bulk AI Edit failed:', error);
+      if (error.status === 429) {
+        alert('Bulk AI Edit failed: Daily quota exhausted. Please check your plan and billing details in Google AI Studio.');
+      } else {
+        alert('Bulk AI Edit failed: ' + error.message);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Top Toolbar */}
@@ -385,7 +444,9 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAiModalOpen(false)}>Cancel</Button>
-            <Button onClick={() => { console.log('Applying AI:', aiTask, aiPrompt); setIsAiModalOpen(false); }}>Apply AI Edit</Button>
+            <Button onClick={handleBulkAiEdit} disabled={isSaving}>
+              {isSaving ? 'Applying...' : 'Apply AI Edit'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
