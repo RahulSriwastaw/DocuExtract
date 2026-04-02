@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import AIModelSelector from './AIModelSelector';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -23,6 +24,8 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
   const [testQuestions, setTestQuestions] = useState<Question[]>([]);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiTask, setAiTask] = useState('variations');
+  const [aiModel, setAiModel] = useState('deepseek-ai/deepseek-v3.2');
+  const [aiProvider, setAiProvider] = useState('nvidia');
   
   // Save Modal States
   const [saveDestinations, setSaveDestinations] = useState<string[]>(['server']);
@@ -272,8 +275,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
     
     try {
       setIsSaving(true);
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const apiEndpoint = aiProvider === 'openrouter' ? '/api/openrouter-chat' : '/api/nvidia-chat';
       
       for (let i = 0; i < selectedQuestions.length; i += BATCH_SIZE) {
         const batch = selectedQuestions.slice(i, i + BATCH_SIZE);
@@ -282,11 +284,28 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
         
         const callAi = async (retries = 3, delay = 2000): Promise<any> => {
           try {
-            return await ai.models.generateContent({
-              model: "gemini-3-flash-preview",
-              contents: prompt,
-              config: { responseMimeType: "application/json" }
+            const response = await fetch(apiEndpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: aiModel,
+                messages: [
+                  { role: 'user', content: prompt }
+                ],
+                max_tokens: 8192,
+                temperature: 0.1,
+                stream: false
+              })
             });
+
+            if (!response.ok) {
+              throw new Error(`NVIDIA API error: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content || '[]';
           } catch (error: any) {
             // Check if error is rate limit (429)
             if (error.status === 429 && retries > 0) {
@@ -298,8 +317,8 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
           }
         };
         
-        const response = await callAi();
-        const processedBatch: Question[] = JSON.parse(response.text || '[]');
+        const responseText = await callAi();
+        const processedBatch: Question[] = JSON.parse(responseText);
         processedResults.push(...processedBatch);
       }
       
@@ -425,6 +444,16 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
             <DialogTitle>Bulk AI Edit</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* AI Model Selector */}
+            <AIModelSelector 
+              selectedModel={aiModel} 
+              onModelChange={(model, provider) => {
+                setAiModel(model);
+                setAiProvider(provider);
+              }}
+              variant="compact"
+            />
+            
             <Select value={aiTask} onValueChange={setAiTask}>
               <SelectTrigger>
                 <SelectValue placeholder="Select AI Task" />

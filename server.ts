@@ -6,9 +6,12 @@ import Airtable from 'airtable';
 import fs from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
-import { GoogleGenAI } from "@google/genai";
 import pkg from 'pg';
+import dotenv from 'dotenv';
 const { Client } = pkg;
+
+// Load environment variables from .env file
+dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR = path.join(__dirname, '.cache');
@@ -222,6 +225,172 @@ async function startServer() {
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // NVIDIA API Proxy Endpoint
+  app.post("/api/nvidia-chat", async (req, res) => {
+    try {
+      const { messages, model, max_tokens, temperature } = req.body;
+      
+      const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+      
+      if (!NVIDIA_API_KEY) {
+        console.error('NVIDIA_API_KEY not found in environment variables');
+        return res.status(500).json({ error: 'NVIDIA API key not configured' });
+      }
+      
+      console.log('NVIDIA Chat Request:', { model: model || 'deepseek-ai/deepseek-v3.2', messagesCount: messages?.length });
+      
+      const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${NVIDIA_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: model || 'deepseek-ai/deepseek-v3.2',
+          messages,
+          max_tokens: max_tokens || 8192,
+          temperature: temperature || 0.1,
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('NVIDIA API Error:', response.status, errorText);
+        return res.status(response.status).json({ 
+          error: `NVIDIA API Error: ${response.status}`,
+          details: errorText 
+        });
+      }
+
+      const data = await response.json();
+      console.log('NVIDIA Chat Response:', { choices: data.choices?.length, model: data.model });
+      res.json(data);
+    } catch (error: any) {
+      console.error('NVIDIA Proxy Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to call NVIDIA API',
+        details: error.message 
+      });
+    }
+  });
+
+  // NVIDIA Vision API Proxy Endpoint (for image processing)
+  app.post("/api/nvidia-vision", async (req, res) => {
+    try {
+      const { messages, model, max_tokens, temperature } = req.body;
+      
+      const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+      
+      if (!NVIDIA_API_KEY) {
+        console.error('NVIDIA_API_KEY not found in environment variables');
+        return res.status(500).json({ error: 'NVIDIA API key not configured' });
+      }
+      
+      console.log('NVIDIA Vision Request:', { model: model || 'meta/llama-3.2-90b-vision-instruct', messagesCount: messages?.length });
+      
+      const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${NVIDIA_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: model || 'meta/llama-3.2-90b-vision-instruct',
+          messages,
+          max_tokens: max_tokens || 8192,
+          temperature: temperature || 0.1,
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('NVIDIA Vision API Error:', response.status, errorText);
+        return res.status(response.status).json({ 
+          error: `NVIDIA Vision API Error: ${response.status}`,
+          details: errorText 
+        });
+      }
+
+      const data = await response.json();
+      console.log('NVIDIA Vision Response:', { choices: data.choices?.length, model: data.model });
+      res.json(data);
+    } catch (error: any) {
+      console.error('NVIDIA Vision Proxy Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to call NVIDIA Vision API',
+        details: error.message 
+      });
+    }
+  });
+
+  // OpenRouter API Proxy Endpoint
+  app.post("/api/openrouter-chat", async (req, res) => {
+    try {
+      const { messages, model, max_tokens, temperature } = req.body;
+      
+      const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+      
+      if (!OPENROUTER_API_KEY) {
+        console.error('OPENROUTER_API_KEY not found in environment variables');
+        return res.status(500).json({ error: 'OpenRouter API key not configured' });
+      }
+      
+      console.log('OpenRouter Chat Request:', { model: model || 'openai/gpt-4o', messagesCount: messages?.length });
+      
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'DocuExtract'
+        },
+        body: JSON.stringify({
+          model: model || 'openai/gpt-4o',
+          messages,
+          max_tokens: max_tokens || 8192,
+          temperature: temperature || 0.1
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('OpenRouter API Error:', response.status, errorText);
+        return res.status(response.status).json({ 
+          error: `OpenRouter API Error: ${response.status}`,
+          details: errorText 
+        });
+      }
+
+      const data = await response.json();
+      console.log('OpenRouter Chat Response:', { choices: data.choices?.length, model: data.model });
+      res.json(data);
+    } catch (error: any) {
+      console.error('OpenRouter Proxy Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to call OpenRouter API',
+        details: error.message 
+      });
+    }
+  });
+
+  // Get available AI models
+  app.get("/api/ai-models", (req, res) => {
+    res.json({
+      nvidia: [
+        { id: 'deepseek-ai/deepseek-v3.2', name: 'DeepSeek V3.2', provider: 'NVIDIA', type: 'text' },
+        { id: 'meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B', provider: 'NVIDIA', type: 'text' },
+        { id: 'meta/llama-3.2-90b-vision-instruct', name: 'Llama 3.2 90B Vision', provider: 'NVIDIA', type: 'vision' },
+        { id: 'mistralai/mistral-large-2411', name: 'Mistral Large', provider: 'NVIDIA', type: 'text' }
+      ],
+      openrouter: [
+        { id: 'qwen/qwen3.6-plus-preview:free', name: 'Qwen 3.6 Plus (Free)', provider: 'OpenRouter', type: 'text' }
+      ]
+    });
   });
 
   app.get("/api/get-airtable-tables", async (req, res) => {

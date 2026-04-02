@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { safeJson } from '../utils';
 import QuestionEditModal from './QuestionEditModal';
+import AIModelSelector from './AIModelSelector';
 import { Question } from '../types';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -32,6 +33,8 @@ export default function QuestionBank() {
   const [aiEditAction, setAiEditAction] = useState('');
   const [aiCustomPrompt, setAiCustomPrompt] = useState('');
   const [aiLanguage, setAiLanguage] = useState('Hindi');
+  const [aiModel, setAiModel] = useState('deepseek-ai/deepseek-v3.2');
+  const [aiProvider, setAiProvider] = useState('nvidia');
   const [bulkTag, setBulkTag] = useState('');
   const [testName, setTestName] = useState('');
   const [isSelectDropdownOpen, setIsSelectDropdownOpen] = useState(false);
@@ -517,8 +520,8 @@ export default function QuestionBank() {
     }
     
     try {
-      // Use NVIDIA NIM API
-      const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || process.env.API_KEY;
+      // Use proxy endpoint based on selected provider
+      const apiEndpoint = aiProvider === 'openrouter' ? '/api/openrouter-chat' : '/api/nvidia-chat';
       
       const batchSize = 3; // Reduced batch size to be safer
       const delay = 3000; // Increased delay to 3 seconds
@@ -540,14 +543,13 @@ export default function QuestionBank() {
 
           console.log('Prompt:', prompt);
           
-          const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+          const response = await fetch(apiEndpoint, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${NVIDIA_API_KEY}`
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              model: 'meta/llama-3.1-70b-instruct',
+              model: aiModel,
               messages: [
                 { role: 'user', content: prompt }
               ],
@@ -1319,6 +1321,16 @@ export default function QuestionBank() {
               </div>
               <div className="p-6 space-y-4">
                 <p className="text-xs text-slate-500">Apply an AI-powered edit to {selectedIds.size} selected questions in parallel</p>
+                
+                {/* AI Model Selector */}
+                <AIModelSelector 
+                  selectedModel={aiModel} 
+                  onModelChange={(model, provider) => {
+                    setAiModel(model);
+                    setAiProvider(provider);
+                  }}
+                  variant="compact"
+                />
                 
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Edit Type *</label>
