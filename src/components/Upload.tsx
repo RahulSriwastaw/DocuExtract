@@ -1,10 +1,9 @@
-import React, { useState, ChangeEvent, forwardRef } from 'react';
+import { useState, ChangeEvent, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Question } from '@/src/types';
 import mammoth from 'mammoth';
-import AIModelSelector from './AIModelSelector';
 
 interface UploadProps {
   onExtractionComplete: (questions: Question[], fileName: string) => void;
@@ -18,7 +17,7 @@ const STAGES = [
   "Finalizing results..."
 ];
 
-const Upload = forwardRef(function Upload({ onExtractionComplete }: UploadProps, ref: React.Ref<HTMLInputElement>) {
+const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete }, ref) => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -27,8 +26,6 @@ const Upload = forwardRef(function Upload({ onExtractionComplete }: UploadProps,
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [totalPages, setTotalPages] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
-  const [selectedModel, setSelectedModel] = useState('deepseek-ai/deepseek-v3.2');
-  const [selectedProvider, setSelectedProvider] = useState('nvidia');
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -52,9 +49,9 @@ const Upload = forwardRef(function Upload({ onExtractionComplete }: UploadProps,
 
     let allExtractedQuestions: Question[] = [];
     try {
-      // Determine API endpoint based on selected provider
-      const apiEndpoint = selectedProvider === 'openrouter' ? '/api/openrouter-chat' : '/api/nvidia-chat';
-      const visionEndpoint = selectedProvider === 'openrouter' ? '/api/openrouter-chat' : '/api/nvidia-vision';
+      const { GoogleGenAI, Type } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+
       if (file.type === 'application/pdf') {
         setStage("Analyzing PDF structure...");
         setProgress(5);
@@ -89,228 +86,60 @@ const Upload = forwardRef(function Upload({ onExtractionComplete }: UploadProps,
           
           const pageBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-          const prompt = `You are an expert exam question formatter and data cleaner.
+          const prompt = `Extract ALL questions from this page. For each question, extract: id, question_text (the full question text), options (as an array of strings), answer (A/B/C/D/E). Return a JSON array. Be extremely concise. Use null for empty fields. If there are no questions on this page, return an empty array []. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.`;
 
-Your task is to process raw, messy question text from this PDF page image and convert it into a clean, structured JSON format suitable for storing in a question bank.
-
-STRICT INSTRUCTIONS:
-1. Output must be ONLY a valid JSON array.
-2. Remove question numbers (like 1., 2., etc.).
-3. Clean both Hindi and English text properly.
-4. Merge broken lines into one proper readable sentence.
-5. Extract exactly 4 options and label them as A, B, C, D.
-6. Remove brackets around options.
-7. If answer is not clearly given, leave answer field as empty string.
-8. Detect and fill these fields intelligently:
-   - topic: one word like Polity, History, Science, Economy, Geography, Current Affairs
-   - year: if mentioned, else empty string
-   - difficulty: Easy / Medium / Hard
-
-Return a JSON array where each object has these exact fields:
-- id: unique string identifier
-- question_text: clean full question text
-- options: array of exactly 4 strings [A, B, C, D]
-- answer: the correct option letter (A/B/C/D) or empty string
-- topic: one word topic
-- year: year if mentioned or empty string
-- difficulty: Easy/Medium/Hard
-
-If there are no questions on this page, return an empty array [].
-DO NOT use literal newlines inside strings, use \\n instead.
-DO NOT include any markdown or code blocks. Return ONLY the JSON array.`;
-
-          let pageSuccess = false;
-          let retries = 0;
-          const maxRetries = 2;
-          let extracted: Question[] = [];
-
-          while (!pageSuccess && retries <= maxRetries) {
-            try {
-              const response = await fetch(visionEndpoint, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  model: selectedModel,
-                  messages: [
-                    {
-                      role: 'user',
-                      content: [
-                        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${pageBase64}` } },
-                        { type: 'text', text: prompt }
-                      ]
-                    }
-                  ],
-                  max_tokens: 8192,
-                  temperature: 0.1,
-                  stream: false
-                })
-              });
-
-              if (!response.ok) {
-                throw new Error(`NVIDIA API error: ${response.status} ${response.statusText}`);
-              }
-
-              const data = await response.json();
-              let responseText = data.choices?.[0]?.message?.content || '[]';
-              
-              const extractJsonArray = (text: string): string => {
-                let json = text.trim();
-                // Remove markdown code blocks
-                json = json.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-                const firstBracket = json.indexOf('[');
-                const lastBracket = json.lastIndexOf(']');
-                if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-                  return json.substring(firstBracket, lastBracket + 1);
+          const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: {
+              parts: [
+                { inlineData: { mimeType: "image/jpeg", data: pageBase64 } },
+                { text: prompt }
+              ]
+            },
+            config: {
+              responseMimeType: "application/json",
+              maxOutputTokens: 8192,
+              responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    id: { type: Type.STRING },
+                    question_text: { type: Type.STRING },
+                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    answer: { type: Type.STRING }
+                  },
+                  required: ["id", "question_text", "options", "answer"]
                 }
-                if (firstBracket !== -1) {
-                  return json.substring(firstBracket);
-                }
-                return json;
-              };
-
-              responseText = extractJsonArray(responseText).trim();
-
-              // Pre-process to fix literal newlines inside strings
-              let fixedText = '';
-              let inStringPre = false;
-              let escapedPre = false;
-              for (let i = 0; i < responseText.length; i++) {
-                const char = responseText[i];
-                if (inStringPre) {
-                  if (char === '\\') {
-                    escapedPre = !escapedPre;
-                    fixedText += char;
-                  } else if (char === '"' && !escapedPre) {
-                    inStringPre = false;
-                    fixedText += char;
-                  } else if (char === '\n') {
-                    fixedText += '\\n';
-                    escapedPre = false;
-                  } else if (char === '\r') {
-                    fixedText += '\\r';
-                    escapedPre = false;
-                  } else if (char === '\t') {
-                    fixedText += '\\t';
-                    escapedPre = false;
-                  } else {
-                    fixedText += char;
-                    escapedPre = false;
-                  }
-                } else {
-                  if (char === '"') {
-                    inStringPre = true;
-                  }
-                  fixedText += char;
-                }
-              }
-              if (inStringPre) fixedText += '"';
-              responseText = fixedText;
-
-              let batchData: any[] = [];
-              let wasRepaired = false;
-
-              try {
-                batchData = JSON.parse(responseText);
-              } catch (e) {
-                console.warn(`Page ${pageNum} JSON parse failed (Attempt ${retries + 1}), attempting robust repair...`, e);
-                const repairJson = (text: string): any[] | null => {
-                  let json = text.trim();
-                  const firstBracket = json.indexOf('[');
-                  if (firstBracket === -1) return null;
-                  if (firstBracket > 0) json = json.substring(firstBracket);
-                  
-                  let inString = false, escaped = false, lastValidBraceIndex = -1;
-                  for (let i = 0; i < json.length; i++) {
-                    const char = json[i];
-                    if (char === '\\' && inString) escaped = !escaped;
-                    else if (char === '"' && !escaped) { inString = !inString; escaped = false; }
-                    else { if (!inString && char === '}') lastValidBraceIndex = i; escaped = false; }
-                  }
-                  
-                  if (lastValidBraceIndex !== -1) {
-                    try { 
-                      let repaired = json.substring(0, lastValidBraceIndex + 1);
-                      repaired = repaired.trim();
-                      if (repaired.endsWith(',')) {
-                        repaired = repaired.substring(0, repaired.length - 1);
-                      }
-                      repaired += ']';
-                      return JSON.parse(repaired); 
-                    } catch (err) { 
-                      return repairJson(json.substring(0, lastValidBraceIndex)); 
-                    }
-                  }
-                  return null;
-                };
-                const repaired = repairJson(responseText);
-                if (repaired) {
-                  batchData = repaired;
-                  wasRepaired = true;
-                } else {
-                  throw e;
-                }
-              }
-
-              if (Array.isArray(batchData) && batchData.length > 0) {
-                extracted = batchData.map((q: any) => {
-                  // Parse options array into individual fields
-                  const opts = Array.isArray(q.options) ? q.options : [];
-                  const [opt1, opt2, opt3, opt4] = opts;
-                  
-                  // Determine if question is Hindi or English
-                  const isHindi = /[\u0900-\u097F]/.test(q.question_text || '');
-                  const questionText = q.question_text || '';
-                  
-                  return {
-                    id: q.id || Math.random().toString(36).substr(2, 9),
-                    question_unique_id: q.id || '',
-                    // Legacy fields for UI compatibility
-                    text: questionText,
-                    options: opts,
-                    correctOption: q.answer || '',
-                    // New structured fields
-                    question_hin: isHindi ? questionText : '',
-                    question_eng: !isHindi ? questionText : '',
-                    option1_hin: isHindi ? (opt1 || '') : '',
-                    option1_eng: !isHindi ? (opt1 || '') : '',
-                    option2_hin: isHindi ? (opt2 || '') : '',
-                    option2_eng: !isHindi ? (opt2 || '') : '',
-                    option3_hin: isHindi ? (opt3 || '') : '',
-                    option3_eng: !isHindi ? (opt3 || '') : '',
-                    option4_hin: isHindi ? (opt4 || '') : '',
-                    option4_eng: !isHindi ? (opt4 || '') : '',
-                    answer: q.answer || '',
-                    status: 'Draft',
-                    difficulty: q.difficulty || 'Medium',
-                    subject: q.topic || '',
-                    chapter: '',
-                    type: 'MCQ',
-                    page_no: pageNum.toString(),
-                    collection: '',
-                    section: '',
-                    year: q.year || '',
-                    date: '',
-                    exam: '',
-                    previous_of: '',
-                    solution_hin: '',
-                    solution_eng: ''
-                  };
-                });
-              }
-              pageSuccess = true; // Successfully processed
-            } catch (err) {
-              console.error(`Error processing page ${pageNum} (Attempt ${retries + 1}):`, err);
-              retries++;
-              if (retries <= maxRetries) {
-                console.log(`Retrying page ${pageNum}...`);
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
               }
             }
-          }
+          });
 
-          return extracted;
+          const batchData: any[] = JSON.parse(response.text || '[]');
+          return batchData.map((q: any) => ({
+            id: q.id || Math.random().toString(36).substr(2, 9),
+            question_unique_id: q.id,
+            text: q.question_text,
+            options: q.options,
+            correctOption: q.answer,
+            answer: q.answer,
+            status: 'Draft',
+            difficulty: 'Medium',
+            question_hin: '',
+            question_eng: '',
+            subject: '',
+            chapter: '',
+            type: 'MCQ',
+            page_no: pageNum.toString(),
+            collection: '',
+            section: '',
+            year: '',
+            date: '',
+            exam: '',
+            previous_of: '',
+            solution_hin: '',
+            solution_eng: ''
+          }));
         };
 
         const CONCURRENCY_LIMIT = 10;
@@ -358,195 +187,39 @@ DO NOT include any markdown or code blocks. Return ONLY the JSON array.`;
         setStage("Sending to AI for analysis...");
         setProgress(50);
         
-        const prompt = `You are an expert exam question formatter and data cleaner.
+        const prompt = `Extract ALL questions from the following text. For each question, extract: id, question_text (the full question text), options (as an array of strings), answer (A/B/C/D/E). Return a JSON array. Be extremely concise. Use null for empty fields. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.\n\nText:\n${text}`;
 
-Your task is to process raw, messy question text and convert it into a clean, structured JSON format suitable for storing in a question bank.
-
-STRICT INSTRUCTIONS:
-1. Output must be ONLY a valid JSON array.
-2. Remove question numbers (like 1., 2., etc.).
-3. Clean both Hindi and English text properly.
-4. Merge broken lines into one proper readable sentence.
-5. Extract exactly 4 options and label them as A, B, C, D.
-6. Remove brackets around options.
-7. If answer is not clearly given, leave answer field as empty string.
-8. Detect and fill these fields intelligently:
-   - topic: one word like Polity, History, Science, Economy, Geography, Current Affairs
-   - year: if mentioned, else empty string
-   - difficulty: Easy / Medium / Hard
-
-Return a JSON array where each object has these exact fields:
-- id: unique string identifier
-- question_text: clean full question text
-- options: array of exactly 4 strings [A, B, C, D]
-- answer: the correct option letter (A/B/C/D) or empty string
-- topic: one word topic
-- year: year if mentioned or empty string
-- difficulty: Easy/Medium/Hard
-
-DO NOT use literal newlines inside strings, use \\n instead.
-DO NOT include any markdown or code blocks. Return ONLY the JSON array.
-
-Text to process:\n${text}`;
-
-        const response = await fetch(apiEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: selectedModel,
-            messages: [
-              { role: 'user', content: prompt }
-            ],
-            max_tokens: 8192,
-            temperature: 0.1,
-            stream: false
-          })
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: prompt,
+          config: { responseMimeType: "application/json" }
         });
 
-        if (!response.ok) {
-          throw new Error(`NVIDIA API error: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        let responseText = data.choices?.[0]?.message?.content || '[]';
-        
-        // Robust JSON extraction
-        const extractJsonArray = (text: string): string => {
-          let json = text.trim();
-          
-          // Remove markdown code blocks
-          json = json.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-          
-          // Find the outermost array brackets
-          const firstBracket = json.indexOf('[');
-          const lastBracket = json.lastIndexOf(']');
-          if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-            return json.substring(firstBracket, lastBracket + 1);
-          }
-          return json;
-        };
-
-        responseText = extractJsonArray(responseText).trim();
-
-        // Fix common JSON issues
-        let fixedText = '';
-        let inString = false;
-        let escaped = false;
-        for (let i = 0; i < responseText.length; i++) {
-          const char = responseText[i];
-          if (inString) {
-            if (char === '\\') {
-              escaped = !escaped;
-              fixedText += char;
-            } else if (char === '"' && !escaped) {
-              inString = false;
-              fixedText += char;
-            } else if ((char === '\n' || char === '\r') && !escaped) {
-              fixedText += '\\n';
-            } else {
-              fixedText += char;
-              escaped = false;
-            }
-          } else {
-            if (char === '"') {
-              inString = true;
-            }
-            fixedText += char;
-          }
-        }
-        responseText = fixedText;
-
-        // Try to parse, with repair fallback
-        let extracted: any[] = [];
-        try {
-          extracted = JSON.parse(responseText);
-        } catch (e) {
-          console.warn('Initial JSON parse failed, attempting repair...', e);
-          
-          // Repair: find last valid object boundary
-          let repaired = responseText;
-          let lastValidBrace = -1;
-          let depth = 0;
-          let inStr = false;
-          let esc = false;
-          
-          for (let i = 0; i < repaired.length; i++) {
-            const c = repaired[i];
-            if (inStr) {
-              if (c === '\\' && !esc) esc = true;
-              else if (c === '"' && !esc) inStr = false;
-              else esc = false;
-            } else {
-              if (c === '"') { inStr = true; esc = false; }
-              else if (c === '{') depth++;
-              else if (c === '}') {
-                depth--;
-                if (depth === 0) lastValidBrace = i;
-              }
-            }
-          }
-          
-          if (lastValidBrace > 0) {
-            repaired = repaired.substring(0, lastValidBrace + 1) + ']';
-            // Remove trailing comma before ]
-            repaired = repaired.replace(/,\s*\]/g, ']');
-            try {
-              extracted = JSON.parse(repaired);
-            } catch (e2) {
-              console.error('JSON repair also failed:', e2);
-              extracted = [];
-            }
-          } else {
-            console.error('Could not repair JSON response');
-            extracted = [];
-          }
-        }
-        allExtractedQuestions = extracted.map((q: any) => {
-          // Parse options array into individual fields
-          const opts = Array.isArray(q.options) ? q.options : [];
-          const [opt1, opt2, opt3, opt4] = opts;
-          
-          // Determine if question is Hindi or English
-          const isHindi = /[\u0900-\u097F]/.test(q.question_text || '');
-          const questionText = q.question_text || '';
-          
-          return {
-            id: q.id || Math.random().toString(36).substr(2, 9),
-            question_unique_id: q.id || '',
-            // Legacy fields for UI compatibility
-            text: questionText,
-            options: opts,
-            correctOption: q.answer || '',
-            // New structured fields
-            question_hin: isHindi ? questionText : '',
-            question_eng: !isHindi ? questionText : '',
-            option1_hin: isHindi ? (opt1 || '') : '',
-            option1_eng: !isHindi ? (opt1 || '') : '',
-            option2_hin: isHindi ? (opt2 || '') : '',
-            option2_eng: !isHindi ? (opt2 || '') : '',
-            option3_hin: isHindi ? (opt3 || '') : '',
-            option3_eng: !isHindi ? (opt3 || '') : '',
-            option4_hin: isHindi ? (opt4 || '') : '',
-            option4_eng: !isHindi ? (opt4 || '') : '',
-            answer: q.answer || '',
-            status: 'Draft',
-            difficulty: q.difficulty || 'Medium',
-            subject: q.topic || '',
-            chapter: '',
-            type: 'MCQ',
-            page_no: '1',
-            collection: '',
-            section: '',
-            year: q.year || '',
-            date: '',
-            exam: '',
-            previous_of: '',
-            solution_hin: '',
-            solution_eng: ''
-          };
-        });
+        const extracted: any[] = JSON.parse(response.text || '[]');
+        allExtractedQuestions = extracted.map((q: any) => ({
+          id: q.id || Math.random().toString(36).substr(2, 9),
+          question_unique_id: q.id,
+          text: q.question_text,
+          options: q.options,
+          correctOption: q.answer,
+          answer: q.answer,
+          status: 'Draft',
+          difficulty: 'Medium',
+          question_hin: '',
+          question_eng: '',
+          subject: '',
+          chapter: '',
+          type: 'MCQ',
+          page_no: '1',
+          collection: '',
+          section: '',
+          year: '',
+          date: '',
+          exam: '',
+          previous_of: '',
+          solution_hin: '',
+          solution_eng: ''
+        }));
       }
 
       onExtractionComplete(allExtractedQuestions, file.name);
@@ -562,19 +235,7 @@ Text to process:\n${text}`;
 
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-6">
-      {/* AI Model Selector */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <AIModelSelector 
-          selectedModel={selectedModel} 
-          onModelChange={(model, provider) => {
-            setSelectedModel(model);
-            setSelectedProvider(provider);
-          }}
-          variant="compact"
-        />
-      </div>
-
+    <div className="w-full max-w-2xl mx-auto">
       <div 
         className={`relative border-2 border-dashed rounded-xl p-10 text-center transition-all duration-200 ${
           file ? 'border-blue-400 bg-blue-50/50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'

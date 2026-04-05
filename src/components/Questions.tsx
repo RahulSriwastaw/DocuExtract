@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AIModelSelector from './AIModelSelector';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -24,8 +23,6 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
   const [testQuestions, setTestQuestions] = useState<Question[]>([]);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiTask, setAiTask] = useState('variations');
-  const [aiModel, setAiModel] = useState('deepseek-ai/deepseek-v3.2');
-  const [aiProvider, setAiProvider] = useState('nvidia');
   
   // Save Modal States
   const [saveDestinations, setSaveDestinations] = useState<string[]>(['server']);
@@ -270,12 +267,13 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
     if (selectedIds.length === 0) return alert('Please select at least one question.');
     
     const selectedQuestions = questions.filter(q => selectedIds.includes(q.id));
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 5; // Reduced batch size
     const processedResults: Question[] = [];
     
     try {
       setIsSaving(true);
-      const apiEndpoint = aiProvider === 'openrouter' ? '/api/openrouter-chat' : '/api/nvidia-chat';
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       
       for (let i = 0; i < selectedQuestions.length; i += BATCH_SIZE) {
         const batch = selectedQuestions.slice(i, i + BATCH_SIZE);
@@ -284,41 +282,32 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
         
         const callAi = async (retries = 3, delay = 2000): Promise<any> => {
           try {
-            const response = await fetch(apiEndpoint, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                model: aiModel,
-                messages: [
-                  { role: 'user', content: prompt }
-                ],
-                max_tokens: 8192,
-                temperature: 0.1,
-                stream: false
-              })
+            return await ai.models.generateContent({
+              model: "gemini-3-flash-preview",
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
             });
-
-            if (!response.ok) {
-              throw new Error(`NVIDIA API error: ${response.status} ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            return data.choices?.[0]?.message?.content || '[]';
           } catch (error: any) {
             // Check if error is rate limit (429)
-            if (error.status === 429 && retries > 0) {
-              console.warn(`Rate limited, retrying in ${delay}ms...`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              return callAi(retries - 1, delay * 2);
+            if (error.status === 429) {
+              const errorMessage = error.message || '';
+              // If it's a hard quota limit, don't retry
+              if (errorMessage.includes('exceeded your current quota')) {
+                throw error;
+              }
+              // If it's a temporary rate limit, retry
+              if (retries > 0) {
+                console.warn(`Rate limited, retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return callAi(retries - 1, delay * 2);
+              }
             }
             throw error;
           }
         };
         
-        const responseText = await callAi();
-        const processedBatch: Question[] = JSON.parse(responseText);
+        const response = await callAi();
+        const processedBatch: Question[] = JSON.parse(response.text || '[]');
         processedResults.push(...processedBatch);
       }
       
@@ -331,14 +320,52 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
       alert('Bulk AI Edit applied successfully!');
     } catch (error: any) {
       console.error('Bulk AI Edit failed:', error);
-      if (error.status === 429) {
-        alert('Bulk AI Edit failed: Daily quota exhausted. Please check your plan and billing details in Google AI Studio.');
+      const errorMessage = error.message || '';
+      if (error.status === 429 || errorMessage.includes('429')) {
+        if (errorMessage.includes('exceeded your current quota')) {
+          alert('Bulk AI Edit failed: Daily quota exhausted. Please check your plan and billing details in Google AI Studio.');
+        } else {
+          alert('Bulk AI Edit failed: Rate limit exceeded. Please try again in a few minutes.');
+        }
       } else {
-        alert('Bulk AI Edit failed: ' + error.message);
+        alert('Bulk AI Edit failed: ' + errorMessage);
       }
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleExportToWord = async () => {
+    const selectedQuestions = questions.filter(q => selectedIds.includes(q.id));
+    if (selectedQuestions.length === 0) return alert('Please select questions to export.');
+
+    const { Document, Packer, Paragraph, TextRun } = await import('docx');
+    const { saveAs } = await import('file-saver');
+
+    const children = selectedQuestions.flatMap((q, i) => [
+      new Paragraph({
+        children: [new TextRun({ text: `Question ${i + 1}: ${q.text}`, bold: true })],
+        spacing: { after: 200 }
+      }),
+      ...q.options.map((opt, j) => new Paragraph({
+        children: [new TextRun({ text: `${String.fromCharCode(65 + j)}. ${opt}` })],
+        spacing: { after: 100 }
+      })),
+      new Paragraph({
+        children: [new TextRun({ text: `Answer: ${q.answer}`, bold: true })],
+        spacing: { after: 400 }
+      })
+    ]);
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: children
+      }]
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, "questions.docx");
   };
 
   return (
@@ -358,6 +385,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
             <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]"><Tag className="w-3 h-3 mr-1" /> Tag</Button>
             <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]"><Edit className="w-3 h-3 mr-1" /> Edit</Button>
             <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setIsAiModalOpen(true)}><Wand2 className="w-3 h-3 mr-1" /> AI</Button>
+            <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={handleExportToWord}><FileText className="w-3 h-3 mr-1" /> Export Word</Button>
             <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setIsAirtableModalOpen(true)}><Copy className="w-3 h-3 mr-1" /> Save</Button>
             <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setIsSetModalOpen(true)}><FolderPlus className="w-3 h-3 mr-1" /> Set</Button>
             <Button variant="destructive" size="sm" className="h-7 px-2 text-[10px] text-white" onClick={() => setQuestions(prev => prev.filter(q => !selectedIds.includes(q.id)))}><Trash2 className="w-3 h-3 mr-1" /> Delete</Button>
@@ -444,16 +472,6 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
             <DialogTitle>Bulk AI Edit</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* AI Model Selector */}
-            <AIModelSelector 
-              selectedModel={aiModel} 
-              onModelChange={(model, provider) => {
-                setAiModel(model);
-                setAiProvider(provider);
-              }}
-              variant="compact"
-            />
-            
             <Select value={aiTask} onValueChange={setAiTask}>
               <SelectTrigger>
                 <SelectValue placeholder="Select AI Task" />
@@ -622,45 +640,45 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredQuestions.map((q, idx) => (
-            <div key={q.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col relative group">
+            <div key={q.id} className="bg-card border border-border rounded-[12px] p-5 shadow-sm hover:shadow-md transition-all flex flex-col relative group">
               {/* Top Row: Checkbox, Index, Status */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Checkbox checked={selectedIds.includes(q.id)} onCheckedChange={() => toggleSelect(q.id)} />
-                  <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[10px]">
+                  <div className="w-6 h-6 rounded-full bg-primary-light text-primary flex items-center justify-center font-bold text-[10px]">
                     {idx + 1}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
-                  <div className={`w-2 h-2 rounded-full ${q.status === 'Published' ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-                  <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wider">{q.status}</span>
+                <div className="flex items-center gap-2 bg-slate-50 px-2 py-0.5 rounded-full border border-border">
+                  <div className={`w-2 h-2 rounded-full ${q.status === 'Published' ? 'bg-success' : 'bg-slate-300'}`}></div>
+                  <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider">{q.status}</span>
                 </div>
               </div>
 
               {/* Badges */}
               <div className="flex flex-col items-center gap-1.5 mb-4">
-                <span className="px-3 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[9px] font-bold uppercase tracking-tight">
+                <span className="px-3 py-0.5 bg-primary-light text-primary rounded-full text-[9px] font-bold uppercase tracking-tight">
                   {q.type || 'Single Choice'}
                 </span>
-                <span className="px-3 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[9px] font-bold uppercase tracking-tight">
+                <span className="px-3 py-0.5 bg-primary-light text-primary rounded-full text-[9px] font-bold uppercase tracking-tight">
                   Page {q.page_no || 1}
                 </span>
               </div>
 
               {/* Question Text */}
               <div className="mb-4 flex-1">
-                <p className="text-xs text-slate-800 leading-relaxed font-medium line-clamp-3">
+                <p className="text-sm text-text-body leading-relaxed font-medium line-clamp-3">
                   {q.text}
                 </p>
               </div>
 
               {/* Options */}
               <div className="mb-4 space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Options:</span>
+                <span className="text-[10px] font-bold text-text-label uppercase tracking-wider block mb-1">Options:</span>
                 <div className="space-y-1">
                   {q.options.slice(0, 4).map((opt, i) => (
-                    <div key={i} className={`text-[11px] flex items-center gap-2 ${opt === q.correctOption ? 'text-green-700 font-bold' : 'text-slate-600'}`}>
-                      <span className="text-[10px] font-bold text-slate-400">
+                    <div key={i} className={`text-[12px] flex items-center gap-2 ${opt === q.correctOption ? 'text-success font-bold' : 'text-text-body'}`}>
+                      <span className="text-[10px] font-bold text-text-label">
                         {String.fromCharCode(65 + i)}.
                       </span>
                       <span className="truncate">{opt}</span>
@@ -669,7 +687,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
                 </div>
               </div>
 
-              <div className="h-px bg-slate-100 w-full mb-3"></div>
+              <div className="h-px bg-border w-full mb-3"></div>
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-2 mb-3">
@@ -677,29 +695,29 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
                   onClick={() => handleEditClick(q)} 
                   variant="outline" 
                   size="sm" 
-                  className="h-7 border-yellow-200 bg-white text-yellow-600 hover:bg-yellow-50 hover:border-yellow-300 gap-1.5 text-[10px] font-bold"
+                  className="h-8 border-border bg-white text-text-body hover:bg-slate-50 gap-1.5 text-[11px] font-semibold rounded-[8px]"
                 >
-                  <Edit className="w-3 h-3" />
+                  <Edit className="w-3.5 h-3.5" />
                   Edit
                 </Button>
                 <Button 
                   onClick={() => handleDelete(q.id)} 
                   variant="outline" 
                   size="sm" 
-                  className="h-7 border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 gap-1.5 text-[10px] font-bold"
+                  className="h-8 border-border bg-white text-danger hover:bg-red-50 gap-1.5 text-[11px] font-semibold rounded-[8px]"
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3.5 h-3.5" />
                   Delete
                 </Button>
               </div>
 
               {/* Footer Badges */}
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-md border border-green-100 text-[9px] font-bold">
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-text-muted rounded-full border border-border text-[9px] font-bold">
                   <BookOpen className="w-2.5 h-2.5" />
                   Question Bank
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md border border-cyan-100 text-[9px] font-bold">
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-text-muted rounded-full border border-border text-[9px] font-bold">
                   <Layout className="w-2.5 h-2.5" />
                   1 Test
                 </div>
@@ -710,35 +728,35 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
       ) : (
         <div className="space-y-2">
           {filteredQuestions.map((q, idx) => (
-            <div key={q.id} className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex items-center gap-4 group">
+            <div key={q.id} className="bg-card border border-border rounded-[12px] p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-4 group">
               <div className="flex items-center gap-3 shrink-0">
                 <Checkbox checked={selectedIds.includes(q.id)} onCheckedChange={() => toggleSelect(q.id)} />
-                <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
+                <div className="w-8 h-8 rounded-full bg-primary-light text-primary flex items-center justify-center font-bold text-xs">
                   {idx + 1}
                 </div>
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className={`w-2 h-2 rounded-full ${q.status === 'Published' ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{q.status}</span>
-                  <span className="text-[10px] text-slate-400">•</span>
-                  <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">{q.type || 'Single Choice'}</span>
-                  <span className="text-[10px] text-slate-400">•</span>
-                  <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">Page {q.page_no || 1}</span>
+                  <div className={`w-2 h-2 rounded-full ${q.status === 'Published' ? 'bg-success' : 'bg-slate-300'}`}></div>
+                  <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{q.status}</span>
+                  <span className="text-[10px] text-text-label">•</span>
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-tight">{q.type || 'Single Choice'}</span>
+                  <span className="text-[10px] text-text-label">•</span>
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-tight">Page {q.page_no || 1}</span>
                 </div>
-                <p className="text-sm text-slate-800 font-medium truncate">
+                <p className="text-sm text-text-body font-medium truncate">
                   {q.text}
                 </p>
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
                 <div className="hidden md:flex gap-2">
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-md border border-green-100 text-[9px] font-bold">
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-text-muted rounded-full border border-border text-[9px] font-bold">
                     <BookOpen className="w-2.5 h-2.5" />
                     Bank
                   </div>
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md border border-cyan-100 text-[9px] font-bold">
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-text-muted rounded-full border border-border text-[9px] font-bold">
                     <Layout className="w-2.5 h-2.5" />
                     1 Test
                   </div>
@@ -748,7 +766,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
                     onClick={() => handleEditClick(q)} 
                     variant="outline" 
                     size="sm" 
-                    className="h-7 w-7 p-0 border-yellow-200 bg-white text-yellow-600 hover:bg-yellow-50 hover:border-yellow-300"
+                    className="h-8 w-8 p-0 border-border bg-white text-text-body hover:bg-slate-50 rounded-[8px]"
                     title="Edit"
                   >
                     <Edit className="w-3.5 h-3.5" />
@@ -757,7 +775,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
                     onClick={() => handleDelete(q.id)} 
                     variant="outline" 
                     size="sm" 
-                    className="h-7 w-7 p-0 border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300"
+                    className="h-8 w-8 p-0 border-border bg-white text-danger hover:bg-red-50 rounded-[8px]"
                     title="Delete"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

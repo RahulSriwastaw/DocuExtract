@@ -15,6 +15,6 @@ View your app in AI Studio: https://ai.studio/apps/8d2e919e-99dc-41e7-aca2-94e7b
 
 1. Install dependencies:
    `npm install`
-2. Set the `NVIDIA_API_KEY` in [.env.local](.env.local) to your NVIDIA API key (get it from https://build.nvidia.com)
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`

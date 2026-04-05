@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { GoogleGenAI } from '@google/genai';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Folder, Loader2, Database, Search, ArrowLeft, FileText, RefreshCw, Clock, ExternalLink, BookOpen, Layout, LayoutGrid, List, Edit, Trash2, Tag, Copy, Plus, Check, ChevronDown, X, AlertCircle, ChevronRight, FolderPlus, Move, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { safeJson } from '../utils';
 import QuestionEditModal from './QuestionEditModal';
-import AIModelSelector from './AIModelSelector';
 import { Question } from '../types';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -33,8 +33,6 @@ export default function QuestionBank() {
   const [aiEditAction, setAiEditAction] = useState('');
   const [aiCustomPrompt, setAiCustomPrompt] = useState('');
   const [aiLanguage, setAiLanguage] = useState('Hindi');
-  const [aiModel, setAiModel] = useState('deepseek-ai/deepseek-v3.2');
-  const [aiProvider, setAiProvider] = useState('nvidia');
   const [bulkTag, setBulkTag] = useState('');
   const [testName, setTestName] = useState('');
   const [isSelectDropdownOpen, setIsSelectDropdownOpen] = useState(false);
@@ -520,8 +518,8 @@ export default function QuestionBank() {
     }
     
     try {
-      // Use proxy endpoint based on selected provider
-      const apiEndpoint = aiProvider === 'openrouter' ? '/api/openrouter-chat' : '/api/nvidia-chat';
+      // Use process.env.GEMINI_API_KEY as per instructions
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
       
       const batchSize = 3; // Reduced batch size to be safer
       const delay = 3000; // Increased delay to 3 seconds
@@ -542,31 +540,14 @@ export default function QuestionBank() {
           }
 
           console.log('Prompt:', prompt);
-          
-          const response = await fetch(apiEndpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: aiModel,
-              messages: [
-                { role: 'user', content: prompt }
-              ],
-              max_tokens: 4096,
-              temperature: 0.1,
-              stream: false
-            })
+          const response = await ai.models.generateContent({
+            model: 'gemini-3.1-flash-lite-preview',
+            contents: prompt,
+            config: { responseMimeType: 'application/json' }
           });
-
-          if (!response.ok) {
-            throw new Error(`NVIDIA API error: ${response.status} ${response.statusText}`);
-          }
-
-          const data = await response.json();
-          const responseText = data.choices?.[0]?.message?.content || '{}';
-          console.log('AI Response:', responseText);
-          const updatedQ = JSON.parse(responseText || '{}');
+          
+          console.log('AI Response:', response.text);
+          const updatedQ = JSON.parse(response.text || '{}');
           return { ...q, ...updatedQ, id: q.id };
         }));
         
@@ -1321,16 +1302,6 @@ export default function QuestionBank() {
               </div>
               <div className="p-6 space-y-4">
                 <p className="text-xs text-slate-500">Apply an AI-powered edit to {selectedIds.size} selected questions in parallel</p>
-                
-                {/* AI Model Selector */}
-                <AIModelSelector 
-                  selectedModel={aiModel} 
-                  onModelChange={(model, provider) => {
-                    setAiModel(model);
-                    setAiProvider(provider);
-                  }}
-                  variant="compact"
-                />
                 
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Edit Type *</label>
