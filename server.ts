@@ -262,6 +262,7 @@ async function startServer() {
       }
 
       const data = await response.json();
+      console.log('Airtable API response tables:', JSON.stringify(data.tables, null, 2));
       await fs.writeFile(cacheFile, JSON.stringify(data.tables));
       res.json({ tables: data.tables, source: 'airtable' });
     } catch (error: any) {
@@ -576,6 +577,7 @@ async function startServer() {
 
       const base = new Airtable({ apiKey }).base(baseId);
       const records = await base(tableName).select().all();
+      console.log(`Fetched ${records.length} records from Airtable for table ${tableName}`);
       const formatted = records.map(r => ({ id: r.id, ...(r as any).fields }));
       
       // 3. Sync to Supabase in background
@@ -882,6 +884,7 @@ async function startServer() {
         sync_code: q.sync_code || '',
         error_report: q.error_report || '',
         error_description: q.error_description || '',
+        image: q.image || '',
         updated_at: new Date().toISOString()
       }));
 
@@ -1035,6 +1038,7 @@ async function startServer() {
           previous_of: question.previous_of || '',
           action: 'UPDATED',
           current_status: question.status || question.current_status || 'Draft',
+          image: question.image || '',
           updated_at: new Date().toISOString()
         })
         .eq('id', question.id);
@@ -1124,6 +1128,44 @@ async function startServer() {
       res.json({ success: true });
     } catch (error: any) {
       handleSupabaseError(error, res, "rename folder");
+    }
+  });
+
+  app.post("/api/delete-question", async (req, res) => {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: "ID is required" });
+
+    try {
+      const { error } = await supabase
+        .from('questions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete error:", error);
+      res.status(500).json({ error: error.message || "Failed to delete question" });
+    }
+  });
+
+  app.post("/api/bulk-delete-questions", async (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "IDs are required" });
+    }
+
+    try {
+      const { error } = await supabase
+        .from('questions')
+        .delete()
+        .in('id', ids);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Bulk delete error:", error);
+      res.status(500).json({ error: error.message || "Failed to bulk delete questions" });
     }
   });
 

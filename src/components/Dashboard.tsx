@@ -38,7 +38,7 @@ export default function Dashboard({ documents, onDocumentClick, onExtractionComp
           Recent Extractions
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {documents.map((doc) => (
+          {(documents || []).map((doc) => (
             <Card 
               key={doc.id} 
               className="group cursor-pointer hover:shadow-md hover:border-blue-200 transition-all duration-200 overflow-hidden" 

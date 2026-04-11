@@ -57,6 +57,8 @@ export interface Question {
   status: 'Draft' | 'Published';
   difficulty: 'Easy' | 'Medium' | 'Hard';
   image?: string;
+  topic?: string;
+  tags?: string[];
 }
 
 export interface Document {

@@ -37,14 +37,16 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
     fetchTables();
   }, []);
 
-  const fetchTables = async (forceSync = false) => {
+  const fetchTables = async () => {
     setIsLoadingCloud(true);
     try {
-      const res = await fetch(`/api/get-airtable-tables${forceSync ? '?forceSync=true' : ''}`);
+      const res = await fetch('/api/get-server-folders');
       const data = await safeJson(res);
-      setCloudTables(data.tables || []);
+      console.log('Fetched server folders:', data.folders);
+      // Map folders to the expected {id, name} format for cloudTables
+      setCloudTables(data.folders || []);
     } catch (e) {
-      console.error(e);
+      console.error('Error fetching server folders:', e);
     }
     setIsLoadingCloud(false);
   };
@@ -73,7 +75,7 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
     if (selectedCloudTable) {
       await fetchCloudRecords(selectedCloudTable, true);
     } else {
-      await fetchTables(true);
+      await fetchTables();
     }
   };
 
@@ -98,7 +100,7 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
 
   const filteredCloudRecords = useMemo(() => {
     return cloudRecords.filter(r => {
-      if (cloudSearch && !JSON.stringify(r).toLowerCase().includes(cloudSearch.toLowerCase())) return false;
+      if (cloudSearch && !JSON.stringify(r).toLowerCase().includes((cloudSearch || '').toLowerCase())) return false;
       for (const [field, value] of Object.entries(cloudFilters)) {
         if (value && value !== 'all' && String(r[field]) !== value) return false;
       }
@@ -209,7 +211,7 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
                   <SelectValue placeholder="Select Table..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {cloudTables.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
+                  {(cloudTables || []).map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Button 
@@ -238,7 +240,7 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All {field.replace(/_/g, ' ')}</SelectItem>
-                    {filterableFields[field].map(val => <SelectItem key={val} value={val}>{val}</SelectItem>)}
+                    {(filterableFields[field] || []).map(val => <SelectItem key={val} value={val}>{val}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

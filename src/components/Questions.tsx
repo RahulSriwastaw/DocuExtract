@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Question, QuestionSet } from '../types';
 import { Search, Trash2, Edit, Tag, Copy, Wand2, FolderPlus, AlertCircle, ExternalLink, RefreshCw, FileText, Layout, BookOpen, LayoutGrid, List } from 'lucide-react';
 import { safeJson } from '../utils';
-import QuestionEditModal from './QuestionEditModal';
 
 export default function Questions({ questions: initialQuestions, onEdit }: { questions: Question[], onEdit: (q: Question) => void }) {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
@@ -18,8 +17,14 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isBulkMetadataModalOpen, setIsBulkMetadataModalOpen] = useState(false);
   const [isAirtableModalOpen, setIsAirtableModalOpen] = useState(false);
   const [isSetModalOpen, setIsSetModalOpen] = useState(false);
+  
+  // Bulk Metadata State
+  const [bulkSubject, setBulkSubject] = useState('');
+  const [bulkTopic, setBulkTopic] = useState('');
+  const [bulkTags, setBulkTags] = useState('');
   const [testQuestions, setTestQuestions] = useState<Question[]>([]);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiTask, setAiTask] = useState('variations');
@@ -43,64 +48,19 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
   const [availableSets, setAvailableSets] = useState<QuestionSet[]>([]);
   const [selectedSetId, setSelectedSetId] = useState<string>('');
   const [newSetName, setNewSetName] = useState('');
+  const [newSetFolderId, setNewSetFolderId] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Edit Modal States
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingIndex, setEditingIndex] = useState(-1);
 
   const handleEditClick = (q: Question) => {
-    const idx = questions.findIndex(item => item.id === q.id);
-    setEditingIndex(idx);
-    setEditingQuestion({ ...q });
-    setIsEditModalOpen(true);
-  };
-
-  const handleModalNext = () => {
-    if (editingIndex < filteredQuestions.length - 1) {
-      const nextIdx = editingIndex + 1;
-      setEditingIndex(nextIdx);
-      setEditingQuestion({ ...filteredQuestions[nextIdx] });
-    }
-  };
-
-  const handleModalPrevious = () => {
-    if (editingIndex > 0) {
-      const prevIdx = editingIndex - 1;
-      setEditingIndex(prevIdx);
-      setEditingQuestion({ ...filteredQuestions[prevIdx] });
-    }
-  };
-
-  const handleModalSave = async (updated: Question) => {
-    try {
-      const response = await fetch('/api/update-question', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: updated })
-      });
-      
-      if (!response.ok) throw new Error('Failed to update question');
-      
-      setQuestions(prev => {
-        const updatedList = [...prev];
-        const idx = updatedList.findIndex(q => q.id === updated.id);
-        if (idx !== -1) updatedList[idx] = updated;
-        return updatedList;
-      });
-      
-      setIsEditModalOpen(false);
-      setEditingQuestion(null);
-      setEditingIndex(-1);
-    } catch (error) {
-      console.error('Error updating question:', error);
-      alert('Failed to update question');
-    }
+    onEdit(q);
   };
 
   useEffect(() => {
-    if (isAirtableModalOpen) {
+    if (isAirtableModalOpen || isSetModalOpen) {
       setIsLoadingTables(true);
       setServerError(null);
       
@@ -125,7 +85,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
         setIsLoadingTables(false);
       });
     }
-  }, [isAirtableModalOpen]);
+  }, [isAirtableModalOpen, isSetModalOpen]);
 
   useEffect(() => {
     if (isSetModalOpen) {
@@ -139,7 +99,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
   const filteredQuestions = useMemo(() => {
     return questions.filter(q => 
       (statusFilter === 'All' || q.status === statusFilter) &&
-      (q.text.toLowerCase().includes(search.toLowerCase()))
+      ((q.text || '').toLowerCase().includes((search || '').toLowerCase()))
     );
   }, [questions, search, statusFilter]);
 
@@ -175,6 +135,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
       const newSet: QuestionSet = {
         id: Date.now().toString(),
         name: newSetName,
+        folderId: newSetFolderId || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         questions: selectedQuestions
@@ -261,6 +222,30 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleBulkMetadataEdit = () => {
+    if (selectedIds.length === 0) return alert('Please select at least one question.');
+    
+    const tagsArray = bulkTags.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
+    
+    setQuestions(prev => prev.map(q => {
+      if (selectedIds.includes(q.id)) {
+        return {
+          ...q,
+          subject: bulkSubject || q.subject,
+          topic: bulkTopic || q.topic,
+          tags: tagsArray.length > 0 ? tagsArray : q.tags
+        };
+      }
+      return q;
+    }));
+    
+    setIsBulkMetadataModalOpen(false);
+    setBulkSubject('');
+    setBulkTopic('');
+    setBulkTags('');
+    alert('Bulk Metadata Edit applied successfully!');
   };
 
   const handleBulkAiEdit = async () => {
@@ -383,7 +368,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
         {selectedIds.length > 0 && (
           <div className="flex gap-1.5 border-r pr-2 border-gray-300">
             <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]"><Tag className="w-3 h-3 mr-1" /> Tag</Button>
-            <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]"><Edit className="w-3 h-3 mr-1" /> Edit</Button>
+            <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setIsBulkMetadataModalOpen(true)}><Edit className="w-3 h-3 mr-1" /> Edit Metadata</Button>
             <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setIsAiModalOpen(true)}><Wand2 className="w-3 h-3 mr-1" /> AI</Button>
             <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={handleExportToWord}><FileText className="w-3 h-3 mr-1" /> Export Word</Button>
             <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setIsAirtableModalOpen(true)}><Copy className="w-3 h-3 mr-1" /> Save</Button>
@@ -448,19 +433,59 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
               </SelectContent>
             </Select>
             {selectedSetId === 'new' && (
-              <div className="space-y-2">
-                <Label>New Set Name</Label>
-                <Input 
-                  placeholder="e.g., Physics Chapter 1" 
-                  value={newSetName} 
-                  onChange={(e) => setNewSetName(e.target.value)}
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>New Set Name</Label>
+                  <Input 
+                    placeholder="e.g., Physics Chapter 1" 
+                    value={newSetName} 
+                    onChange={(e) => setNewSetName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Folder</Label>
+                  <Select value={newSetFolderId} onValueChange={setNewSetFolderId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a folder..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {serverFolders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSetModalOpen(false)}>Cancel</Button>
             <Button onClick={handleAddToSet} disabled={!selectedSetId || (selectedSetId === 'new' && !newSetName)}>Add to Set</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Metadata Edit Modal */}
+      <Dialog open={isBulkMetadataModalOpen} onOpenChange={setIsBulkMetadataModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Edit Metadata</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Input placeholder="e.g. Math" value={bulkSubject} onChange={(e) => setBulkSubject(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Topic</Label>
+              <Input placeholder="e.g. Algebra" value={bulkTopic} onChange={(e) => setBulkTopic(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tags (Comma separated)</Label>
+              <Input placeholder="e.g. easy, important, exam" value={bulkTags} onChange={(e) => setBulkTags(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBulkMetadataModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleBulkMetadataEdit}>Apply Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -676,7 +701,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
               <div className="mb-4 space-y-1">
                 <span className="text-[10px] font-bold text-text-label uppercase tracking-wider block mb-1">Options:</span>
                 <div className="space-y-1">
-                  {q.options.slice(0, 4).map((opt, i) => (
+                  {(q.options || []).slice(0, 4).map((opt, i) => (
                     <div key={i} className={`text-[12px] flex items-center gap-2 ${opt === q.correctOption ? 'text-success font-bold' : 'text-text-body'}`}>
                       <span className="text-[10px] font-bold text-text-label">
                         {String.fromCharCode(65 + i)}.
@@ -793,16 +818,6 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
         </div>
       )}
 
-      <QuestionEditModal 
-        isOpen={isEditModalOpen}
-        onOpenChange={setIsEditModalOpen}
-        question={editingQuestion}
-        index={editingIndex}
-        total={filteredQuestions.length}
-        onSave={handleModalSave}
-        onNext={handleModalNext}
-        onPrevious={handleModalPrevious}
-      />
     </div>
   );
 }

@@ -17,6 +17,30 @@ const STAGES = [
   "Finalizing results..."
 ];
 
+const safeJsonParse = (text: string) => {
+  let cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    console.warn("JSON parse failed, attempting to salvage truncated JSON...");
+    try {
+      // Find the last complete object
+      const lastBrace = cleaned.lastIndexOf('}');
+      if (lastBrace !== -1) {
+        let salvaged = cleaned.substring(0, lastBrace + 1);
+        // If it started as an array, close the array
+        if (cleaned.startsWith('[')) {
+            salvaged += ']';
+        }
+        return JSON.parse(salvaged);
+      }
+    } catch (e2) {
+      console.error("Could not salvage JSON:", e2);
+    }
+    throw e; // Throw original error if salvage fails
+  }
+};
+
 const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete }, ref) => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -86,63 +110,94 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
           
           const pageBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-          const prompt = `Extract ALL questions from this page. For each question, extract: id, question_text (the full question text), options (as an array of strings), answer (A/B/C/D/E). Return a JSON array. Be extremely concise. Use null for empty fields. If there are no questions on this page, return an empty array []. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.`;
+          const prompt = `CRITICAL INSTRUCTION: You MUST extract EVERY SINGLE QUESTION from this page. Do not skip, summarize, or omit any questions. There are typically around 20-25 questions per page. 
 
-          const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: {
-              parts: [
-                { inlineData: { mimeType: "image/jpeg", data: pageBase64 } },
-                { text: prompt }
-              ]
-            },
-            config: {
-              responseMimeType: "application/json",
-              maxOutputTokens: 8192,
-              responseSchema: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    id: { type: Type.STRING },
-                    question_text: { type: Type.STRING },
-                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    answer: { type: Type.STRING }
-                  },
-                  required: ["id", "question_text", "options", "answer"]
+The page has a two-column layout. Scan the left column completely from top to bottom, then scan the right column completely from top to bottom.
+
+For each question, extract:
+- id: The question number (e.g., "Q.1", "Q.2").
+- question_text: The full question text.
+- options: An array of strings containing the options.
+- answer: The correct option (A/B/C/D/E), which is usually marked with a green tick or similar indicator.
+
+Return a JSON array of objects. Be extremely concise. Use null for empty fields. If there are no questions on this page, return an empty array []. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.`;
+
+          let retries = 3;
+          while (retries > 0) {
+            try {
+              const response = await ai.models.generateContent({
+                model: "gemini-2.5-pro",
+                contents: {
+                  parts: [
+                    { inlineData: { mimeType: "image/jpeg", data: pageBase64 } },
+                    { text: prompt }
+                  ]
+                },
+                config: {
+                  responseMimeType: "application/json",
+                  maxOutputTokens: 8192,
+                  responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        id: { type: Type.STRING },
+                        question_text: { type: Type.STRING },
+                        options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        answer: { type: Type.STRING }
+                      },
+                      required: ["id", "question_text", "options", "answer"]
+                    }
+                  }
                 }
+              });
+
+              const batchData: any[] = safeJsonParse(response.text || '[]');
+              return batchData.map((q: any) => ({
+                id: q.id || Math.random().toString(36).substr(2, 9),
+                question_unique_id: q.id,
+                text: q.question_text,
+                options: q.options,
+                correctOption: q.answer,
+                answer: q.answer,
+                status: 'Draft',
+                difficulty: 'Medium',
+                question_hin: '',
+                question_eng: '',
+                subject: '',
+                chapter: '',
+                type: 'MCQ',
+                page_no: pageNum.toString(),
+                collection: '',
+                section: '',
+                year: '',
+                date: '',
+                exam: '',
+                previous_of: '',
+                solution_hin: '',
+                solution_eng: ''
+              }));
+            } catch (err: any) {
+              const isHardQuota = err?.message?.includes('billing details') || err?.message?.includes('current quota');
+              const isRateLimit = !isHardQuota && (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota') || err?.error?.code === 429 || err?.status === 'RESOURCE_EXHAUSTED');
+              if (isRateLimit && retries > 1) {
+                const waitTime = (4 - retries) * 15000;
+                console.warn(`Rate limit hit on page ${pageNum}. Waiting ${waitTime/1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                retries--;
+              } else {
+                console.error(`Failed to process page ${pageNum}:`, err);
+                if (isHardQuota) {
+                  throw new Error("Gemini API quota exhausted. Please check your billing details or wait for the daily reset.");
+                }
+                return []; // Return empty array instead of failing the whole batch
               }
             }
-          });
-
-          const batchData: any[] = JSON.parse(response.text || '[]');
-          return batchData.map((q: any) => ({
-            id: q.id || Math.random().toString(36).substr(2, 9),
-            question_unique_id: q.id,
-            text: q.question_text,
-            options: q.options,
-            correctOption: q.answer,
-            answer: q.answer,
-            status: 'Draft',
-            difficulty: 'Medium',
-            question_hin: '',
-            question_eng: '',
-            subject: '',
-            chapter: '',
-            type: 'MCQ',
-            page_no: pageNum.toString(),
-            collection: '',
-            section: '',
-            year: '',
-            date: '',
-            exam: '',
-            previous_of: '',
-            solution_hin: '',
-            solution_eng: ''
-          }));
+          }
+          return [];
         };
 
-        const CONCURRENCY_LIMIT = 10;
+        const CONCURRENCY_LIMIT = 3;
         for (let i = 1; i <= total; i += CONCURRENCY_LIMIT) {
           const batchPromises: Promise<Question[]>[] = [];
           for (let j = 0; j < CONCURRENCY_LIMIT && i + j <= total; j++) {
@@ -187,15 +242,48 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
         setStage("Sending to AI for analysis...");
         setProgress(50);
         
-        const prompt = `Extract ALL questions from the following text. For each question, extract: id, question_text (the full question text), options (as an array of strings), answer (A/B/C/D/E). Return a JSON array. Be extremely concise. Use null for empty fields. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.\n\nText:\n${text}`;
+        const prompt = `CRITICAL INSTRUCTION: You MUST extract EVERY SINGLE QUESTION from the following text. Do not skip, summarize, or omit any questions. 
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: prompt,
-          config: { responseMimeType: "application/json" }
-        });
+For each question, extract:
+- id: The question number (e.g., "Q.1", "Q.2").
+- question_text: The full question text.
+- options: An array of strings containing the options.
+- answer: The correct option (A/B/C/D/E).
 
-        const extracted: any[] = JSON.parse(response.text || '[]');
+Return a JSON array of objects. Be extremely concise. Use null for empty fields. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.
+
+Text:
+${text}`;
+
+        let retries = 3;
+        let responseText = '[]';
+        while (retries > 0) {
+          try {
+            const response = await ai.models.generateContent({
+              model: "gemini-2.5-pro",
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+            });
+            responseText = response.text || '[]';
+            break;
+          } catch (err: any) {
+            const isHardQuota = err?.message?.includes('billing details') || err?.message?.includes('current quota');
+            const isRateLimit = !isHardQuota && (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota') || err?.error?.code === 429 || err?.status === 'RESOURCE_EXHAUSTED');
+            if (isRateLimit && retries > 1) {
+              const waitTime = (4 - retries) * 15000;
+              console.warn(`Rate limit hit. Waiting ${waitTime/1000}s...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              retries--;
+            } else {
+              if (isHardQuota) {
+                throw new Error("Gemini API quota exhausted. Please check your billing details or wait for the daily reset.");
+              }
+              throw err;
+            }
+          }
+        }
+
+        const extracted: any[] = safeJsonParse(responseText);
         allExtractedQuestions = extracted.map((q: any) => ({
           id: q.id || Math.random().toString(36).substr(2, 9),
           question_unique_id: q.id,

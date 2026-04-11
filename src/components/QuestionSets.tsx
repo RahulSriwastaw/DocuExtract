@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Question, QuestionSet, Folder } from '../types';
 import { Trash2, Download, Edit, Plus, FolderOpen, Database, FolderPlus, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -22,6 +23,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
   
   const [isSetModalOpen, setIsSetModalOpen] = useState(false);
   const [newSetName, setNewSetName] = useState('');
+  const [newSetFolderId, setNewSetFolderId] = useState<string>('');
   
   const [viewingSet, setViewingSet] = useState<QuestionSet | null>(null);
 
@@ -67,8 +69,8 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
 
   const confirmDeleteFolder = () => {
     if (!folderToDelete) return;
-    saveFolders(folders.filter(f => f.id !== folderToDelete));
-    saveSets(sets.map(s => s.folderId === folderToDelete ? { ...s, folderId: null } : s));
+    saveFolders((folders || []).filter(f => f.id !== folderToDelete));
+    saveSets((sets || []).map(s => s.folderId === folderToDelete ? { ...s, folderId: null } : s));
     setFolderToDelete(null);
   };
 
@@ -78,13 +80,14 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
     const newSet: QuestionSet = {
       id: Date.now().toString(),
       name: newSetName,
-      folderId: currentFolderId,
+      folderId: newSetFolderId || currentFolderId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       questions: []
     };
     saveSets([...sets, newSet]);
     setNewSetName('');
+    setNewSetFolderId('');
     setIsSetModalOpen(false);
   };
 
@@ -99,11 +102,11 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
   };
 
   const removeQuestion = (setId: string, questionId: string) => {
-    const updatedSets = sets.map(s => {
+    const updatedSets = (sets || []).map(s => {
       if (s.id === setId) {
         return {
           ...s,
-          questions: s.questions.filter(q => q.id !== questionId),
+          questions: (s.questions || []).filter(q => q.id !== questionId),
           updatedAt: new Date().toISOString()
         };
       }
@@ -115,27 +118,55 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
     }
   };
 
+  const getCsvHeaders = () => "question_eng,question_hin,type,subject,chapter,difficulty,option1_eng,option1_hin,option2_eng,option2_hin,option3_eng,option3_hin,option4_eng,option4_hin,answer,solution_eng,solution_hin";
+
+  const formatQuestionToCsvRow = (q: Question) => {
+    const fields = [
+      q.question_eng || q.text || '',
+      q.question_hin || '',
+      q.type || '',
+      q.subject || '',
+      q.chapter || '',
+      q.difficulty || '',
+      q.option1_eng || q.options?.[0] || '',
+      q.option1_hin || '',
+      q.option2_eng || q.options?.[1] || '',
+      q.option2_hin || '',
+      q.option3_eng || q.options?.[2] || '',
+      q.option3_hin || '',
+      q.option4_eng || q.options?.[3] || '',
+      q.option4_hin || '',
+      q.answer || q.correctOption || '',
+      q.solution_eng || '',
+      q.solution_hin || ''
+    ];
+    return fields.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
+  };
+
   const exportSet = (set: QuestionSet) => {
-    if (set.questions.length === 0) return setAlertMsg('Set is empty');
-    const allKeys = new Set<string>();
-    set.questions.forEach(q => Object.keys(q).forEach(k => allKeys.add(k)));
-    const headers = Array.from(allKeys);
+    if ((set.questions || []).length === 0) return setAlertMsg('Set is empty');
     
-    const rows = set.questions.map(q => {
-      return headers.map(header => {
-        let val = (q as any)[header];
-        if (Array.isArray(val)) val = val.join(' | ');
-        if (val === undefined || val === null) val = '';
-        return `"${String(val).replace(/"/g, '""')}"`;
-      }).join(',');
-    });
-    
-    const csv = [headers.join(','), ...rows].join('\n');
+    const csv = [getCsvHeaders(), ...(set.questions || []).map(formatQuestionToCsvRow)].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${set.name.replace(/\s+/g, '_')}.csv`;
+    a.click();
+  };
+
+  const exportFolder = (folderId: string | null) => {
+    const folderSets = (sets || []).filter(s => (s.folderId || null) === folderId);
+    const allQuestions = folderSets.flatMap(s => s.questions || []);
+    
+    if (allQuestions.length === 0) return setAlertMsg('Folder is empty');
+    
+    const csv = [getCsvHeaders(), ...(allQuestions || []).map(formatQuestionToCsvRow)].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${folderId ? folders.find(f => f.id === folderId)?.name.replace(/\s+/g, '_') : 'Root'}_questions.csv`;
     a.click();
   };
 
@@ -164,10 +195,10 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
     setDragOverTargetId(null);
     if (!draggedSetId) return;
 
-    const draggedSet = sets.find(s => s.id === draggedSetId);
+    const draggedSet = (sets || []).find(s => s.id === draggedSetId);
     if (draggedSet && draggedSet.folderId !== folderId) {
       // Move to new folder
-      const updatedSets = sets.map(s => 
+      const updatedSets = (sets || []).map(s => 
         s.id === draggedSetId ? { ...s, folderId } : s
       );
       saveSets(updatedSets);
@@ -252,7 +283,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {/* Render Folders */}
-        {displayedFolders.map(folder => (
+        {(displayedFolders || []).map(folder => (
           <Card 
             key={folder.id} 
             className={`hover:shadow-md transition-shadow border-yellow-200 cursor-pointer ${
@@ -275,15 +306,20 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">
-                {sets.filter(s => s.folderId === folder.id).length} Sets inside
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {sets.filter(s => s.folderId === folder.id).length} Sets inside
+                </p>
+                <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={(e) => { e.stopPropagation(); exportFolder(folder.id); }}>
+                  <Download className="w-3 h-3 mr-1" /> Export
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
 
         {/* Render Sets */}
-        {displayedSets.map(set => (
+        {(displayedSets || []).map(set => (
           <Card 
             key={set.id} 
             draggable
@@ -356,8 +392,22 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
         <DialogContent>
           <DialogHeader><DialogTitle>Create New Set</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
-            <Label>Set Name</Label>
-            <Input value={newSetName} onChange={e => setNewSetName(e.target.value)} placeholder="e.g., Chapter 1 Quiz" onKeyDown={e => e.key === 'Enter' && createSet()} />
+            <div className="space-y-2">
+              <Label>Set Name</Label>
+              <Input value={newSetName} onChange={e => setNewSetName(e.target.value)} placeholder="e.g., Chapter 1 Quiz" onKeyDown={e => e.key === 'Enter' && createSet()} />
+            </div>
+            <div className="space-y-2">
+              <Label>Folder</Label>
+              <Select value={newSetFolderId} onValueChange={setNewSetFolderId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a folder..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="root">Root (No Folder)</SelectItem>
+                  {(folders || []).map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSetModalOpen(false)}>Cancel</Button>
@@ -376,7 +426,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
             {viewingSet?.questions.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No questions in this set.</p>
             ) : (
-              viewingSet?.questions.map((q, i) => (
+              (viewingSet?.questions || []).map((q, i) => (
                 <div key={q.id || i} className="border p-4 rounded-lg relative group bg-card">
                   <Button 
                     variant="destructive" 
