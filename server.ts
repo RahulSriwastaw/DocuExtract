@@ -142,6 +142,13 @@ async function initDb(retries = 3) {
           error_description TEXT,
           tags TEXT,
           test_name TEXT,
+          difficulty TEXT,
+          topic TEXT,
+          sub_topic TEXT,
+          sub_subject TEXT,
+          sub_chapter TEXT,
+          keywords TEXT,
+          image TEXT,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
           UNIQUE(airtable_table_name, question_unique_id)
@@ -185,8 +192,22 @@ async function initDb(retries = 3) {
         ADD COLUMN IF NOT EXISTS error_description TEXT,
         ADD COLUMN IF NOT EXISTS tags TEXT,
         ADD COLUMN IF NOT EXISTS test_name TEXT,
+        ADD COLUMN IF NOT EXISTS difficulty TEXT,
+        ADD COLUMN IF NOT EXISTS topic TEXT,
+        ADD COLUMN IF NOT EXISTS sub_topic TEXT,
+        ADD COLUMN IF NOT EXISTS sub_subject TEXT,
+        ADD COLUMN IF NOT EXISTS sub_chapter TEXT,
+        ADD COLUMN IF NOT EXISTS keywords TEXT,
+        ADD COLUMN IF NOT EXISTS image TEXT,
         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
       `);
+      
+      // Reload PostgREST schema cache
+      try {
+        await pgClient.query(`NOTIFY pgrst, 'reload schema'`);
+      } catch (e) {
+        console.warn("Failed to reload schema cache:", e);
+      }
       
       // Add unique constraint if it doesn't exist
       try {
@@ -195,6 +216,14 @@ async function initDb(retries = 3) {
         `);
       } catch (e: any) {
         // Constraint might already exist, ignore error
+      }
+      
+      // Reload PostgREST schema cache so Supabase API sees the new columns
+      try {
+        await pgClient.query(`NOTIFY pgrst, 'reload schema';`);
+        console.log("PostgREST schema cache reloaded.");
+      } catch (e: any) {
+        console.error("Failed to reload PostgREST schema cache:", e);
       }
       
       console.log("Supabase DB initialized successfully");
@@ -525,7 +554,14 @@ async function startServer() {
               question_hin: q.question_hin || q.text || '',
               question_eng: q.question_eng || '',
               subject: q.subject || '',
+              sub_subject: q.sub_subject || '',
               chapter: q.chapter || '',
+              sub_chapter: q.sub_chapter || '',
+              topic: q.topic || '',
+              sub_topic: q.sub_topic || '',
+              keywords: q.keywords || '',
+              difficulty: q.difficulty || '',
+              image: q.image || '',
               option1_hin: q.option1_hin || q.options?.[0] || '',
               option1_eng: q.option1_eng || '',
               option2_hin: q.option2_hin || q.options?.[1] || '',
@@ -620,7 +656,14 @@ async function startServer() {
                 question_hin: q.question_hin || '',
                 question_eng: q.question_eng || '',
                 subject: q.subject || '',
+                sub_subject: q.sub_subject || '',
                 chapter: q.chapter || '',
+                sub_chapter: q.sub_chapter || '',
+                topic: q.topic || '',
+                sub_topic: q.sub_topic || '',
+                keywords: q.keywords || '',
+                difficulty: q.difficulty || '',
+                image: q.image || '',
                 option1_hin: q.option1_hin || '',
                 option1_eng: q.option1_eng || '',
                 option2_hin: q.option2_hin || '',
@@ -755,7 +798,14 @@ async function startServer() {
           question_hin: q.question_hin || q.text || '',
           question_eng: q.question_eng || '',
           subject: q.subject || '',
+          sub_subject: q.sub_subject || '',
           chapter: q.chapter || '',
+          sub_chapter: q.sub_chapter || '',
+          topic: q.topic || '',
+          sub_topic: q.sub_topic || '',
+          keywords: q.keywords || '',
+          difficulty: q.difficulty || '',
+          image: q.image || '',
           option1_hin: q.option1_hin || q.options?.[0] || '',
           option1_eng: q.option1_eng || '',
           option2_hin: q.option2_hin || q.options?.[1] || '',
@@ -864,7 +914,14 @@ async function startServer() {
             { name: 'question_hin', type: 'multilineText' },
             { name: 'question_eng', type: 'multilineText' },
             { name: 'subject', type: 'singleLineText' },
+            { name: 'sub_subject', type: 'singleLineText' },
             { name: 'chapter', type: 'singleLineText' },
+            { name: 'sub_chapter', type: 'singleLineText' },
+            { name: 'topic', type: 'singleLineText' },
+            { name: 'sub_topic', type: 'singleLineText' },
+            { name: 'keywords', type: 'singleLineText' },
+            { name: 'difficulty', type: 'singleLineText' },
+            { name: 'image', type: 'singleLineText' },
             { name: 'option1_hin', type: 'singleLineText' },
             { name: 'option1_eng', type: 'singleLineText' },
             { name: 'option2_hin', type: 'singleLineText' },
@@ -1203,14 +1260,19 @@ async function startServer() {
       };
 
       if (data.subject !== undefined) updateData.subject = data.subject;
+      if (data.sub_subject !== undefined) updateData.sub_subject = data.sub_subject;
       if (data.difficulty !== undefined) updateData.difficulty = data.difficulty;
       if (data.status !== undefined) updateData.current_status = data.status;
       if (data.tags !== undefined) updateData.tags = data.tags;
       if (data.test_name !== undefined) updateData.test_name = data.test_name;
       if (data.chapter !== undefined) updateData.chapter = data.chapter;
+      if (data.sub_chapter !== undefined) updateData.sub_chapter = data.sub_chapter;
       if (data.type !== undefined) updateData.type = data.type;
       if (data.exam !== undefined) updateData.exam = data.exam;
       if (data.year !== undefined) updateData.year = data.year;
+      if (data.topic !== undefined) updateData.topic = data.topic;
+      if (data.sub_topic !== undefined) updateData.sub_topic = data.sub_topic;
+      if (data.keywords !== undefined) updateData.keywords = data.keywords;
 
       const { error } = await supabase
         .from('questions')

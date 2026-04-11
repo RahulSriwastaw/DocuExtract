@@ -23,7 +23,7 @@ export async function generateAIContent(prompt: string, config: AIConfig): Promi
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: config.model || 'gemini-3-flash-preview',
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents: prompt,
         config: {
           responseMimeType: 'application/json',
         }

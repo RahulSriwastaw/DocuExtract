@@ -119,7 +119,7 @@ ${text}`;
         while (retries > 0) {
           try {
             const response = await ai.models.generateContent({
-              model: "gemini-2.5-pro",
+              model: "gemini-3-flash-preview",
               contents: prompt,
               config: { responseMimeType: "application/json" }
             });
@@ -217,7 +217,7 @@ Return a JSON array of objects. Be extremely concise. Use null for empty fields.
           while (retries > 0) {
             try {
               const response = await ai.models.generateContent({
-                model: "gemini-2.5-pro",
+                model: "gemini-3-flash-preview",
                 contents: {
                   parts: [
                     { inlineData: { mimeType: "image/jpeg", data: pageBase64 } },

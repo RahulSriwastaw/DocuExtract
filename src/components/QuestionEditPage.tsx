@@ -134,11 +134,11 @@ export default function QuestionEditPage({
       }
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: { responseMimeType: 'application/json' }
       });
-      
+
       let responseText = response.text || '{}';
       // Clean up potential markdown formatting if the model still includes it
       responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
