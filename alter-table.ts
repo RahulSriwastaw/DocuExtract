@@ -1,6 +1,11 @@
 import { Client } from 'pg';
 
-const connectionString = 'postgresql://postgres.yxibppbfrugarjoeoijw:iuTKL5bWoinAH6kr@aws-1-ap-south-1.pooler.supabase.com:6543/postgres';
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error("DATABASE_URL not configured. Please set DATABASE_URL environment variable.");
+  process.exit(1);
+}
 
 async function alterTable() {
   const client = new Client({ connectionString });

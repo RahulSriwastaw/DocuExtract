@@ -643,7 +643,22 @@ export default function QuestionBank() {
     setBulkAIStatus('Starting...');
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
+      const { aiService } = await import('@/utils/aiService');
+
+      // Get user's preferred AI provider and model
+      const aiProvider = (localStorage.getItem('aiProvider') as any) || 'gemini';
+      const aiModel = localStorage.getItem('aiModel') || 'gemini-2.5-flash';
+
+      const ai = { models: { generateContent: async (config: any) => {
+        const messages = [{ role: 'user', content: config.contents }];
+        return await aiService.generateContent(messages, {
+          provider: aiProvider,
+          model: aiModel,
+          temperature: 0.7,
+          maxTokens: 4096
+        });
+      }}};
+
       const updatedQuestions: any[] = [];
       const total = selectedQuestions.length;
 
@@ -670,11 +685,15 @@ Return the updated question object in JSON format. Ensure the output is strictly
         let hardError = false;
         while (retries > 0 && !success) {
           try {
-            const response = await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: prompt,
-              config: { responseMimeType: 'application/json' }
-            });
+            const response = await aiService.generateContent(
+              [{ role: 'user', content: prompt }],
+              {
+                provider: aiProvider,
+                model: aiModel,
+                temperature: 0.7,
+                maxTokens: 4096
+              }
+            );
             const updatedQ = safeJsonParse(response.text || '{}');
             updatedQuestions.push({ ...q, ...updatedQ, id: q.id });
             success = true;
@@ -738,9 +757,12 @@ Return the updated question object in JSON format. Ensure the output is strictly
     setBulkAIStatus('Starting...');
     
     try {
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
-      
+      const { aiService } = await import('@/utils/aiService');
+
+      // Get user's preferred AI provider and model
+      const aiProvider = (localStorage.getItem('aiProvider') as any) || 'gemini';
+      const aiModel = localStorage.getItem('aiModel') || 'gemini-2.5-flash';
+
       const variations: any[] = [];
       const total = selectedQuestions.length;
       
@@ -755,11 +777,15 @@ Return the updated question object in JSON format. Ensure the output is strictly
         let hardError = false;
         while (retries > 0 && !success) {
           try {
-            const response = await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: prompt,
-              config: { responseMimeType: 'application/json' }
-            });
+            const response = await aiService.generateContent(
+              [{ role: 'user', content: prompt }],
+              {
+                provider: aiProvider,
+                model: aiModel,
+                temperature: 0.7,
+                maxTokens: 4096
+              }
+            );
             
             const newVariations = safeJsonParse(response.text || '[]', true);
             

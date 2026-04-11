@@ -6,7 +6,6 @@ import Airtable from 'airtable';
 import fs from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
-import { GoogleGenAI } from "@google/genai";
 import pkg from 'pg';
 const { Client } = pkg;
 
@@ -18,8 +17,13 @@ if (!existsSync(CACHE_DIR)) {
 }
 
 // Supabase Configuration
-const supabaseUrl = 'https://yxibppbfrugarjoeoijw.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aWJwcGJmcnVnYXJqb2VvaWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTgwNjUsImV4cCI6MjA5MDA5NDA2NX0.m7pkeKKDBW4bunM9V8iR1Wo6TzXdhLHAd9BfFagepO0';
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Supabase credentials not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.");
+  process.exit(1);
+}
 
 // Custom fetch with timeout
 const fetchWithTimeout = (url: string, options: any = {}) => {
@@ -86,7 +90,7 @@ function handleSupabaseError(error: any, res: express.Response, context: string)
 }
 
 const pgClient = new Client({
-  connectionString: 'postgresql://postgres.yxibppbfrugarjoeoijw:iuTKL5bWoinAH6kr@aws-1-ap-south-1.pooler.supabase.com:6543/postgres',
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 5000, // 5 second timeout
 });

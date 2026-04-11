@@ -73,8 +73,11 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
 
     let allExtractedQuestions: Question[] = [];
     try {
-      const { GoogleGenAI, Type } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const { aiService } = await import('@/utils/aiService');
+
+      // Get user's preferred AI provider and model
+      const aiProvider = (localStorage.getItem('aiProvider') as any) || 'gemini';
+      const aiModel = localStorage.getItem('aiModel') || 'gemini-2.5-pro';
 
       if (file.type === 'application/pdf') {
         setStage("Analyzing PDF structure...");
@@ -122,37 +125,22 @@ For each question, extract:
 
 Return a JSON array of objects. Be extremely concise. Use null for empty fields. If there are no questions on this page, return an empty array []. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.`;
 
-          let retries = 3;
-          while (retries > 0) {
-            try {
-              const response = await ai.models.generateContent({
-                model: "gemini-2.5-pro",
-                contents: {
-                  parts: [
-                    { inlineData: { mimeType: "image/jpeg", data: pageBase64 } },
-                    { text: prompt }
-                  ]
-                },
-                config: {
-                  responseMimeType: "application/json",
-                  maxOutputTokens: 8192,
-                  responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        id: { type: Type.STRING },
-                        question_text: { type: Type.STRING },
-                        options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        answer: { type: Type.STRING }
-                      },
-                      required: ["id", "question_text", "options", "answer"]
-                    }
-                  }
-                }
-              });
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            const response = await aiService.generateContentWithImage(
+              [{ role: 'user', content: prompt }],
+              pageBase64,
+              'image/jpeg',
+              {
+                provider: aiProvider,
+                model: aiModel,
+                temperature: 0.1,
+                maxTokens: 8192
+              }
+            );
 
-              const batchData: any[] = safeJsonParse(response.text || '[]');
+            const batchData: any[] = safeJsonParse(response.text || '[]');
               return batchData.map((q: any) => ({
                 id: q.id || Math.random().toString(36).substr(2, 9),
                 question_unique_id: q.id,
@@ -187,8 +175,8 @@ Return a JSON array of objects. Be extremely concise. Use null for empty fields.
                 retries--;
               } else {
                 console.error(`Failed to process page ${pageNum}:`, err);
-                if (isHardQuota) {
-                  throw new Error("Gemini API quota exhausted. Please check your billing details or wait for the daily reset.");
+                if (err?.message?.includes('quota exhausted') || err?.message?.includes('billing details')) {
+                  throw new Error(`${aiProvider} API quota exhausted. Please check your billing details or wait for the daily reset.`);
                 }
                 return []; // Return empty array instead of failing the whole batch
               }
@@ -259,11 +247,15 @@ ${text}`;
         let responseText = '[]';
         while (retries > 0) {
           try {
-            const response = await ai.models.generateContent({
-              model: "gemini-2.5-pro",
-              contents: prompt,
-              config: { responseMimeType: "application/json" }
-            });
+            const response = await aiService.generateContent(
+              [{ role: 'user', content: prompt }],
+              {
+                provider: aiProvider,
+                model: aiModel,
+                temperature: 0.1,
+                maxTokens: 8192
+              }
+            );
             responseText = response.text || '[]';
             break;
           } catch (err: any) {
@@ -275,8 +267,8 @@ ${text}`;
               await new Promise(resolve => setTimeout(resolve, waitTime));
               retries--;
             } else {
-              if (isHardQuota) {
-                throw new Error("Gemini API quota exhausted. Please check your billing details or wait for the daily reset.");
+              if (err?.message?.includes('quota exhausted') || err?.message?.includes('billing details')) {
+                throw new Error(`${aiProvider} API quota exhausted. Please check your billing details or wait for the daily reset.`);
               }
               throw err;
             }

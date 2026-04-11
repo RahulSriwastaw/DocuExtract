@@ -257,8 +257,11 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
     
     try {
       setIsSaving(true);
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const { aiService } = await import('@/utils/aiService');
+
+      // Get user's preferred AI provider and model
+      const aiProvider = (localStorage.getItem('aiProvider') as any) || 'gemini';
+      const aiModel = localStorage.getItem('aiModel') || 'gemini-2.5-flash';
       
       for (let i = 0; i < selectedQuestions.length; i += BATCH_SIZE) {
         const batch = selectedQuestions.slice(i, i + BATCH_SIZE);
@@ -267,11 +270,15 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
         
         const callAi = async (retries = 3, delay = 2000): Promise<any> => {
           try {
-            return await ai.models.generateContent({
-              model: "gemini-3-flash-preview",
-              contents: prompt,
-              config: { responseMimeType: "application/json" }
-            });
+            return await aiService.generateContent(
+              [{ role: 'user', content: prompt }],
+              {
+                provider: aiProvider,
+                model: aiModel,
+                temperature: 0.7,
+                maxTokens: 4096
+              }
+            );
           } catch (error: any) {
             // Check if error is rate limit (429)
             if (error.status === 429) {

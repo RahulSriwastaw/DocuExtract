@@ -1,8 +1,15 @@
 import pkg from 'pg';
 const { Client } = pkg;
 
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error("DATABASE_URL not configured. Please set DATABASE_URL environment variable.");
+  process.exit(1);
+}
+
 const pgClient = new Client({
-  connectionString: 'postgresql://postgres.aekhuewsedfnvtuczmbs:epkQxGTaz0wQdhVE@aws-0-ap-south-1.pooler.supabase.com:6543/postgres',
+  connectionString: connectionString,
   ssl: { rejectUnauthorized: false }
 });
 

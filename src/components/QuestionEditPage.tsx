@@ -77,8 +77,11 @@ export default function QuestionEditPage({
   const handleApplyAIEdit = async () => {
     setIsAIProcessing(true);
     try {
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
+      const { aiService } = await import('@/utils/aiService');
+
+      // Get user's preferred AI provider and model
+      const aiProvider = (localStorage.getItem('aiProvider') as any) || 'gemini';
+      const aiModel = localStorage.getItem('aiModel') || 'gemini-2.5-flash';
       
       let prompt = '';
       if (aiEditType === 'Solution Add / Change') {
@@ -107,11 +110,15 @@ export default function QuestionEditPage({
         Question: ${JSON.stringify(editingQuestion)}`;
       }
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: { responseMimeType: 'application/json' }
-      });
+      const response = await aiService.generateContent(
+        [{ role: 'user', content: prompt }],
+        {
+          provider: aiProvider,
+          model: aiModel,
+          temperature: 0.7,
+          maxTokens: 4096
+        }
+      );
       
       let responseText = response.text || '{}';
       // Clean up potential markdown formatting if the model still includes it
