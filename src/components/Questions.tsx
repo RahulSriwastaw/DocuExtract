@@ -257,11 +257,8 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
     
     try {
       setIsSaving(true);
-      const { aiService } = await import('@/utils/aiService');
-
-      // Get user's preferred AI provider and model
-      const aiProvider = (localStorage.getItem('aiProvider') as any) || 'gemini';
-      const aiModel = localStorage.getItem('aiModel') || 'gemini-2.5-flash';
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       
       for (let i = 0; i < selectedQuestions.length; i += BATCH_SIZE) {
         const batch = selectedQuestions.slice(i, i + BATCH_SIZE);
@@ -270,15 +267,11 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
         
         const callAi = async (retries = 3, delay = 2000): Promise<any> => {
           try {
-            return await aiService.generateContent(
-              [{ role: 'user', content: prompt }],
-              {
-                provider: aiProvider,
-                model: aiModel,
-                temperature: 0.7,
-                maxTokens: 4096
-              }
-            );
+            return await ai.models.generateContent({
+              model: "gemini-3-flash-preview",
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+            });
           } catch (error: any) {
             // Check if error is rate limit (429)
             if (error.status === 429) {
@@ -688,13 +681,44 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
               </div>
 
               {/* Badges */}
-              <div className="flex flex-col items-center gap-1.5 mb-4">
-                <span className="px-3 py-0.5 bg-primary-light text-primary rounded-full text-[9px] font-bold uppercase tracking-tight">
+              <div className="flex flex-wrap items-center gap-1.5 mb-4">
+                {q.subject && (
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[9px] font-bold uppercase tracking-tight">
+                    {q.subject}
+                  </span>
+                )}
+                {q.chapter && (
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[9px] font-bold uppercase tracking-tight">
+                    {q.chapter}
+                  </span>
+                )}
+                {q.topic && (
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[9px] font-bold uppercase tracking-tight">
+                    {q.topic}
+                  </span>
+                )}
+                {q.difficulty && (
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tight ${
+                    q.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
+                    q.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {q.difficulty}
+                  </span>
+                )}
+                <span className="px-2 py-0.5 bg-primary-light text-primary rounded-full text-[9px] font-bold uppercase tracking-tight">
                   {q.type || 'Single Choice'}
                 </span>
-                <span className="px-3 py-0.5 bg-primary-light text-primary rounded-full text-[9px] font-bold uppercase tracking-tight">
-                  Page {q.page_no || 1}
-                </span>
+                {q.page_no && (
+                  <span className="px-2 py-0.5 bg-primary-light text-primary rounded-full text-[9px] font-bold uppercase tracking-tight">
+                    Page {q.page_no}
+                  </span>
+                )}
+                {q.keywords && (
+                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[9px] font-bold uppercase tracking-tight">
+                    {q.keywords}
+                  </span>
+                )}
               </div>
 
               {/* Question Text */}

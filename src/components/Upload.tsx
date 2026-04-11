@@ -42,6 +42,8 @@ const safeJsonParse = (text: string) => {
 };
 
 const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete }, ref) => {
+  const [uploadMode, setUploadMode] = useState<'file' | 'text'>('file');
+  const [inputText, setInputText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -63,7 +65,9 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
   };
 
   const handleExtraction = async () => {
-    if (!file) return;
+    if (uploadMode === 'file' && !file) return;
+    if (uploadMode === 'text' && !inputText.trim()) return;
+    
     setLoading(true);
     setStatus(null);
     setProgress(0);
@@ -73,13 +77,97 @@ const Upload = forwardRef<HTMLInputElement, UploadProps>(({ onExtractionComplete
 
     let allExtractedQuestions: Question[] = [];
     try {
-      const { aiService } = await import('@/utils/aiService');
+      const { GoogleGenAI, Type } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-      // Get user's preferred AI provider and model
-      const aiProvider = (localStorage.getItem('aiProvider') as any) || 'gemini';
-      const aiModel = localStorage.getItem('aiModel') || 'gemini-2.5-pro';
+      if (uploadMode === 'text' || (file && file.type !== 'application/pdf')) {
+        // TXT/DOCX or Direct Text logic
+        setStage("Reading content...");
+        setProgress(20);
+        
+        let text = '';
+        if (uploadMode === 'text') {
+          text = inputText;
+        } else if (file && file.type === 'text/plain') {
+          text = await file.text();
+        } else if (file && file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          text = result.value;
+        } else {
+          throw new Error("Unsupported file type.");
+        }
 
-      if (file.type === 'application/pdf') {
+        setStage("Sending to AI for analysis...");
+        setProgress(50);
+        
+        const prompt = `CRITICAL INSTRUCTION: You MUST extract EVERY SINGLE QUESTION from the following text. Do not skip, summarize, or omit any questions. 
+
+For each question, extract:
+- id: The question number (e.g., "Q.1", "Q.2").
+- question_text: The full question text.
+- options: An array of strings containing the options.
+- answer: The correct option (A/B/C/D/E).
+
+Return a JSON array of objects. Be extremely concise. Use null for empty fields. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.
+
+Text:
+${text}`;
+
+        let retries = 3;
+        let responseText = '[]';
+        while (retries > 0) {
+          try {
+            const response = await ai.models.generateContent({
+              model: "gemini-2.5-pro",
+              contents: prompt,
+              config: { responseMimeType: "application/json" }
+            });
+            responseText = response.text || '[]';
+            break;
+          } catch (err: any) {
+            const isHardQuota = err?.message?.includes('billing details') || err?.message?.includes('current quota');
+            const isRateLimit = !isHardQuota && (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota') || err?.error?.code === 429 || err?.status === 'RESOURCE_EXHAUSTED');
+            if (isRateLimit && retries > 1) {
+              const waitTime = (4 - retries) * 15000;
+              console.warn(`Rate limit hit. Waiting ${waitTime/1000}s...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              retries--;
+            } else {
+              if (isHardQuota) {
+                throw new Error("Gemini API quota exhausted. Please check your billing details or wait for the daily reset.");
+              }
+              throw err;
+            }
+          }
+        }
+
+        const extracted: any[] = safeJsonParse(responseText);
+        allExtractedQuestions = extracted.map((q: any) => ({
+          id: q.id || Math.random().toString(36).substr(2, 9),
+          question_unique_id: q.id,
+          text: q.question_text,
+          options: q.options,
+          correctOption: q.answer,
+          answer: q.answer,
+          status: 'Draft',
+          difficulty: 'Medium',
+          question_hin: '',
+          question_eng: '',
+          subject: '',
+          chapter: '',
+          type: 'MCQ',
+          page_no: '1',
+          collection: '',
+          section: '',
+          year: '',
+          date: '',
+          exam: '',
+          previous_of: '',
+          solution_hin: '',
+          solution_eng: ''
+        }));
+      } else if (file && file.type === 'application/pdf') {
         setStage("Analyzing PDF structure...");
         setProgress(5);
         
@@ -125,22 +213,37 @@ For each question, extract:
 
 Return a JSON array of objects. Be extremely concise. Use null for empty fields. If there are no questions on this page, return an empty array []. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.`;
 
-        let retries = 3;
-        while (retries > 0) {
-          try {
-            const response = await aiService.generateContentWithImage(
-              [{ role: 'user', content: prompt }],
-              pageBase64,
-              'image/jpeg',
-              {
-                provider: aiProvider,
-                model: aiModel,
-                temperature: 0.1,
-                maxTokens: 8192
-              }
-            );
+          let retries = 3;
+          while (retries > 0) {
+            try {
+              const response = await ai.models.generateContent({
+                model: "gemini-2.5-pro",
+                contents: {
+                  parts: [
+                    { inlineData: { mimeType: "image/jpeg", data: pageBase64 } },
+                    { text: prompt }
+                  ]
+                },
+                config: {
+                  responseMimeType: "application/json",
+                  maxOutputTokens: 8192,
+                  responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        id: { type: Type.STRING },
+                        question_text: { type: Type.STRING },
+                        options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        answer: { type: Type.STRING }
+                      },
+                      required: ["id", "question_text", "options", "answer"]
+                    }
+                  }
+                }
+              });
 
-            const batchData: any[] = safeJsonParse(response.text || '[]');
+              const batchData: any[] = safeJsonParse(response.text || '[]');
               return batchData.map((q: any) => ({
                 id: q.id || Math.random().toString(36).substr(2, 9),
                 question_unique_id: q.id,
@@ -175,8 +278,8 @@ Return a JSON array of objects. Be extremely concise. Use null for empty fields.
                 retries--;
               } else {
                 console.error(`Failed to process page ${pageNum}:`, err);
-                if (err?.message?.includes('quota exhausted') || err?.message?.includes('billing details')) {
-                  throw new Error(`${aiProvider} API quota exhausted. Please check your billing details or wait for the daily reset.`);
+                if (isHardQuota) {
+                  throw new Error("Gemini API quota exhausted. Please check your billing details or wait for the daily reset.");
                 }
                 return []; // Return empty array instead of failing the whole batch
               }
@@ -211,98 +314,9 @@ Return a JSON array of objects. Be extremely concise. Use null for empty fields.
           }
           await new Promise(resolve => setTimeout(resolve, 500));
         }
-      } else {
-        // TXT/DOCX logic
-        setStage("Reading file content...");
-        setProgress(20);
-        
-        let text = '';
-        if (file.type === 'text/plain') {
-          text = await file.text();
-        } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-          const arrayBuffer = await file.arrayBuffer();
-          const result = await mammoth.extractRawText({ arrayBuffer });
-          text = result.value;
-        } else {
-          throw new Error("Unsupported file type.");
-        }
-
-        setStage("Sending to AI for analysis...");
-        setProgress(50);
-        
-        const prompt = `CRITICAL INSTRUCTION: You MUST extract EVERY SINGLE QUESTION from the following text. Do not skip, summarize, or omit any questions. 
-
-For each question, extract:
-- id: The question number (e.g., "Q.1", "Q.2").
-- question_text: The full question text.
-- options: An array of strings containing the options.
-- answer: The correct option (A/B/C/D/E).
-
-Return a JSON array of objects. Be extremely concise. Use null for empty fields. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.
-
-Text:
-${text}`;
-
-        let retries = 3;
-        let responseText = '[]';
-        while (retries > 0) {
-          try {
-            const response = await aiService.generateContent(
-              [{ role: 'user', content: prompt }],
-              {
-                provider: aiProvider,
-                model: aiModel,
-                temperature: 0.1,
-                maxTokens: 8192
-              }
-            );
-            responseText = response.text || '[]';
-            break;
-          } catch (err: any) {
-            const isHardQuota = err?.message?.includes('billing details') || err?.message?.includes('current quota');
-            const isRateLimit = !isHardQuota && (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota') || err?.error?.code === 429 || err?.status === 'RESOURCE_EXHAUSTED');
-            if (isRateLimit && retries > 1) {
-              const waitTime = (4 - retries) * 15000;
-              console.warn(`Rate limit hit. Waiting ${waitTime/1000}s...`);
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-              retries--;
-            } else {
-              if (err?.message?.includes('quota exhausted') || err?.message?.includes('billing details')) {
-                throw new Error(`${aiProvider} API quota exhausted. Please check your billing details or wait for the daily reset.`);
-              }
-              throw err;
-            }
-          }
-        }
-
-        const extracted: any[] = safeJsonParse(responseText);
-        allExtractedQuestions = extracted.map((q: any) => ({
-          id: q.id || Math.random().toString(36).substr(2, 9),
-          question_unique_id: q.id,
-          text: q.question_text,
-          options: q.options,
-          correctOption: q.answer,
-          answer: q.answer,
-          status: 'Draft',
-          difficulty: 'Medium',
-          question_hin: '',
-          question_eng: '',
-          subject: '',
-          chapter: '',
-          type: 'MCQ',
-          page_no: '1',
-          collection: '',
-          section: '',
-          year: '',
-          date: '',
-          exam: '',
-          previous_of: '',
-          solution_hin: '',
-          solution_eng: ''
-        }));
       }
 
-      onExtractionComplete(allExtractedQuestions, file.name);
+      onExtractionComplete(allExtractedQuestions, uploadMode === 'file' && file ? file.name : 'Pasted Text');
       setStage(STAGES[4]);
       setProgress(100);
     } catch (error: any) {
@@ -316,42 +330,68 @@ ${text}`;
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div 
-        className={`relative border-2 border-dashed rounded-xl p-10 text-center transition-all duration-200 ${
-          file ? 'border-blue-400 bg-blue-50/50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
-        }`}
-      >
-        <Input 
-          id="pdf" 
-          type="file" 
-          accept=".pdf,.txt,.docx" 
-          onChange={handleFileChange} 
-          ref={ref} 
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-        />
-        
-        {!file ? (
-          <div className="space-y-4 pointer-events-none">
-            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-            </div>
-            <div>
-              <p className="text-lg font-medium text-slate-900">Click to upload or drag and drop</p>
-              <p className="text-sm text-slate-500 mt-1">PDF, TXT, or DOCX files (max 10MB)</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4 pointer-events-none">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
-            </div>
-            <div>
-              <p className="text-lg font-medium text-slate-900">{file.name}</p>
-              <p className="text-sm text-slate-500 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-            </div>
-          </div>
-        )}
+      <div className="flex bg-slate-100 p-1 rounded-lg mb-6 w-full max-w-xs mx-auto">
+        <button
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'file' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setUploadMode('file')}
+        >
+          File Upload
+        </button>
+        <button
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'text' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setUploadMode('text')}
+        >
+          Paste Text
+        </button>
       </div>
+
+      {uploadMode === 'file' ? (
+        <div 
+          className={`relative border-2 border-dashed rounded-xl p-10 text-center transition-all duration-200 ${
+            file ? 'border-blue-400 bg-blue-50/50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
+          }`}
+        >
+          <Input 
+            id="pdf" 
+            type="file" 
+            accept=".pdf,.txt,.docx" 
+            onChange={handleFileChange} 
+            ref={ref} 
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          />
+          
+          {!file ? (
+            <div className="space-y-4 pointer-events-none">
+              <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+              </div>
+              <div>
+                <p className="text-lg font-medium text-slate-900">Click to upload or drag and drop</p>
+                <p className="text-sm text-slate-500 mt-1">PDF, TXT, or DOCX files (max 10MB)</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 pointer-events-none">
+              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
+              </div>
+              <div>
+                <p className="text-lg font-medium text-slate-900">{file.name}</p>
+                <p className="text-sm text-slate-500 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="w-full">
+          <textarea
+            className="w-full h-64 p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y text-sm"
+            placeholder="Paste your questions text here...&#10;&#10;Example:&#10;Q1. What is the capital of France?&#10;A) London&#10;B) Paris&#10;C) Berlin&#10;D) Madrid&#10;Answer: B"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+          />
+        </div>
+      )}
 
       {loading && (
         <div className="mt-6 space-y-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -403,7 +443,7 @@ ${text}`;
           size="lg"
           className="w-full sm:w-auto px-8" 
           onClick={handleExtraction} 
-          disabled={!file || loading}
+          disabled={(uploadMode === 'file' && !file) || (uploadMode === 'text' && !inputText.trim()) || loading}
         >
           {loading ? 'Extracting...' : 'Start Extraction'}
         </Button>

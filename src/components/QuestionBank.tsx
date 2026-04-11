@@ -9,6 +9,7 @@ import { safeJson } from '../utils';
 import QuestionEditPage from './QuestionEditPage';
 import { Question } from '../types';
 import { AnimatePresence, motion } from 'motion/react';
+import { generateAIContent, AIProvider, AI_MODELS } from '../services/aiService';
 
 export default function QuestionBank() {
   const [tables, setTables] = useState<any[]>([]);
@@ -32,6 +33,9 @@ export default function QuestionBank() {
   const [bulkAIProgress, setBulkAIProgress] = useState(0);
   const [bulkAIStatus, setBulkAIStatus] = useState('');
   const [isBulkAIProcessing, setIsBulkAIProcessing] = useState(false);
+  const [bulkAILogs, setBulkAILogs] = useState<{ id: string, message: string, type: 'info' | 'success' | 'error' | 'warning', timestamp: Date }[]>([]);
+  const [aiProvider, setAiProvider] = useState<AIProvider>('gemini');
+  const [aiModel, setAiModel] = useState(AI_MODELS['gemini'][0]);
   const [bulkEditData, setBulkEditData] = useState<Partial<Question>>({});
   const [fieldsToUpdate, setFieldsToUpdate] = useState<Set<string>>(new Set());
   const [aiEditType, setAiEditType] = useState('Solution Add / Change');
@@ -62,6 +66,7 @@ export default function QuestionBank() {
   const [isCopying, setIsCopying] = useState(false); // To distinguish between move and copy
   const [targetFolderForMove, setTargetFolderForMove] = useState<string | null>(null);
   const [allFolders, setAllFolders] = useState<any[]>([]);
+  const [failedQuestions, setFailedQuestions] = useState<Question[]>([]);
 
   // Filter States
   const [filterSubject, setFilterSubject] = useState<string>('');
@@ -73,6 +78,41 @@ export default function QuestionBank() {
   useEffect(() => {
     fetchTables();
   }, []);
+
+  const handleRetryFailed = async () => {
+    if (failedQuestions.length === 0) return;
+    const failedIds = new Set(failedQuestions.map(q => q.id));
+    setSelectedIds(failedIds);
+    if (isBulkAIEditModalOpen) {
+      handleBulkAIEdit();
+    } else if (isBulkAIVariationModalOpen) {
+      handleBulkAIVariations();
+    }
+  };
+
+  const getFieldCompletionStatus = (q: Question) => {
+    const fields = [
+      { name: 'Question', filled: !!(q.question_hin || q.question_eng || q.text) },
+      { name: 'Subject', filled: !!q.subject },
+      { name: 'Sub Subject', filled: !!q.sub_subject },
+      { name: 'Chapter', filled: !!q.chapter },
+      { name: 'Sub Chapter', filled: !!q.sub_chapter },
+      { name: 'Topic', filled: !!q.topic },
+      { name: 'Sub Topic', filled: !!q.sub_topic },
+      { name: 'Keywords', filled: !!q.keywords },
+      { name: 'Option 1', filled: !!(q.option1_hin || q.option1_eng) },
+      { name: 'Option 2', filled: !!(q.option2_hin || q.option2_eng) },
+      { name: 'Option 3', filled: !!(q.option3_hin || q.option3_eng) },
+      { name: 'Option 4', filled: !!(q.option4_hin || q.option4_eng) },
+      { name: 'Answer', filled: !!q.answer },
+      { name: 'Solution', filled: !!(q.solution_hin || q.solution_eng) },
+      { name: 'Type', filled: !!q.type },
+      { name: 'Difficulty', filled: !!q.difficulty },
+      { name: 'Exam', filled: !!q.exam },
+      { name: 'Year', filled: !!q.year },
+    ];
+    return fields;
+  };
 
   const handleSyncAllAirtable = async () => {
     setIsSyncingAll(true);
@@ -305,7 +345,11 @@ export default function QuestionBank() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds), data: dataToUpdate }),
       });
-      if (!response.ok) throw new Error('Failed to update questions');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update questions');
+      }
       
       // Refresh questions
       if (selectedFolder) {
@@ -524,6 +568,8 @@ export default function QuestionBank() {
         return updatedList;
       });
       
+      setFailedQuestions(prev => prev.filter(q => q.id !== updated.id));
+      
       setIsEditPageOpen(false);
       setEditingQuestion(null);
       setEditingIndex(-1);
@@ -633,51 +679,60 @@ export default function QuestionBank() {
     }
   };
 
+  const addBulkAILog = (message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
+    setBulkAILogs(prev => [{
+      id: Math.random().toString(36).substring(7),
+      message,
+      type,
+      timestamp: new Date()
+    }, ...prev].slice(0, 100)); // Keep last 100 logs
+  };
+
   const handleBulkAIEdit = async () => {
     const selectedQuestions = questions.filter(q => selectedIds.has(q.id));
     if (selectedQuestions.length === 0) return alert('No questions selected!');
-    if (selectedQuestions.length > 10) return alert('Please select a maximum of 10 questions for bulk AI editing to avoid API quota limits.');
     
     setIsBulkAIProcessing(true);
     setBulkAIProgress(0);
-    setBulkAIStatus('Starting...');
+    setBulkAIStatus('Initializing AI Service...');
+    setBulkAILogs([]);
+    setFailedQuestions([]);
+    addBulkAILog(`Starting Bulk AI Edit for ${selectedQuestions.length} questions using ${aiProvider} (${aiModel})`, 'info');
     
     try {
-      const { aiService } = await import('@/utils/aiService');
-
-      // Get user's preferred AI provider and model
-      const aiProvider = (localStorage.getItem('aiProvider') as any) || 'gemini';
-      const aiModel = localStorage.getItem('aiModel') || 'gemini-2.5-flash';
-
-      const ai = { models: { generateContent: async (config: any) => {
-        const messages = [{ role: 'user', content: config.contents }];
-        return await aiService.generateContent(messages, {
-          provider: aiProvider,
-          model: aiModel,
-          temperature: 0.7,
-          maxTokens: 4096
-        });
-      }}};
-
       const updatedQuestions: any[] = [];
       const total = selectedQuestions.length;
+      const batchSize = 10;
 
-      for (let i = 0; i < total; i++) {
-        const q = selectedQuestions[i];
-        setBulkAIStatus(`Processing question ${i + 1} of ${total}: ${q.question_hin?.substring(0, 20) || 'Question'}...`);
+      for (let i = 0; i < total; i += batchSize) {
+        const batch = selectedQuestions.slice(i, i + batchSize);
+        const batchTitles = batch.map((q, idx) => q.question_hin?.substring(0, 15) || q.question_eng?.substring(0, 15) || `Q${i + idx + 1}`).join(', ');
+        
+        setBulkAIStatus(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(total / batchSize)}: ${batchTitles}`);
+        addBulkAILog(`Processing batch of ${batch.length} questions...`, 'info');
         
         let prompt = '';
+        const subjectChapterInstruction = `Also, analyze each question to identify its "subject", "sub_subject", "chapter", "sub_chapter", "topic", "sub_topic", "keywords", and "difficulty" level (Easy, Medium, or Hard). If these fields are missing or empty, populate them with appropriate values based on the question content.`;
+        
         if (aiEditType === 'Solution Add / Change') {
-          prompt = `For the following question, ${aiEditAction}. Return the updated question object in JSON format.\n\nQuestion: ${JSON.stringify(q)}`;
+          prompt = `For the following ${batch.length} questions, ${aiEditAction}. ${subjectChapterInstruction} Return the updated questions as a JSON array of objects. Ensure each object has its original "id" field. Return ONLY the JSON array.\n\nQuestions: ${JSON.stringify(batch)}`;
+        } else if (aiEditType === 'Classify & Tag') {
+          let specificInstruction = subjectChapterInstruction;
+          if (aiEditAction === 'Generate keywords only') {
+            specificInstruction = `Analyze each question and generate a comma-separated list of highly relevant "keywords". Populate the "keywords" field if it is missing or empty. Do not modify other fields.`;
+          } else if (aiEditAction === 'Determine difficulty only') {
+            specificInstruction = `Analyze each question and determine its "difficulty" level (Easy, Medium, or Hard). Populate the "difficulty" field if it is missing or empty. Do not modify other fields.`;
+          } else {
+            specificInstruction = `Analyze each question to identify and populate its "subject", "sub_subject", "chapter", "sub_chapter", "topic", "sub_topic", "keywords", and "difficulty" level. Only populate fields that are currently missing or empty.`;
+          }
+          prompt = `For the following ${batch.length} questions, perform classification and tagging. ${specificInstruction} Return the updated questions as a JSON array of objects. Ensure each object has its original "id" field. Return ONLY the JSON array.\n\nQuestions: ${JSON.stringify(batch)}`;
         } else if (aiEditType === 'Translate') {
-          prompt = `Act as a highly accurate translator (like Google Translate). Translate the question, options, and solution into ${aiLanguage}.
-CRITICAL RULE: ONLY translate and populate fields that are currently EMPTY, NULL, or MISSING in the provided JSON. DO NOT overwrite, modify, or translate any fields that already have content.
-If the target language is Hindi, populate the fields: question_hin, option1_hin, option2_hin, option3_hin, option4_hin, solution_hin (ONLY if they are empty).
-If the target language is English, populate the fields: question_eng, option1_eng, option2_eng, option3_eng, option4_eng, solution_eng (ONLY if they are empty).
-For other languages, update the generic 'text', 'options' array, and 'solution' fields (ONLY if empty).
-Return the updated question object in JSON format. Ensure the output is strictly a JSON object. Do not include any other text.\n\nQuestion: ${JSON.stringify(q)}`;
+          prompt = `Act as a highly accurate translator. Translate the following ${batch.length} questions, options, and solutions into ${aiLanguage}.
+CRITICAL RULE: ONLY translate and populate fields that are currently EMPTY, NULL, or MISSING. DO NOT overwrite existing fields.
+${subjectChapterInstruction}
+Return the updated questions as a JSON array of objects. Ensure each object has its original "id" field. Return ONLY the JSON array.\n\nQuestions: ${JSON.stringify(batch)}`;
         } else {
-          prompt = `${aiCustomPrompt}\n\nQuestion: ${JSON.stringify(q)}`;
+          prompt = `${aiCustomPrompt}\n\n${subjectChapterInstruction}\n\nProcess the following ${batch.length} questions and return them as a JSON array of objects. Ensure each object has its original "id" field.\n\nQuestions: ${JSON.stringify(batch)}`;
         }
 
         let retries = 3;
@@ -685,43 +740,72 @@ Return the updated question object in JSON format. Ensure the output is strictly
         let hardError = false;
         while (retries > 0 && !success) {
           try {
-            const response = await aiService.generateContent(
-              [{ role: 'user', content: prompt }],
-              {
-                provider: aiProvider,
-                model: aiModel,
-                temperature: 0.7,
-                maxTokens: 4096
-              }
-            );
-            const updatedQ = safeJsonParse(response.text || '{}');
-            updatedQuestions.push({ ...q, ...updatedQ, id: q.id });
-            success = true;
-            // Add a small delay between successful requests to avoid hitting rate limits
-            if (i < total - 1) await sleep(5000);
+            const response = await generateAIContent(prompt, {
+              provider: aiProvider,
+              model: aiModel
+            });
+
+            if (response.error) {
+              throw new Error(response.error);
+            }
+
+            const batchResults = safeJsonParse(response.text || '[]', true);
+            if (Array.isArray(batchResults)) {
+              batchResults.forEach((updatedQ: any) => {
+                const originalQ = batch.find(bq => bq.id === updatedQ.id);
+                if (originalQ) {
+                  updatedQuestions.push({ ...originalQ, ...updatedQ, id: originalQ.id });
+                }
+              });
+              success = true;
+              addBulkAILog(`Successfully processed batch of ${batch.length} questions`, 'success');
+            } else {
+              throw new Error("AI did not return a valid JSON array for the batch.");
+            }
+            
+            const delay = aiProvider === 'gemini' ? 8000 : (aiProvider === 'modal' ? 12000 : 4000);
+            if (i + batchSize < total) await sleep(delay);
           } catch (error: any) {
-            const isHardQuota = error?.message?.includes('billing details') || error?.message?.includes('current quota');
-            const isRateLimit = !isHardQuota && (error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('quota') || error?.error?.code === 429 || error?.status === 'RESOURCE_EXHAUSTED');
+            const isHardQuota = error?.message?.includes('billing details') || error?.message?.includes('current quota') || error?.message?.includes('insufficient_quota');
+            const isRateLimit = !isHardQuota && (
+              error?.status === 429 || 
+              error?.message?.includes('429') || 
+              error?.message?.includes('rate_limit') || 
+              error?.message?.includes('quota') || 
+              error?.message?.includes('Too many concurrent requests') ||
+              error?.error?.code === 429 || 
+              error?.status === 'RESOURCE_EXHAUSTED'
+            );
+            
             if (isRateLimit && retries > 1) {
-              const waitTime = (4 - retries) * 20000; // 20s, 40s
-              setBulkAIStatus(`Rate limit hit. Waiting ${waitTime / 1000}s before retry (${retries - 1} left)...`);
+              const waitTime = (4 - retries) * 30000;
+              const msg = `Rate limit hit on batch. Waiting ${waitTime / 1000}s before retry (${retries - 1} left)...`;
+              setBulkAIStatus(msg);
+              addBulkAILog(msg, 'warning');
               await sleep(waitTime);
               retries--;
             } else {
-              console.log(isHardQuota ? 'Hard Quota Exceeded:' : 'AI Error:', error);
-              hardError = true;
+              const rawError = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
+              const errorMsg = isHardQuota ? 'Hard Quota Exceeded' : `AI Error: ${rawError || 'Unknown error'}`;
+              addBulkAILog(`Failed batch: ${errorMsg}`, 'error');
+              setFailedQuestions(prev => [...prev, ...batch]);
+              hardError = isHardQuota;
               break;
             }
           }
         }
+        
         if (hardError) {
-          alert('AI processing stopped because your Gemini API quota has been exhausted. Please check your billing details or wait for the daily reset. Saving progress so far...');
+          addBulkAILog('Stopping bulk process due to hard quota error.', 'error');
+          alert('AI processing stopped because your API quota has been exhausted. Saving progress so far...');
           break;
         }
-        setBulkAIProgress(((i + 1) / total) * 100);
+        setBulkAIProgress(Math.min(((i + batchSize) / total) * 100, 100));
       }
 
       setBulkAIStatus('Saving to database...');
+      addBulkAILog(`Saving ${updatedQuestions.length} updated questions to database...`, 'info');
+      
       if (updatedQuestions.length > 0) {
         const response = await fetch('/api/bulk-update-questions-individual', {
           method: 'POST',
@@ -729,22 +813,26 @@ Return the updated question object in JSON format. Ensure the output is strictly
           body: JSON.stringify({ questions: updatedQuestions })
         });
         
-        if (!response.ok) throw new Error('Bulk AI Edit failed');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Database update failed');
+        }
         
         setQuestions(prev => prev.map(q => updatedQuestions.find((uq: Question) => uq.id === q.id) || q));
-        setIsBulkAIEditModalOpen(false);
+        addBulkAILog('Bulk update completed successfully!', 'success');
         alert(`Bulk AI Edit completed! Successfully processed ${updatedQuestions.length} questions.`);
       } else {
-        setIsBulkAIEditModalOpen(false);
+        addBulkAILog('No questions were successfully processed.', 'warning');
         alert('No questions were successfully processed.');
       }
     } catch (error: any) {
       console.log('Bulk AI Edit error:', error);
-      alert('Failed to apply AI edits: ' + (error?.message || error));
+      const errorMsg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
+      addBulkAILog(`Critical Error: ${errorMsg}`, 'error');
+      alert('Failed to apply AI edits: ' + errorMsg);
     } finally {
       setIsBulkAIProcessing(false);
-      setBulkAIProgress(0);
-      setBulkAIStatus('');
+      setBulkAIStatus('Finished');
     }
   };
 
@@ -754,81 +842,105 @@ Return the updated question object in JSON format. Ensure the output is strictly
     
     setIsBulkAIProcessing(true);
     setBulkAIProgress(0);
-    setBulkAIStatus('Starting...');
+    setBulkAIStatus('Initializing AI Service...');
+    setBulkAILogs([]);
+    setFailedQuestions([]);
+    addBulkAILog(`Starting AI Variations for ${selectedQuestions.length} questions using ${aiProvider} (${aiModel})`, 'info');
     
     try {
-      const { aiService } = await import('@/utils/aiService');
-
-      // Get user's preferred AI provider and model
-      const aiProvider = (localStorage.getItem('aiProvider') as any) || 'gemini';
-      const aiModel = localStorage.getItem('aiModel') || 'gemini-2.5-flash';
-
       const variations: any[] = [];
       const total = selectedQuestions.length;
+      const batchSize = 10;
       
-      for (let i = 0; i < total; i++) {
-        const q = selectedQuestions[i];
-        setBulkAIStatus(`Generating variations for question ${i + 1} of ${total}...`);
+      for (let i = 0; i < total; i += batchSize) {
+        const batch = selectedQuestions.slice(i, i + batchSize);
+        const batchTitles = batch.map((q, idx) => q.question_hin?.substring(0, 15) || q.question_eng?.substring(0, 15) || `Q${i + idx + 1}`).join(', ');
         
-        const prompt = `Generate ${aiCustomPrompt || '1'} variation(s) for the following question. Type of variation: ${aiEditType}. Return the variations as a JSON array of question objects. Ensure the output is strictly a JSON array. Do not include any other text.\n\nQuestion: ${JSON.stringify(q)}`;
+        setBulkAIStatus(`Generating variations for batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(total / batchSize)}: ${batchTitles}`);
+        addBulkAILog(`Generating variations for batch of ${batch.length} questions...`, 'info');
+        
+        const prompt = `Generate ${aiCustomPrompt || '1'} variation(s) for each of the following ${batch.length} questions. Type of variation: ${aiEditType}. 
+For each variation, analyze the content to identify and populate the "subject", "sub_subject", "chapter", "sub_chapter", "topic", "sub_topic", "keywords", and "difficulty" level (Easy, Medium, or Hard) fields appropriately.
+Return the variations as a JSON array of variation objects. Each variation object MUST include a "parent_id" field matching the original question's "id".
+Ensure the output is strictly a JSON array. Do not include any other text.\n\nQuestions: ${JSON.stringify(batch)}`;
         
         let retries = 3;
         let success = false;
         let hardError = false;
         while (retries > 0 && !success) {
           try {
-            const response = await aiService.generateContent(
-              [{ role: 'user', content: prompt }],
-              {
-                provider: aiProvider,
-                model: aiModel,
-                temperature: 0.7,
-                maxTokens: 4096
-              }
-            );
+            const response = await generateAIContent(prompt, {
+              provider: aiProvider,
+              model: aiModel
+            });
+
+            if (response.error) {
+              throw new Error(response.error);
+            }
             
             const newVariations = safeJsonParse(response.text || '[]', true);
+            if (Array.isArray(newVariations)) {
+              newVariations.forEach((v: any) => {
+                const parentQ = batch.find(bq => bq.id === v.parent_id) || batch[0]; // Fallback to first in batch if parent_id missing
+                variations.push({
+                  ...v,
+                  id: Math.random().toString(36).substr(2, 9),
+                  question_unique_id: Math.random().toString(36).substr(2, 9),
+                  airtable_table_name: parentQ.airtable_table_name || parentQ.collection || selectedFolder || '',
+                  collection: parentQ.collection || parentQ.airtable_table_name || selectedFolder || '',
+                  current_status: 'Draft',
+                  tags: Array.isArray(parentQ.tags) ? [...parentQ.tags, 'AI Variation'] : ['AI Variation']
+                });
+              });
+              success = true;
+              addBulkAILog(`Generated ${newVariations.length} variations for batch of ${batch.length} questions`, 'success');
+            } else {
+              throw new Error("AI did not return a valid JSON array for the variations batch.");
+            }
             
-            // Format the new variations
-            const formattedVariations = (Array.isArray(newVariations) ? newVariations : []).map((v: any) => ({
-              ...v,
-              id: Math.random().toString(36).substr(2, 9),
-              question_unique_id: Math.random().toString(36).substr(2, 9),
-              airtable_table_name: q.airtable_table_name || q.collection || selectedFolder || '',
-              collection: q.collection || q.airtable_table_name || selectedFolder || '',
-              current_status: 'Draft',
-              tags: Array.isArray(q.tags) ? [...q.tags, 'AI Variation'] : ['AI Variation']
-            }));
-            
-            variations.push(...formattedVariations);
-            success = true;
+            const delay = aiProvider === 'gemini' ? 8000 : (aiProvider === 'modal' ? 12000 : 4000);
+            if (i + batchSize < total) await sleep(delay);
           } catch (err: any) {
-            const isHardQuota = err?.message?.includes('billing details') || err?.message?.includes('current quota');
-            const isRateLimit = !isHardQuota && (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota') || err?.error?.code === 429 || err?.status === 'RESOURCE_EXHAUSTED');
+            const isHardQuota = err?.message?.includes('billing details') || err?.message?.includes('current quota') || err?.message?.includes('insufficient_quota');
+            const isRateLimit = !isHardQuota && (
+              err?.status === 429 || 
+              err?.message?.includes('429') || 
+              err?.message?.includes('rate_limit') || 
+              err?.message?.includes('quota') || 
+              err?.message?.includes('Too many concurrent requests') ||
+              err?.error?.code === 429 || 
+              err?.status === 'RESOURCE_EXHAUSTED'
+            );
+            
             if (isRateLimit && retries > 1) {
-              const waitTime = (4 - retries) * 20000;
-              setBulkAIStatus(`Rate limit hit. Waiting ${waitTime / 1000}s before retry (${retries - 1} left)...`);
-              await new Promise(resolve => setTimeout(resolve, waitTime));
+              const waitTime = (4 - retries) * 30000;
+              const msg = `Rate limit hit on batch. Waiting ${waitTime / 1000}s before retry (${retries - 1} left)...`;
+              setBulkAIStatus(msg);
+              addBulkAILog(msg, 'warning');
+              await sleep(waitTime);
               retries--;
             } else {
-              console.log(isHardQuota ? 'Hard Quota Exceeded:' : 'AI Error:', err);
-              hardError = true;
+              const rawError = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+              const errorMsg = isHardQuota ? 'Hard Quota Exceeded' : `AI Error: ${rawError || 'Unknown error'}`;
+              addBulkAILog(`Failed batch: ${errorMsg}`, 'error');
+              setFailedQuestions(prev => [...prev, ...batch]);
+              hardError = isHardQuota;
               break;
             }
           }
         }
         
         if (hardError) {
-          alert('AI processing stopped because your Gemini API quota has been exhausted. Please check your billing details or wait for the daily reset. Saving progress so far...');
+          addBulkAILog('Stopping variation generation due to hard quota error.', 'error');
+          alert('AI processing stopped because your API quota has been exhausted. Saving progress so far...');
           break;
         }
         
-        setBulkAIProgress(Math.round(((i + 1) / total) * 100));
-        // Add a small delay to avoid hitting rate limits too quickly
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        setBulkAIProgress(Math.min(((i + batchSize) / total) * 100, 100));
       }
       
       setBulkAIStatus('Saving variations to database...');
+      addBulkAILog(`Saving ${variations.length} variations to database...`, 'info');
       
       // Save variations to server
       if (variations.length > 0) {
@@ -842,24 +954,27 @@ Return the updated question object in JSON format. Ensure the output is strictly
           })
         });
         
-        if (!saveRes.ok) throw new Error('Failed to save variations to server');
+        if (!saveRes.ok) {
+          const errorData = await saveRes.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to save variations to server');
+        }
         
         // Add to local state
         setQuestions(prev => [...variations, ...prev]);
+        addBulkAILog('AI Variations generation completed successfully!', 'success');
         alert(`Successfully generated and saved ${variations.length} variations.`);
       } else {
+        addBulkAILog('No variations were successfully generated.', 'warning');
         alert('No variations were successfully generated.');
       }
-      
-      setIsBulkAIVariationModalOpen(false);
-      setSelectedIds(new Set());
     } catch (error: any) {
       console.log('Bulk AI Variation error:', error);
-      alert('Failed to generate variations: ' + (error?.message || error));
+      const errorMsg = error.message || (typeof error === 'string' ? error : JSON.stringify(error));
+      addBulkAILog(`Critical Error: ${errorMsg}`, 'error');
+      alert('Failed to generate variations: ' + errorMsg);
     } finally {
       setIsBulkAIProcessing(false);
-      setBulkAIProgress(0);
-      setBulkAIStatus('');
+      setBulkAIStatus('Finished');
     }
   };
 
@@ -1230,16 +1345,56 @@ Return the updated question object in JSON format. Ensure the output is strictly
                         <span className="text-[8px] font-mono text-slate-300">#{q.question_unique_id || q.id?.slice(0, 6)}</span>
                       </div>
 
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                          {q.subject || 'General'}
+                      {/* Field Completion Indicator */}
+                      <div className="mb-2 flex items-center gap-1 overflow-x-auto pb-1 custom-scrollbar no-scrollbar">
+                        {getFieldCompletionStatus(q).map((field, i) => (
+                          <div 
+                            key={i} 
+                            title={`${field.name}: ${field.filled ? 'Filled' : 'Empty'}`}
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${field.filled ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]' : 'bg-slate-200'}`}
+                          />
+                        ))}
+                        <span className="text-[7px] font-bold text-slate-400 ml-1 whitespace-nowrap">
+                          {getFieldCompletionStatus(q).filter(f => f.filled).length}/{getFieldCompletionStatus(q).length}
                         </span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {q.subject && (
+                          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+                            {q.subject}
+                          </span>
+                        )}
+                        {q.chapter && (
+                          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+                            {q.chapter}
+                          </span>
+                        )}
+                        {q.topic && (
+                          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+                            {q.topic}
+                          </span>
+                        )}
+                        {q.difficulty && (
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                            q.difficulty === 'Easy' ? 'bg-green-50 text-green-600' :
+                            q.difficulty === 'Medium' ? 'bg-yellow-50 text-yellow-600' :
+                            'bg-red-50 text-red-600'
+                          }`}>
+                            {q.difficulty}
+                          </span>
+                        )}
                         <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
                           {q.type || 'MCQ'}
                         </span>
                         {q.page_no && (
                           <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase">
                             P. {q.page_no}
+                          </span>
+                        )}
+                        {q.keywords && (
+                          <span className="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded text-[8px] font-bold uppercase border border-purple-100">
+                            {q.keywords}
                           </span>
                         )}
                         {Array.isArray(q.tags) ? q.tags.map((tag: string, i: number) => (
@@ -1350,6 +1505,20 @@ Return the updated question object in JSON format. Ensure the output is strictly
                           <p className="text-sm text-slate-800 font-medium truncate">
                             {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || 'No question text found'}
                           </p>
+                        </div>
+                        
+                        {/* List View Field Completion Indicator */}
+                        <div className="flex items-center gap-1 mt-1 overflow-x-auto no-scrollbar">
+                          {getFieldCompletionStatus(q).map((field, i) => (
+                            <div 
+                              key={i} 
+                              title={`${field.name}: ${field.filled ? 'Filled' : 'Empty'}`}
+                              className={`w-1 h-1 rounded-full shrink-0 ${field.filled ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                            />
+                          ))}
+                          <span className="text-[7px] font-bold text-slate-400 ml-1">
+                            {getFieldCompletionStatus(q).filter(f => f.filled).length} fields
+                          </span>
                         </div>
                       </div>
 
@@ -1688,36 +1857,117 @@ Return the updated question object in JSON format. Ensure the output is strictly
       {/* Bulk AI Edit Modal */}
       <AnimatePresence>
         {isBulkAIEditModalOpen && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-5xl h-full sm:h-[90vh] flex flex-col overflow-hidden"
             >
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Bulk AI Edit</h3>
-                <Button variant="ghost" size="icon" onClick={() => setIsBulkAIEditModalOpen(false)} className="h-8 w-8">
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="p-6 space-y-4">
-                {isBulkAIProcessing ? (
-                  <div className="space-y-4">
-                    <div className="w-full bg-slate-100 rounded-full h-2.5">
-                      <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${bulkAIProgress}%` }}></div>
-                    </div>
-                    <p className="text-xs text-slate-600 font-medium truncate">{bulkAIStatus}</p>
+              <div className="px-4 sm:px-6 py-4 border-b flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl hidden sm:flex items-center justify-center">
+                    <Sparkles className="w-6 h-6" />
                   </div>
-                ) : (
-                  <>
-                    <p className="text-xs text-slate-500">Apply an AI-powered edit to {selectedIds.size} selected questions in parallel</p>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900">Bulk AI Edit</h3>
+                    <p className="text-[10px] sm:text-xs text-slate-500">Processing {selectedIds.size} selected questions</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {bulkAIProgress === 100 && !isBulkAIProcessing ? (
+                    <Button 
+                      size="sm"
+                      className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5" 
+                      onClick={() => setIsBulkAIEditModalOpen(false)}
+                    >
+                      <Check className="w-4 h-4" />
+                      <span className="hidden sm:inline">Done / Finish</span>
+                      <span className="sm:hidden">Done</span>
+                    </Button>
+                  ) : (
+                    <Button 
+                      size="sm"
+                      className="font-bold bg-purple-600 hover:bg-purple-700 text-white h-9 px-4 shadow-sm shadow-purple-200 flex items-center justify-center gap-1.5" 
+                      onClick={handleBulkAIEdit} 
+                      disabled={isBulkAIProcessing}
+                    >
+                      {isBulkAIProcessing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="hidden sm:inline">Processing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          <span className="hidden sm:inline">Start Bulk AI Edit</span>
+                          <span className="sm:hidden">Start</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={() => setIsBulkAIEditModalOpen(false)} className="h-9 w-9" disabled={isBulkAIProcessing}>
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden min-h-0">
+                {/* Configuration Panel */}
+                <div className="w-full md:w-80 border-b md:border-b-0 md:border-r bg-slate-50/50 p-4 sm:p-6 space-y-6 shrink-0 md:overflow-y-auto">
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">AI Configuration</h4>
                     
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Edit Type *</label>
-                      <select className="w-full border rounded-lg p-2 text-xs" value={aiEditType} onChange={e => setAiEditType(e.target.value)}>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">AI Provider</label>
+                      <select 
+                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                        value={aiProvider} 
+                        onChange={e => {
+                          const provider = e.target.value as AIProvider;
+                          setAiProvider(provider);
+                          setAiModel(AI_MODELS[provider][0]);
+                        }}
+                        disabled={isBulkAIProcessing}
+                      >
+                        <option value="gemini">Google Gemini</option>
+                        <option value="openrouter">OpenRouter (Claude, GPT-4, etc.)</option>
+                        <option value="groq">Groq (Llama 3, Mixtral)</option>
+                        <option value="modal">Modal (GLM-5.1)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Model</label>
+                      <select 
+                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                        value={aiModel} 
+                        onChange={e => setAiModel(e.target.value)}
+                        disabled={isBulkAIProcessing}
+                      >
+                        {AI_MODELS[aiProvider].map(model => (
+                          <option key={model} value={model}>{model}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Edit Settings</h4>
+                    
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Edit Type *</label>
+                      <select 
+                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                        value={aiEditType} 
+                        onChange={e => {
+                          setAiEditType(e.target.value);
+                          setAiEditAction(''); // Reset action when type changes
+                        }}
+                        disabled={isBulkAIProcessing}
+                      >
                         <option>Solution Add / Change</option>
-                        <option>Question Variation</option>
+                        <option>Classify & Tag</option>
                         <option>Translate</option>
                         <option>Write your own prompt</option>
                       </select>
@@ -1725,8 +1975,13 @@ Return the updated question object in JSON format. Ensure the output is strictly
 
                     {aiEditType === 'Solution Add / Change' && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Select action...</label>
-                        <select className="w-full border rounded-lg p-2 text-xs" value={aiEditAction} onChange={e => setAiEditAction(e.target.value)}>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Action</label>
+                        <select 
+                          className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                          value={aiEditAction} 
+                          onChange={e => setAiEditAction(e.target.value)}
+                          disabled={isBulkAIProcessing}
+                        >
                           <option value="">Select action...</option>
                           <option value="Add solution where missing">Add solution where missing</option>
                           <option value="Make solutions more detailed">Make solutions more detailed</option>
@@ -1735,10 +1990,32 @@ Return the updated question object in JSON format. Ensure the output is strictly
                       </div>
                     )}
 
+                    {aiEditType === 'Classify & Tag' && (
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Action</label>
+                        <select 
+                          className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                          value={aiEditAction} 
+                          onChange={e => setAiEditAction(e.target.value)}
+                          disabled={isBulkAIProcessing}
+                        >
+                          <option value="">Select action...</option>
+                          <option value="Fill all missing classification fields">Fill all missing fields (Subject, Sub Subject, Chapter, Sub Chapter, Topic, Sub Topic, Keywords, Difficulty)</option>
+                          <option value="Generate keywords only">Generate Keywords only</option>
+                          <option value="Determine difficulty only">Determine Difficulty only</option>
+                        </select>
+                      </div>
+                    )}
+
                     {aiEditType === 'Translate' && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Select language...</label>
-                        <select className="w-full border rounded-lg p-2 text-xs" value={aiLanguage} onChange={e => setAiLanguage(e.target.value)}>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Target Language</label>
+                        <select 
+                          className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                          value={aiLanguage} 
+                          onChange={e => setAiLanguage(e.target.value)}
+                          disabled={isBulkAIProcessing}
+                        >
                           <option value="Hindi">Hindi</option>
                           <option value="Bengali">Bengali</option>
                           <option value="Telugu">Telugu</option>
@@ -1753,21 +2030,145 @@ Return the updated question object in JSON format. Ensure the output is strictly
 
                     {aiEditType === 'Write your own prompt' && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Prompt</label>
-                        <textarea className="w-full border rounded-lg p-2 h-24 text-xs" value={aiCustomPrompt} onChange={e => setAiCustomPrompt(e.target.value)} placeholder="Describe what you want AI to do..." />
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Custom Prompt</label>
+                        <textarea 
+                          className="w-full border rounded-lg p-2.5 h-32 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none resize-none" 
+                          value={aiCustomPrompt} 
+                          onChange={e => setAiCustomPrompt(e.target.value)} 
+                          placeholder="Describe what you want AI to do..."
+                          disabled={isBulkAIProcessing}
+                        />
                       </div>
                     )}
+                  </div>
 
-                    <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-[10px] text-amber-800">
-                      ⚠️ Warning: This will modify {selectedIds.size} selected questions. Changes are applied immediately and use AI credits.
+                  {!isBulkAIProcessing && (
+                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-2">
+                      <div className="flex items-center gap-2 text-amber-800 font-bold text-xs">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Warning</span>
+                      </div>
+                      <p className="text-[10px] text-amber-700 leading-relaxed">
+                        This will modify {selectedIds.size} questions. Changes are applied immediately to the database.
+                      </p>
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
+
+                {/* Execution & Logs Panel */}
+                <div className="flex-1 flex flex-col bg-white min-h-[400px] md:min-h-0 md:overflow-hidden">
+                  {/* Progress Header */}
+                  <div className="p-6 border-b shrink-0">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-slate-900">Execution Status</h4>
+                        <p className="text-xs text-slate-500">{bulkAIStatus || (isBulkAIProcessing ? 'Processing...' : 'Ready to start')}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black text-purple-600">{Math.round(bulkAIProgress)}%</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${bulkAIProgress}%` }}
+                        className="bg-gradient-to-r from-purple-500 to-indigo-600 h-full rounded-full"
+                      />
+                    </div>
+                  </div>
+
+                    {/* Logs Area */}
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                      <div className="px-6 py-3 bg-slate-50 border-b flex items-center justify-between shrink-0">
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Real-time Activity Logs</h4>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${isBulkAIProcessing ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                          <span className="text-[10px] font-medium text-slate-500">{isBulkAIProcessing ? 'Live' : 'Idle'}</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-6 space-y-2 font-mono text-xs bg-slate-900 text-slate-300 selection:bg-purple-500/30">
+                        {bulkAILogs.length === 0 ? (
+                          <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-2">
+                            <Loader2 className="w-8 h-8 animate-spin opacity-20" />
+                            <p>Waiting for execution to start...</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {bulkAILogs.map((log) => (
+                              <div key={log.id} className="flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
+                                <span className="text-slate-600 shrink-0">[{log.timestamp.toLocaleTimeString()}]</span>
+                                <span className={`
+                                  ${log.type === 'success' ? 'text-emerald-400' : ''}
+                                  ${log.type === 'error' ? 'text-red-400 font-bold' : ''}
+                                  ${log.type === 'warning' ? 'text-amber-400' : ''}
+                                  ${log.type === 'info' ? 'text-blue-400' : ''}
+                                `}>
+                                  {log.message}
+                                </span>
+                              </div>
+                            ))}
+                            
+                            {failedQuestions.length > 0 && !isBulkAIProcessing && (
+                              <div className="mt-6 p-4 bg-red-950/50 border border-red-900/50 rounded-xl font-sans">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h5 className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4" />
+                                    {failedQuestions.length} Questions Failed
+                                  </h5>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-7 text-[10px] font-bold border-red-800 text-red-400 hover:bg-red-900/30"
+                                    onClick={handleRetryFailed}
+                                  >
+                                    Retry Failed
+                                  </Button>
+                                </div>
+                                <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                  {failedQuestions.map(q => (
+                                    <div key={q.id} className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-red-900/20 shadow-sm">
+                                      <span className="text-[10px] font-medium text-slate-300 truncate flex-1 mr-2">
+                                        {q.question_hin || q.question_eng || q.text || 'No text'}
+                                      </span>
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        className="h-6 px-2 text-[9px] font-bold text-blue-400 hover:bg-blue-900/20"
+                                        onClick={() => handleEditClick(q)}
+                                      >
+                                        Edit Manually
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                </div>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex flex-col xs:flex-row gap-3">
-                <Button variant="ghost" className="flex-1 font-bold text-slate-600 h-10" onClick={() => setIsBulkAIEditModalOpen(false)} disabled={isBulkAIProcessing}>Cancel</Button>
-                <Button className="flex-1 font-bold bg-purple-600 hover:bg-purple-700 text-white h-10" onClick={handleBulkAIEdit} disabled={isBulkAIProcessing}>
-                  {isBulkAIProcessing ? 'Processing...' : 'Start Bulk Edit'}
+
+              <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-t flex items-center justify-between shrink-0">
+                <div className="text-[10px] sm:text-xs text-slate-500 font-medium">
+                  {isBulkAIProcessing ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Please do not close this window while processing
+                    </span>
+                  ) : (
+                    'Ready to process questions'
+                  )}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="font-bold text-slate-600 h-8 px-4 hidden sm:flex" 
+                  onClick={() => setIsBulkAIEditModalOpen(false)} 
+                  disabled={isBulkAIProcessing}
+                >
+                  Close
                 </Button>
               </div>
             </motion.div>
@@ -2180,58 +2581,258 @@ Return the updated question object in JSON format. Ensure the output is strictly
       {/* Bulk AI Variation Modal */}
       <AnimatePresence>
         {isBulkAIVariationModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-5xl h-full sm:h-[90vh] flex flex-col overflow-hidden"
             >
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Bulk AI Variation ({selectedIds.size} questions)</h3>
-                <Button variant="ghost" size="icon" onClick={() => setIsBulkAIVariationModalOpen(false)} className="h-8 w-8">
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="p-6 space-y-4">
-                {isBulkAIProcessing ? (
-                  <div className="space-y-4">
-                    <div className="w-full bg-slate-100 rounded-full h-2.5">
-                      <div className="bg-teal-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${bulkAIProgress}%` }}></div>
-                    </div>
-                    <p className="text-xs text-slate-600 font-medium truncate">{bulkAIStatus}</p>
+              <div className="px-4 sm:px-6 py-4 border-b flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-teal-100 text-teal-600 rounded-xl hidden sm:flex items-center justify-center">
+                    <Copy className="w-6 h-6" />
                   </div>
-                ) : (
-                  <>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900">Bulk AI Variations</h3>
+                    <p className="text-[10px] sm:text-xs text-slate-500">Generating variations for {selectedIds.size} questions</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {bulkAIProgress === 100 && !isBulkAIProcessing ? (
+                    <Button 
+                      size="sm"
+                      className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5" 
+                      onClick={() => setIsBulkAIVariationModalOpen(false)}
+                    >
+                      <Check className="w-4 h-4" />
+                      <span className="hidden sm:inline">Done / Finish</span>
+                      <span className="sm:hidden">Done</span>
+                    </Button>
+                  ) : (
+                    <Button 
+                      size="sm"
+                      className="font-bold bg-teal-600 hover:bg-teal-700 text-white h-9 px-4 shadow-sm shadow-teal-200 flex items-center justify-center gap-1.5" 
+                      onClick={handleBulkAIVariations} 
+                      disabled={isBulkAIProcessing}
+                    >
+                      {isBulkAIProcessing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="hidden sm:inline">Generating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          <span className="hidden sm:inline">Generate Variations</span>
+                          <span className="sm:hidden">Start</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={() => setIsBulkAIVariationModalOpen(false)} className="h-9 w-9" disabled={isBulkAIProcessing}>
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden min-h-0">
+                {/* Configuration Panel */}
+                <div className="w-full md:w-80 border-b md:border-b-0 md:border-r bg-slate-50/50 p-4 sm:p-6 space-y-6 shrink-0 md:overflow-y-auto">
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">AI Configuration</h4>
+                    
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Variation Type</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">AI Provider</label>
                       <select 
-                        className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none"
-                        value={aiEditType}
+                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-teal-500 outline-none" 
+                        value={aiProvider} 
+                        onChange={e => {
+                          const provider = e.target.value as AIProvider;
+                          setAiProvider(provider);
+                          setAiModel(AI_MODELS[provider][0]);
+                        }}
+                        disabled={isBulkAIProcessing}
+                      >
+                        <option value="gemini">Google Gemini</option>
+                        <option value="openrouter">OpenRouter (Claude, GPT-4, etc.)</option>
+                        <option value="groq">Groq (Llama 3, Mixtral)</option>
+                        <option value="modal">Modal (GLM-5.1)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Model</label>
+                      <select 
+                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-teal-500 outline-none" 
+                        value={aiModel} 
+                        onChange={e => setAiModel(e.target.value)}
+                        disabled={isBulkAIProcessing}
+                      >
+                        {AI_MODELS[aiProvider].map(model => (
+                          <option key={model} value={model}>{model}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Variation Settings</h4>
+                    
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Variation Type</label>
+                      <select 
+                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-teal-500 outline-none" 
+                        value={aiEditType} 
                         onChange={e => setAiEditType(e.target.value)}
+                        disabled={isBulkAIProcessing}
                       >
                         <option value="simplify">Simplify</option>
                         <option value="rephrase">Rephrase</option>
                         <option value="translate">Translate</option>
                       </select>
                     </div>
+
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Number of Variations</label>
-                      <input 
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Number of Variations per Question</label>
+                      <Input 
                         type="number"
-                        className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none"
-                        value={aiCustomPrompt}
-                        onChange={e => setAiCustomPrompt(e.target.value)}
+                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-teal-500 outline-none" 
+                        value={aiCustomPrompt} 
+                        onChange={e => setAiCustomPrompt(e.target.value)} 
                         placeholder="e.g. 1"
+                        disabled={isBulkAIProcessing}
                       />
                     </div>
-                  </>
-                )}
+                  </div>
+
+                  {!isBulkAIProcessing && (
+                    <div className="bg-teal-50 border border-teal-200 p-4 rounded-xl space-y-2">
+                      <div className="flex items-center gap-2 text-teal-800 font-bold text-xs">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Info</span>
+                      </div>
+                      <p className="text-[10px] text-teal-700 leading-relaxed">
+                        This will generate new variations for {selectedIds.size} questions. New questions will be added as 'Draft'.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Execution & Logs Panel */}
+                <div className="flex-1 flex flex-col bg-white min-h-[400px] md:min-h-0 md:overflow-hidden">
+                  {/* Progress Header */}
+                  <div className="p-6 border-b shrink-0">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-slate-900">Execution Status</h4>
+                        <p className="text-xs text-slate-500">{bulkAIStatus || (isBulkAIProcessing ? 'Processing...' : 'Ready to start')}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black text-teal-600">{Math.round(bulkAIProgress)}%</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${bulkAIProgress}%` }}
+                        className="bg-gradient-to-r from-teal-500 to-emerald-600 h-full rounded-full"
+                      />
+                    </div>
+                  </div>
+
+                    {/* Logs Area */}
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                      <div className="px-6 py-3 bg-slate-50 border-b flex items-center justify-between shrink-0">
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Real-time Activity Logs</h4>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${isBulkAIProcessing ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                          <span className="text-[10px] font-medium text-slate-500">{isBulkAIProcessing ? 'Live' : 'Idle'}</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-6 space-y-2 font-mono text-xs bg-slate-900 text-slate-300 selection:bg-teal-500/30">
+                        {bulkAILogs.length === 0 ? (
+                          <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-2">
+                            <Loader2 className="w-8 h-8 animate-spin opacity-20" />
+                            <p>Waiting for execution to start...</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {bulkAILogs.map((log) => (
+                              <div key={log.id} className="flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
+                                <span className="text-slate-600 shrink-0">[{log.timestamp.toLocaleTimeString()}]</span>
+                                <span className={`
+                                  ${log.type === 'success' ? 'text-emerald-400' : ''}
+                                  ${log.type === 'error' ? 'text-red-400 font-bold' : ''}
+                                  ${log.type === 'warning' ? 'text-amber-400' : ''}
+                                  ${log.type === 'info' ? 'text-blue-400' : ''}
+                                `}>
+                                  {log.message}
+                                </span>
+                              </div>
+                            ))}
+                            
+                            {failedQuestions.length > 0 && !isBulkAIProcessing && (
+                              <div className="mt-6 p-4 bg-red-950/50 border border-red-900/50 rounded-xl font-sans">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h5 className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4" />
+                                    {failedQuestions.length} Questions Failed
+                                  </h5>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-7 text-[10px] font-bold border-red-800 text-red-400 hover:bg-red-900/30"
+                                    onClick={handleRetryFailed}
+                                  >
+                                    Retry Failed
+                                  </Button>
+                                </div>
+                                <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                  {failedQuestions.map(q => (
+                                    <div key={q.id} className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-red-900/20 shadow-sm">
+                                      <span className="text-[10px] font-medium text-slate-300 truncate flex-1 mr-2">
+                                        {q.question_hin || q.question_eng || q.text || 'No text'}
+                                      </span>
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        className="h-6 px-2 text-[9px] font-bold text-blue-400 hover:bg-blue-900/20"
+                                        onClick={() => handleEditClick(q)}
+                                      >
+                                        Edit Manually
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                </div>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex flex-col xs:flex-row gap-3">
-                <Button variant="ghost" className="flex-1 font-bold text-slate-600 h-10" onClick={() => setIsBulkAIVariationModalOpen(false)} disabled={isBulkAIProcessing}>Cancel</Button>
-                <Button className="flex-1 font-bold bg-teal-600 hover:bg-teal-700 text-white h-10" onClick={handleBulkAIVariations} disabled={isBulkAIProcessing}>
-                  {isBulkAIProcessing ? 'Generating...' : 'Generate Variations'}
+
+              <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-t flex items-center justify-between shrink-0">
+                <div className="text-[10px] sm:text-xs text-slate-500 font-medium">
+                  {isBulkAIProcessing ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Please do not close this window while processing
+                    </span>
+                  ) : (
+                    'Ready to generate variations'
+                  )}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="font-bold text-slate-600 h-8 px-4 hidden sm:flex" 
+                  onClick={() => setIsBulkAIVariationModalOpen(false)} 
+                  disabled={isBulkAIProcessing}
+                >
+                  Close
                 </Button>
               </div>
             </motion.div>

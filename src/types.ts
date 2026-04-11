@@ -49,6 +49,11 @@ export interface Question {
   sync_code?: string;
   error_report?: string;
   error_description?: string;
+  topic?: string;
+  sub_topic?: string;
+  sub_subject?: string;
+  sub_chapter?: string;
+  keywords?: string;
   
   // Legacy fields for UI compatibility
   text: string;
@@ -57,7 +62,6 @@ export interface Question {
   status: 'Draft' | 'Published';
   difficulty: 'Easy' | 'Medium' | 'Hard';
   image?: string;
-  topic?: string;
   tags?: string[];
 }
 

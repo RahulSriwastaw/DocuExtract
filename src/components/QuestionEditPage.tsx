@@ -52,7 +52,12 @@ export default function QuestionEditPage({
   // Properties
   const properties = [
     { label: 'Subject', key: 'subject' },
+    { label: 'Sub Subject', key: 'sub_subject' },
     { label: 'Chapter', key: 'chapter' },
+    { label: 'Sub Chapter', key: 'sub_chapter' },
+    { label: 'Topic', key: 'topic' },
+    { label: 'Sub Topic', key: 'sub_topic' },
+    { label: 'Keywords', key: 'keywords' },
     { label: 'Type', key: 'type' },
     { label: 'Difficulty', key: 'difficulty' },
     { label: 'Status', key: 'status' },
@@ -77,48 +82,62 @@ export default function QuestionEditPage({
   const handleApplyAIEdit = async () => {
     setIsAIProcessing(true);
     try {
-      const { aiService } = await import('@/utils/aiService');
-
-      // Get user's preferred AI provider and model
-      const aiProvider = (localStorage.getItem('aiProvider') as any) || 'gemini';
-      const aiModel = localStorage.getItem('aiModel') || 'gemini-2.5-flash';
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
       
       let prompt = '';
+      const subjectChapterInstruction = `Also, analyze the question to identify its "subject", "sub_subject", "chapter", "sub_chapter", "topic", "sub_topic", "keywords", and "difficulty" level (Easy, Medium, or Hard). If these fields are missing or empty, populate them with appropriate values based on the question content.`;
+      
       if (aiEditType === 'Solution Add / Change') {
         prompt = `You are an expert educator. Perform the following action on the provided question: ${aiEditAction}. 
+        ${subjectChapterInstruction}
         Return ONLY the updated question object in JSON format. Do not include any markdown formatting like \`\`\`json.
-        Preserve all existing fields, only update the solution fields (solution_eng, solution_hin) as requested.
+        Preserve all existing fields, only update the solution fields (solution_eng, solution_hin) and subject/chapter as requested.
+        
+        Question: ${JSON.stringify(editingQuestion)}`;
+      } else if (aiEditType === 'Classify & Tag') {
+        let specificInstruction = subjectChapterInstruction;
+        if (aiEditAction === 'Generate keywords only') {
+          specificInstruction = `Analyze the question and generate a comma-separated list of highly relevant "keywords". Populate the "keywords" field if it is missing or empty. Do not modify other fields.`;
+        } else if (aiEditAction === 'Determine difficulty only') {
+          specificInstruction = `Analyze the question and determine its "difficulty" level (Easy, Medium, or Hard). Populate the "difficulty" field if it is missing or empty. Do not modify other fields.`;
+        } else {
+          specificInstruction = `Analyze the question to identify and populate its "subject", "sub_subject", "chapter", "sub_chapter", "topic", "sub_topic", "keywords", and "difficulty" level. Only populate fields that are currently missing or empty.`;
+        }
+        prompt = `You are an expert educator. Perform classification and tagging on the provided question. 
+        ${specificInstruction}
+        Return ONLY the updated question object in JSON format. Do not include any markdown formatting like \`\`\`json.
+        Preserve all existing fields, only update the classification fields as requested.
         
         Question: ${JSON.stringify(editingQuestion)}`;
       } else if (aiEditType === 'Question Variation') {
         prompt = `You are an expert educator. Create a variation of the following question. 
         Keep the same difficulty and topic, but change the specific values or scenario.
+        ${subjectChapterInstruction}
         Return ONLY the updated question object in JSON format. Do not include any markdown formatting like \`\`\`json.
         Update question_eng, question_hin, options, correctOption, solution_eng, and solution_hin accordingly.
         
         Question: ${JSON.stringify(editingQuestion)}`;
       } else if (aiEditType === 'Language Variation') {
         prompt = `You are an expert translator. Translate the question, options, and solution into ${aiLanguage}.
+        ${subjectChapterInstruction}
         Return ONLY the updated question object in JSON format. Do not include any markdown formatting like \`\`\`json.
         Store the translation in the appropriate language fields (e.g., if Hindi, use question_hin, solution_hin). If the language is not Hindi or English, add a new field like question_${(aiLanguage || '').toLowerCase().substring(0,3)}.
         
         Question: ${JSON.stringify(editingQuestion)}`;
       } else if (aiEditType === 'Write your own prompt') {
         prompt = `You are an expert educator. Follow these instructions to modify the question: ${aiCustomPrompt}.
+        ${subjectChapterInstruction}
         Return ONLY the updated question object in JSON format. Do not include any markdown formatting like \`\`\`json.
         
         Question: ${JSON.stringify(editingQuestion)}`;
       }
 
-      const response = await aiService.generateContent(
-        [{ role: 'user', content: prompt }],
-        {
-          provider: aiProvider,
-          model: aiModel,
-          temperature: 0.7,
-          maxTokens: 4096
-        }
-      );
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: { responseMimeType: 'application/json' }
+      });
       
       let responseText = response.text || '{}';
       // Clean up potential markdown formatting if the model still includes it
@@ -383,8 +402,12 @@ export default function QuestionEditPage({
             <p className="text-sm text-indigo-100 mb-4">Use AI to generate variations, solutions, or translations.</p>
             
             <div className="space-y-3 mb-4">
-              <select className="w-full bg-indigo-800 border border-indigo-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white outline-none" value={aiEditType} onChange={e => setAiEditType(e.target.value)}>
+              <select className="w-full bg-indigo-800 border border-indigo-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white outline-none" value={aiEditType} onChange={e => {
+                setAiEditType(e.target.value);
+                setAiEditAction('');
+              }}>
                 <option>Solution Add / Change</option>
+                <option>Classify & Tag</option>
                 <option>Question Variation</option>
                 <option>Language Variation</option>
                 <option>Write your own prompt</option>
@@ -392,9 +415,19 @@ export default function QuestionEditPage({
 
               {aiEditType === 'Solution Add / Change' && (
                 <select className="w-full bg-indigo-800 border border-indigo-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white outline-none" value={aiEditAction} onChange={e => setAiEditAction(e.target.value)}>
+                  <option value="">Select action...</option>
                   <option value="Add solution where missing">Add solution where missing</option>
                   <option value="Make solutions more detailed">Make solutions more detailed</option>
                   <option value="Make solutions short & crisp (bullet points)">Make solutions short & crisp (bullet points)</option>
+                </select>
+              )}
+
+              {aiEditType === 'Classify & Tag' && (
+                <select className="w-full bg-indigo-800 border border-indigo-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white outline-none" value={aiEditAction} onChange={e => setAiEditAction(e.target.value)}>
+                  <option value="">Select action...</option>
+                  <option value="Fill all missing classification fields">Fill all missing fields (Subject, Sub Subject, Chapter, Sub Chapter, Topic, Sub Topic, Keywords, Difficulty)</option>
+                  <option value="Generate keywords only">Generate Keywords only</option>
+                  <option value="Determine difficulty only">Determine Difficulty only</option>
                 </select>
               )}
 

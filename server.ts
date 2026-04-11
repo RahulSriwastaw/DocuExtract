@@ -6,6 +6,7 @@ import Airtable from 'airtable';
 import fs from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
+import OpenAI from "openai";
 import pkg from 'pg';
 const { Client } = pkg;
 
@@ -17,13 +18,8 @@ if (!existsSync(CACHE_DIR)) {
 }
 
 // Supabase Configuration
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error("Supabase credentials not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.");
-  process.exit(1);
-}
+const supabaseUrl = 'https://yxibppbfrugarjoeoijw.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aWJwcGJmcnVnYXJqb2VvaWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTgwNjUsImV4cCI6MjA5MDA5NDA2NX0.m7pkeKKDBW4bunM9V8iR1Wo6TzXdhLHAd9BfFagepO0';
 
 // Custom fetch with timeout
 const fetchWithTimeout = (url: string, options: any = {}) => {
@@ -90,7 +86,7 @@ function handleSupabaseError(error: any, res: express.Response, context: string)
 }
 
 const pgClient = new Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: 'postgresql://postgres.yxibppbfrugarjoeoijw:iuTKL5bWoinAH6kr@aws-1-ap-south-1.pooler.supabase.com:6543/postgres',
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 5000, // 5 second timeout
 });
@@ -217,6 +213,81 @@ async function initDb(retries = 3) {
 }
 initDb();
 
+const mapQuestionToDb = (q: any) => {
+  const mapped: any = {};
+  
+  // Question text
+  if (q.question_hin !== undefined) mapped.question_hin = q.question_hin;
+  else if (q.text !== undefined) mapped.question_hin = q.text;
+  if (q.question_eng !== undefined) mapped.question_eng = q.question_eng;
+  
+  // Classification
+  if (q.subject !== undefined) mapped.subject = q.subject;
+  if (q.sub_subject !== undefined) mapped.sub_subject = q.sub_subject;
+  if (q.chapter !== undefined) mapped.chapter = q.chapter;
+  if (q.sub_chapter !== undefined) mapped.sub_chapter = q.sub_chapter;
+  if (q.topic !== undefined) mapped.topic = q.topic;
+  if (q.sub_topic !== undefined) mapped.sub_topic = q.sub_topic;
+  if (q.keywords !== undefined) mapped.keywords = q.keywords;
+  
+  // Options
+  if (q.option1_hin !== undefined) mapped.option1_hin = q.option1_hin;
+  else if (q.options?.[0] !== undefined) mapped.option1_hin = q.options[0];
+  
+  if (q.option2_hin !== undefined) mapped.option2_hin = q.option2_hin;
+  else if (q.options?.[1] !== undefined) mapped.option2_hin = q.options[1];
+  
+  if (q.option3_hin !== undefined) mapped.option3_hin = q.option3_hin;
+  else if (q.options?.[2] !== undefined) mapped.option3_hin = q.options[2];
+  
+  if (q.option4_hin !== undefined) mapped.option4_hin = q.option4_hin;
+  else if (q.options?.[3] !== undefined) mapped.option4_hin = q.options[3];
+  
+  if (q.option5_hin !== undefined) mapped.option5_hin = q.option5_hin;
+  else if (q.options?.[4] !== undefined) mapped.option5_hin = q.options[4];
+  
+  if (q.option1_eng !== undefined) mapped.option1_eng = q.option1_eng;
+  if (q.option2_eng !== undefined) mapped.option2_eng = q.option2_eng;
+  if (q.option3_eng !== undefined) mapped.option3_eng = q.option3_eng;
+  if (q.option4_eng !== undefined) mapped.option4_eng = q.option4_eng;
+  if (q.option5_eng !== undefined) mapped.option5_eng = q.option5_eng;
+  
+  // Answer & Solution
+  if (q.answer !== undefined) mapped.answer = q.answer;
+  else if (q.correctOption !== undefined) mapped.answer = q.correctOption;
+  
+  if (q.solution_hin !== undefined) mapped.solution_hin = q.solution_hin;
+  if (q.solution_eng !== undefined) mapped.solution_eng = q.solution_eng;
+  
+  // Metadata
+  if (q.type !== undefined) mapped.type = q.type;
+  if (q.difficulty !== undefined) mapped.difficulty = q.difficulty;
+  if (q.video !== undefined) mapped.video = q.video;
+  if (q.page_no !== undefined) mapped.page_no = q.page_no;
+  if (q.collection !== undefined) mapped.collection = q.collection;
+  if (q.airtable_table_name !== undefined) mapped.airtable_table_name = q.airtable_table_name;
+  if (q.section !== undefined) mapped.section = q.section;
+  if (q.year !== undefined) mapped.year = q.year;
+  if (q.date !== undefined) mapped.date = q.date;
+  if (q.exam !== undefined) mapped.exam = q.exam;
+  if (q.previous_of !== undefined) mapped.previous_of = q.previous_of;
+  if (q.action !== undefined) mapped.action = q.action;
+  
+  if (q.current_status !== undefined) mapped.current_status = q.current_status;
+  else if (q.status !== undefined) mapped.current_status = q.status;
+  
+  if (q.sync_code !== undefined) mapped.sync_code = q.sync_code;
+  if (q.error_report !== undefined) mapped.error_report = q.error_report;
+  if (q.error_description !== undefined) mapped.error_description = q.error_description;
+  if (q.image !== undefined) mapped.image = q.image;
+  
+  if (q.tags !== undefined) {
+    mapped.tags = Array.isArray(q.tags) ? q.tags : (typeof q.tags === 'string' ? JSON.parse(q.tags) : []);
+  }
+
+  return mapped;
+};
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -226,6 +297,98 @@ async function startServer() {
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  app.post("/api/ai/generate", async (req, res) => {
+    try {
+      const { prompt, config } = req.body;
+      if (!prompt || !config) {
+        return res.status(400).json({ error: "Missing prompt or config" });
+      }
+
+      const { provider, model } = config;
+
+      if (provider === 'openrouter' || provider === 'groq' || provider === 'modal') {
+        let baseURL = "";
+        let apiKey = "";
+        const headers: Record<string, string> = {};
+        
+        if (provider === 'openrouter') {
+          baseURL = "https://openrouter.ai/api/v1";
+          apiKey = process.env.OPENROUTER_API_KEY || "";
+          headers["HTTP-Referer"] = "https://ai.studio/build";
+          headers["X-Title"] = "AI Studio App";
+        } else if (provider === 'groq') {
+          baseURL = "https://api.groq.com/openai/v1";
+          apiKey = process.env.GROQ_API_KEY || "";
+        } else {
+          baseURL = "https://api.us-west-2.modal.direct/v1";
+          apiKey = process.env.MODAL_API_KEY || "";
+        }
+        
+        if (!apiKey) throw new Error(`${provider} API Key not found`);
+        
+        const openai = new OpenAI({ 
+          baseURL, 
+          apiKey,
+          defaultHeaders: headers,
+          timeout: 180000, // 180 second timeout for bulk operations
+          maxRetries: 5 // Increase built-in retries
+        });
+        
+        try {
+          const response = await openai.chat.completions.create({
+            model: model,
+            messages: [{ role: 'user', content: prompt }],
+            response_format: provider === 'modal' ? undefined : { type: 'json_object' },
+            max_tokens: 2000
+          });
+          
+          return res.json({ text: response.choices[0].message.content || "" });
+        } catch (apiErr: any) {
+          // If 502, 429 or Timeout, try manual retries with longer backoff
+          const isRetryable = apiErr.status === 502 || apiErr.status === 429 || apiErr.name === 'APIConnectionTimeoutError' || apiErr.message?.includes('Too many concurrent requests');
+          
+          if (isRetryable) {
+            let errorType = "Error";
+            if (apiErr.status === 502) errorType = "502 Upstream Error";
+            if (apiErr.status === 429 || apiErr.message?.includes('Too many concurrent requests')) errorType = "429 Rate Limit";
+            if (apiErr.name === 'APIConnectionTimeoutError') errorType = "Timeout";
+            
+            console.warn(`${errorType} from ${provider}. Starting manual retry sequence...`);
+            
+            // Try up to 2 manual retries with increasing backoff
+            for (let attempt = 1; attempt <= 2; attempt++) {
+              const waitTime = (apiErr.status === 429 || apiErr.message?.includes('Too many concurrent requests')) 
+                ? (15000 * attempt) // 15s, then 30s
+                : (5000 * attempt); // 5s, then 10s
+              
+              console.log(`Manual retry attempt ${attempt} for ${provider}. Waiting ${waitTime/1000}s...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime + Math.random() * 3000));
+              
+              try {
+                const retryResponse = await openai.chat.completions.create({
+                  model: model,
+                  messages: [{ role: 'user', content: prompt }],
+                  max_tokens: 2000
+                });
+                return res.json({ text: retryResponse.choices[0].message.content || "" });
+              } catch (retryErr: any) {
+                console.error(`Manual retry ${attempt} failed:`, retryErr.message);
+                if (attempt === 2) throw retryErr; // Throw if last manual retry fails
+              }
+            }
+          }
+          throw apiErr;
+        }
+      }
+
+      throw new Error("Unsupported AI Provider");
+    } catch (error: any) {
+      console.error("Server AI Error:", error);
+      const status = (error.status === 429 || error.message?.includes('Too many concurrent requests')) ? 429 : 500;
+      res.status(status).json({ error: error.message || "Unknown AI error" });
+    }
   });
 
   app.get("/api/get-airtable-tables", async (req, res) => {
@@ -854,41 +1017,12 @@ async function startServer() {
 
     try {
       const records = questions.map((q: any) => ({
+        ...mapQuestionToDb(q),
         record_id: q.record_id || '',
-        question_unique_id: q.id || q.question_unique_id || '',
-        question_hin: q.question_hin || q.text || '',
-        question_eng: q.question_eng || '',
-        subject: q.subject || '',
-        chapter: q.chapter || '',
-        option1_hin: q.option1_hin || q.options?.[0] || '',
-        option1_eng: q.option1_eng || '',
-        option2_hin: q.option2_hin || q.options?.[1] || '',
-        option2_eng: q.option2_eng || '',
-        option3_hin: q.option3_hin || q.options?.[2] || '',
-        option3_eng: q.option3_eng || '',
-        option4_hin: q.option4_hin || q.options?.[3] || '',
-        option4_eng: q.option4_eng || '',
-        option5_hin: q.option5_hin || q.options?.[4] || '',
-        option5_eng: q.option5_eng || '',
-        answer: q.answer || q.correctOption || '',
-        solution_hin: q.solution_hin || '',
-        solution_eng: q.solution_eng || '',
-        type: q.type || '',
-        video: q.video || '',
-        page_no: q.page_no || '',
-        collection: serverFolder || airtableTable || '',
-        airtable_table_name: airtableTable || serverFolder || '',
-        section: q.section || '',
-        year: q.year || '',
-        date: q.date || '',
-        exam: q.exam || '',
-        previous_of: q.previous_of || '',
-        action: q.action || 'UPDATED',
-        current_status: q.status || q.current_status || 'Draft',
-        sync_code: q.sync_code || '',
-        error_report: q.error_report || '',
-        error_description: q.error_description || '',
-        image: q.image || '',
+        question_unique_id: q.question_unique_id || q.id || '',
+        collection: serverFolder || airtableTable || q.collection || '',
+        airtable_table_name: airtableTable || serverFolder || q.airtable_table_name || '',
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }));
 
@@ -1099,16 +1233,20 @@ async function startServer() {
     }
 
     try {
-      for (const q of questions) {
-        const { error } = await supabase
-          .from('questions')
-          .update(q)
-          .eq('id', q.id);
-        if (error) throw error;
-      }
+      const records = questions.map(q => ({
+        ...mapQuestionToDb(q),
+        id: q.id,
+        updated_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('questions')
+        .upsert(records);
+
+      if (error) throw error;
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Bulk update error:", error);
+      console.error("Bulk update individual error:", error);
       res.status(500).json({ error: error.message || "Failed to bulk update questions" });
     }
   });
