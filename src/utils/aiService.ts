@@ -276,7 +276,29 @@ export function getAvailableProviders(): { value: AIProvider; label: string; mod
     {
       value: 'openrouter' as AIProvider,
       label: 'OpenRouter',
-      models: ['anthropic/claude-3.5-sonnet', 'openai/gpt-4o', 'openai/gpt-4o-mini', 'meta-llama/llama-3.1-405b-instruct']
+      models: [
+        'anthropic/claude-3.5-sonnet',
+        'openai/gpt-4o',
+        'openai/gpt-4o-mini',
+        'meta-llama/llama-3.1-405b-instruct',
+        'minimax/minimax-m2.5:free',
+        'nvidia/llama-nemotron-embed-vl-1b-v2:free',
+        'nvidia/nemotron-3-super-120b-a12b:free',
+        'arcee-ai/trinity-large-preview:free',
+        'liquid/lfm-2.5-1.2b-thinking:free',
+        'liquid/lfm-2.5-1.2b-instruct:free',
+        'nvidia/nemotron-3-nano-30b-a3b:free',
+        'sourceful/riverflow-v2-max-preview',
+        'black-forest-labs/flux.2-klein-4b',
+        'nvidia/nemotron-nano-12b-v2-vl:free',
+        'qwen/qwen3-next-80b-a3b-instruct:free',
+        'nvidia/nemotron-nano-9b-v2:free',
+        'openai/gpt-oss-120b:free',
+        'z-ai/glm-4.5-air:free',
+        'openai/gpt-oss-20b:free',
+        'qwen/qwen3-coder:free',
+        'meta-llama/llama-3.3-70b-instruct:free'
+      ]
     },
     {
       value: 'groq' as AIProvider,
