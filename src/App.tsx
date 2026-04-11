@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import Dashboard from './components/Dashboard';
 import Questions from './components/Questions';
 import QuestionBank from './components/QuestionBank';
@@ -110,18 +111,26 @@ export default function App() {
       )}
 
       {/* Sidebar Overlay */}
-      {isMobileMenuOpen && activeTab !== 'edit-question' && (
-        <div 
-          className="fixed inset-0 bg-black/40 z-30 md:hidden backdrop-blur-sm transition-opacity"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {isMobileMenuOpen && activeTab !== 'edit-question' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-30 md:hidden backdrop-blur-sm"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Sidebar */}
       {activeTab !== 'edit-question' && (
-        <aside className={`
+        <motion.aside 
+          initial={false}
+          animate={{ x: isMobileMenuOpen ? 0 : '-100%' }}
+          className={`
           fixed inset-y-0 left-0 z-40 md:relative md:z-10
-          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          md:translate-x-0
           ${isSidebarCollapsed ? 'md:w-16' : 'md:w-64'} 
           w-64 border-r border-border bg-bg-sidebar flex flex-col shrink-0 shadow-sm transition-all duration-300
         `}>
@@ -212,70 +221,81 @@ export default function App() {
               {(!isSidebarCollapsed || isMobileMenuOpen) && <span>Settings</span>}
             </Button>
           </div>
-        </aside>
+        </motion.aside>
       )}
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto relative bg-bg-page">
-        {activeTab === 'edit-question' ? (
-          <QuestionEditPage 
-            question={editingQuestion}
-            index={editingIndex}
-            total={extractedQuestions.length}
-            onSave={handleSave}
-            onNext={handleNext}
-            onPrevious={handlePrevious}
-            onBack={() => setActiveTab('extract')}
-          />
-        ) : (
-          <>
-            {activeTab === 'extract' && (
-              extractedQuestions.length > 0 ? (
-                <div className="p-8 max-w-7xl mx-auto">
-                  <button onClick={() => setExtractedQuestions([])} className="mb-6 text-sm font-semibold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
-                    &larr; Back to Dashboard
-                  </button>
-                  <Questions questions={extractedQuestions} onEdit={handleEdit} />
-                </div>
-              ) : !selectedDocument ? (
-                <div className="h-full">
-                  <Dashboard documents={documents} onDocumentClick={setSelectedDocument} onExtractionComplete={handleExtractionComplete} />
-                </div>
-              ) : (
-                <div className="p-8 max-w-7xl mx-auto">
-                  <button onClick={() => setSelectedDocument(null)} className="mb-6 text-sm font-semibold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
-                    &larr; Back to Dashboard
-                  </button>
-                  <h2 className="text-2xl font-semibold mb-6 tracking-tight text-text-heading">{selectedDocument.name}</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {(selectedDocument.questions || []).map((q) => (
-                      <div key={q.id} className="border border-border p-5 rounded-[12px] shadow-sm bg-card hover:shadow-md transition-shadow flex flex-col">
-                        <p className="font-medium text-text-body mb-4 line-clamp-3">{q.text}</p>
-                        <ul className="text-sm text-text-muted mb-6 space-y-1.5 flex-1">
-                          {(q.options || []).map((opt, i) => (
-                            <li key={i} className="flex items-start gap-2">
-                              <span className="w-4 h-4 rounded-full border border-border flex-shrink-0 mt-0.5"></span>
-                              <span className="line-clamp-2">{opt}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="flex gap-2 mt-auto pt-4 border-t border-border">
-                          <Button variant="outline" size="sm" className="flex-1 h-8 text-xs border-border text-text-body hover:bg-slate-50" onClick={() => handleEdit(q)}>Edit</Button>
-                          <Button variant="destructive" size="sm" className="flex-1 h-8 text-xs bg-danger text-white hover:bg-red-600 border-0">Delete</Button>
-                        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="h-full"
+          >
+            {activeTab === 'edit-question' ? (
+              <QuestionEditPage 
+                question={editingQuestion}
+                index={editingIndex}
+                total={extractedQuestions.length}
+                onSave={handleSave}
+                onNext={handleNext}
+                onPrevious={handlePrevious}
+                onBack={() => setActiveTab('extract')}
+              />
+            ) : (
+              <>
+                {activeTab === 'extract' && (
+                  extractedQuestions.length > 0 ? (
+                    <div className="p-8 max-w-7xl mx-auto">
+                      <button onClick={() => setExtractedQuestions([])} className="mb-6 text-sm font-semibold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
+                        &larr; Back to Dashboard
+                      </button>
+                      <Questions questions={extractedQuestions} onEdit={handleEdit} />
+                    </div>
+                  ) : !selectedDocument ? (
+                    <div className="h-full">
+                      <Dashboard documents={documents} onDocumentClick={setSelectedDocument} onExtractionComplete={handleExtractionComplete} />
+                    </div>
+                  ) : (
+                    <div className="p-8 max-w-7xl mx-auto">
+                      <button onClick={() => setSelectedDocument(null)} className="mb-6 text-sm font-semibold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
+                        &larr; Back to Dashboard
+                      </button>
+                      <h2 className="text-2xl font-semibold mb-6 tracking-tight text-text-heading">{selectedDocument.name}</h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {(selectedDocument.questions || []).map((q) => (
+                          <div key={q.id} className="border border-border p-5 rounded-[12px] shadow-sm bg-card hover:shadow-md transition-shadow flex flex-col">
+                            <p className="font-medium text-text-body mb-4 line-clamp-3">{q.text}</p>
+                            <ul className="text-sm text-text-muted mb-6 space-y-1.5 flex-1">
+                              {(q.options || []).map((opt, i) => (
+                                <li key={i} className="flex items-start gap-2">
+                                  <span className="w-4 h-4 rounded-full border border-border flex-shrink-0 mt-0.5"></span>
+                                  <span className="line-clamp-2">{opt}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="flex gap-2 mt-auto pt-4 border-t border-border">
+                              <Button variant="outline" size="sm" className="flex-1 h-8 text-xs border-border text-text-body hover:bg-slate-50" onClick={() => handleEdit(q)}>Edit</Button>
+                              <Button variant="destructive" size="sm" className="flex-1 h-8 text-xs bg-danger text-white hover:bg-red-600 border-0">Delete</Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            )}
+                    </div>
+                  )
+                )}
 
-            {activeTab === 'question-bank' && <QuestionBank />}
-            {activeTab === 'sets' && <QuestionSets onCreateSetClick={() => setActiveTab('create-set')} />}
-            {activeTab === 'create-set' && <CreateSet onBack={() => setActiveTab('sets')} />}
-            {activeTab === 'settings' && <SettingsView />}
-          </>
-        )}
+                {activeTab === 'question-bank' && <QuestionBank />}
+                {activeTab === 'sets' && <QuestionSets onCreateSetClick={() => setActiveTab('create-set')} />}
+                {activeTab === 'create-set' && <CreateSet onBack={() => setActiveTab('sets')} />}
+                {activeTab === 'settings' && <SettingsView />}
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );
