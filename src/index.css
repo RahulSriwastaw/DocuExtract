@@ -35,20 +35,20 @@
 }
 
 :root {
-    --bg-page: #F8F9FA;
+    --bg-page: #F9FAFB;
     --bg-card: #FFFFFF;
-    --bg-sidebar: #FFFFFF;
-    --border: #E5E7EB;
-    --primary: #F4511E;
-    --primary-hover: #D93D10;
-    --primary-light: #FFF0EB;
-    --text-heading: #111827;
-    --text-body: #374151;
-    --text-muted: #6B7280;
-    --text-label: #9CA3AF;
-    --success: #10B981;
+    --bg-sidebar: #0F172A;
+    --border: #E2E8F0;
+    --primary: #F97316;
+    --primary-hover: #EA580C;
+    --primary-light: #FFF7ED;
+    --text-heading: #0F172A;
+    --text-body: #334155;
+    --text-muted: #64748B;
+    --text-label: #94A3B8;
+    --success: #22C55E;
     --danger: #EF4444;
-    --warning: #EAB308;
+    --warning: #F59E0B;
     --info: #3B82F6;
 }
 
