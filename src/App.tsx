@@ -9,11 +9,12 @@ import QuestionEditPage from './components/QuestionEditPage';
 import { mockDocuments } from './mockData';
 import { Document, Question } from './types';
 import { Button } from '@/components/ui/button';
-import { FileText, Database, FolderOpen, LayoutDashboard, Settings, Sparkles, Library, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Database, FolderOpen, LayoutDashboard, Settings, Sparkles, Library, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'extract' | 'question-bank' | 'sets' | 'create-set' | 'settings' | 'edit-question'>('extract');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [extractedQuestions, setExtractedQuestions] = useState<Question[]>([]);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -85,11 +86,46 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-bg-page font-sans overflow-hidden text-text-body">
+    <div className="flex h-screen bg-bg-page font-sans overflow-hidden text-text-body flex-col md:flex-row">
+      {/* Mobile Header */}
+      {activeTab !== 'edit-question' && (
+        <header className="md:hidden bg-bg-sidebar border-b border-border p-4 flex items-center justify-between z-20 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <h1 className="text-lg font-bold tracking-tight text-text-heading">
+              DocuExtract
+            </h1>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="h-9 w-9 rounded-lg text-text-muted hover:text-text-body hover:bg-slate-100"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </Button>
+        </header>
+      )}
+
+      {/* Sidebar Overlay */}
+      {isMobileMenuOpen && activeTab !== 'edit-question' && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-30 md:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       {activeTab !== 'edit-question' && (
-        <aside className={`${isSidebarCollapsed ? 'w-16' : 'w-64'} border-r border-border bg-bg-sidebar flex flex-col shrink-0 shadow-sm z-10 transition-all duration-300 relative`}>
-          <div className={`p-4 border-b border-border flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
+        <aside className={`
+          fixed inset-y-0 left-0 z-40 md:relative md:z-10
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          ${isSidebarCollapsed ? 'md:w-16' : 'md:w-64'} 
+          w-64 border-r border-border bg-bg-sidebar flex flex-col shrink-0 shadow-sm transition-all duration-300
+        `}>
+          <div className={`p-4 border-b border-border hidden md:flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
             {!isSidebarCollapsed && (
               <div className="flex items-center gap-3 overflow-hidden">
                 <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm shrink-0">
@@ -114,52 +150,73 @@ export default function App() {
               {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </Button>
           </div>
+          
+          {/* Mobile Sidebar Header */}
+          <div className="p-4 border-b border-border flex md:hidden items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-bold tracking-tight text-text-heading">
+                DocuExtract
+              </h1>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="h-8 w-8 rounded-lg"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
           <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
             {!isSidebarCollapsed && <div className="text-[11px] font-bold text-text-label uppercase tracking-wider mb-3 px-3 mt-2">Menu</div>}
             <Button 
               variant="ghost"
-              onClick={() => setActiveTab('extract')}
-              className={`w-full ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'extract' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-body hover:bg-slate-50'}`}
+              onClick={() => { setActiveTab('extract'); setIsMobileMenuOpen(false); }}
+              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'extract' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-body hover:bg-slate-50'}`}
               title="Dashboard & Extract"
             >
               <LayoutDashboard className="w-4 h-4 shrink-0" /> 
-              {!isSidebarCollapsed && <span>Dashboard & Extract</span>}
+              {(!isSidebarCollapsed || isMobileMenuOpen) && <span>Dashboard & Extract</span>}
             </Button>
             <Button 
               variant="ghost"
-              onClick={() => setActiveTab('question-bank')}
-              className={`w-full ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'question-bank' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-body hover:bg-slate-50'}`}
+              onClick={() => { setActiveTab('question-bank'); setIsMobileMenuOpen(false); }}
+              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'question-bank' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-body hover:bg-slate-50'}`}
               title="Question Bank"
             >
               <Library className="w-4 h-4 shrink-0" /> 
-              {!isSidebarCollapsed && <span>Question Bank</span>}
+              {(!isSidebarCollapsed || isMobileMenuOpen) && <span>Question Bank</span>}
             </Button>
             <Button 
               variant="ghost"
-              onClick={() => setActiveTab('sets')}
-              className={`w-full ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'sets' || activeTab === 'create-set' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-body hover:bg-slate-50'}`}
+              onClick={() => { setActiveTab('sets'); setIsMobileMenuOpen(false); }}
+              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'sets' || activeTab === 'create-set' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-body hover:bg-slate-50'}`}
               title="Question Sets"
             >
               <FolderOpen className="w-4 h-4 shrink-0" /> 
-              {!isSidebarCollapsed && <span>Question Sets</span>}
+              {(!isSidebarCollapsed || isMobileMenuOpen) && <span>Question Sets</span>}
             </Button>
           </nav>
           <div className="p-3 border-t border-border">
             <Button 
               variant="ghost" 
-              onClick={() => setActiveTab('settings')}
-              className={`w-full ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'settings' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-muted hover:text-text-body hover:bg-slate-50'}`}
+              onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }}
+              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'settings' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-muted hover:text-text-body hover:bg-slate-50'}`}
               title="Settings"
             >
               <Settings className="w-4 h-4 shrink-0" /> 
-              {!isSidebarCollapsed && <span>Settings</span>}
+              {(!isSidebarCollapsed || isMobileMenuOpen) && <span>Settings</span>}
             </Button>
           </div>
         </aside>
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto relative">
+      <main className="flex-1 overflow-auto relative bg-bg-page">
         {activeTab === 'edit-question' ? (
           <QuestionEditPage 
             question={editingQuestion}

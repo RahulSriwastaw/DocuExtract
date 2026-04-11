@@ -177,21 +177,23 @@ export default function QuestionEditPage({
             <Button variant="outline" size="sm" onClick={onPrevious} disabled={index <= 0} className="rounded-full h-8 px-3 text-xs">Prev</Button>
             <Button variant="outline" size="sm" onClick={onNext} disabled={index >= total - 1} className="rounded-full h-8 px-3 text-xs">Next</Button>
           </div>
-          <Button size="sm" onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-4 sm:px-6 h-8 sm:h-9 font-semibold shadow-md shadow-indigo-200 text-xs sm:text-sm">
-            <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Save
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline"
-            onClick={() => {
-              if (editingQuestion?.id && onDelete) {
-                onDelete(editingQuestion.id);
-              }
-            }} 
-            className="border-red-200 text-red-600 hover:bg-red-50 rounded-full px-3 h-8 sm:h-9 text-xs"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-4 sm:px-6 h-8 sm:h-9 font-semibold shadow-md shadow-indigo-200 text-xs sm:text-sm">
+              <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Save
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => {
+                if (editingQuestion?.id && onDelete) {
+                  onDelete(editingQuestion.id);
+                }
+              }} 
+              className="border-red-200 text-red-600 hover:bg-red-50 rounded-full px-3 h-8 sm:h-9 text-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
       </header>
 

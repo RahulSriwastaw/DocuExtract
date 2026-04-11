@@ -1573,7 +1573,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
         </div>
       ) : (
         <div className="p-4 sm:p-8 max-w-7xl mx-auto h-full flex flex-col overflow-y-auto">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
               <div className="w-full lg:w-auto">
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-1 sm:mb-2">Question Bank</h2>
                 <p className="text-sm sm:text-base text-slate-500">Browse all your questions organized by folders.</p>
@@ -1583,7 +1583,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <Input 
                     placeholder="Search folders..." 
-                    className="pl-9 bg-white shadow-sm h-9"
+                    className="pl-9 bg-white shadow-sm h-10"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                   />
@@ -1593,7 +1593,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     variant="outline" 
                     size="sm" 
                     onClick={() => setIsCreateFolderModalOpen(true)}
-                    className="flex-1 sm:flex-none h-9 gap-2 text-slate-600 border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold"
+                    className="flex-1 sm:flex-none h-10 gap-2 text-slate-600 border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold px-4"
                   >
                     <FolderPlus className="w-4 h-4" />
                     New Folder
@@ -1603,7 +1603,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     size="sm" 
                     onClick={handleSyncAllAirtable}
                     disabled={isSyncingAll}
-                    className="flex-1 sm:flex-none h-9 gap-2 text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-50 text-xs font-bold"
+                    className="flex-1 sm:flex-none h-10 gap-2 text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-50 text-xs font-bold px-4"
                   >
                     {isSyncingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                     Sync Airtable
@@ -1613,7 +1613,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
             </div>
 
             {/* Breadcrumbs */}
-            <div className="flex items-center gap-2 mb-6 text-sm text-slate-500 overflow-x-auto whitespace-nowrap pb-2">
+            <div className="flex items-center gap-2 mb-6 text-sm text-slate-500 overflow-x-auto whitespace-nowrap pb-2 no-scrollbar">
               <button 
                 onClick={() => { setCurrentPath([]); setSelectedFolder(null); }}
                 className={`hover:text-blue-600 transition-colors ${currentPath.length === 0 ? 'font-bold text-slate-900' : ''}`}
@@ -1637,7 +1637,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
             </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-3 shadow-sm">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-start gap-3 shadow-sm">
               <div className="mt-0.5 text-lg">⚠️</div>
               <div className="flex-1">
                 <p className="font-bold mb-1">Database Connection Issue</p>
@@ -1649,12 +1649,12 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     rel="noopener noreferrer"
                     className="inline-flex items-center px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-md transition-colors font-medium text-xs"
                   >
-                    Go to Supabase Dashboard
+                    Supabase Dashboard
                     <ExternalLink className="w-3 h-3 ml-1.5" />
                   </a>
                   <button 
                     onClick={() => window.location.reload()}
-                    className="inline-flex items-center px-3 py-1.5 bg-white hover:bg-slate-50 border border-red-200 text-red-800 rounded-md transition-colors font-medium text-xs shadow-sm"
+                    className="inline-flex items-center px-3 py-1.5 bg-white hover:bg-slate-50 border border-red-200 text-red-800 rounded-md transition-colors font-medium shadow-xs text-xs"
                   >
                     Retry Connection
                     <RefreshCw className="w-3 h-3 ml-1.5" />
@@ -1666,45 +1666,63 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
 
           {loading ? (
             <div className="flex-1 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+              <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-8">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {getFoldersAtCurrentPath()
                 .filter(f => (f.name || '').toLowerCase().includes((search || '').toLowerCase()))
                 .map(folder => (
                 <Card 
                   key={folder.id} 
-                  className="cursor-pointer hover:shadow-md hover:border-blue-200 transition-all group relative"
+                  className="group cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 border-slate-200 rounded-2xl overflow-hidden bg-white"
                   onClick={() => openFolder(folder.fullPath)}
                 >
-                  <CardContent className="p-6 flex flex-col items-center text-center gap-3">
-                    {folder.isTable && (
-                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-slate-400 hover:text-blue-600"
-                          onClick={(e) => handleSync(folder.name, e)}
-                          disabled={syncingTables[folder.name]}
-                          title="Pull from Airtable"
+                  <CardContent className="p-5 flex flex-col items-center text-center relative">
+                    {/* Folder Actions Overlay */}
+                    {renamingFolder !== folder.fullPath && (
+                      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingFolder(folder.fullPath);
+                            setNewFolderName(folder.name);
+                          }}
                         >
-                          <RefreshCw className={`w-4 h-4 ${syncingTables[folder.name] ? 'animate-spin text-blue-500' : ''}`} />
+                          <Edit className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-slate-400 hover:text-emerald-600"
-                          onClick={(e) => handlePushToAirtable(folder.name, e)}
-                          disabled={syncingTables[folder.name]}
-                          title="Push to Airtable"
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmFolder(folder.fullPath);
+                          }}
                         >
-                          <Database className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
+                        {folder.isTable && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePushToAirtable(folder.name, e);
+                            }}
+                            title="Push to Airtable"
+                          >
+                            <Database className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     )}
 
-                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform mb-4">
                       <Folder className="w-8 h-8 text-blue-500 fill-blue-100" />
                     </div>
                     <div className="w-full">
@@ -1713,56 +1731,30 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                           <Input 
                             value={newFolderName}
                             onChange={e => setNewFolderName(e.target.value)}
-                            className="h-7 text-xs font-bold"
+                            className="h-8 text-xs font-bold"
                             autoFocus
                             onKeyDown={e => {
                               if (e.key === 'Enter') handleRenameFolder(folder.fullPath);
                               if (e.key === 'Escape') setRenamingFolder(null);
                             }}
                           />
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => handleRenameFolder(folder.fullPath)}>
-                            <Check className="w-3.5 h-3.5" />
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => handleRenameFolder(folder.fullPath)}>
+                            <Check className="w-4 h-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => setRenamingFolder(null)}>
-                            <X className="w-3.5 h-3.5" />
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => setRenamingFolder(null)}>
+                            <X className="w-4 h-4" />
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center gap-2">
-                          <h3 className="font-semibold text-slate-800 line-clamp-1">{folder.name}</h3>
-                          <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 text-slate-400 hover:text-blue-600"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRenamingFolder(folder.fullPath);
-                                setNewFolderName(folder.name);
-                              }}
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 text-slate-400 hover:text-red-600"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirmFolder(folder.fullPath);
-                              }}
-                              disabled={isDeletingFolder === folder.fullPath}
-                            >
-                              {isDeletingFolder === folder.fullPath ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                            </Button>
-                          </div>
-                        </div>
+                        <h3 className="font-bold text-slate-800 line-clamp-1 text-base">{folder.name}</h3>
                       )}
-                      <div className="flex flex-col items-center gap-1 mt-2">
-                        <p className="text-[10px] text-slate-500 flex items-center gap-1">
-                          <Database className="w-3 h-3" /> {syncStatus[folder.fullPath]?.totalQuestions || 0} Questions
-                        </p>
-                        <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                      <div className="flex flex-col items-center gap-1 mt-3">
+                        <div className="flex items-center gap-3">
+                          <p className="text-[11px] font-bold text-slate-500 flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full">
+                            <Database className="w-3 h-3" /> {syncStatus[folder.fullPath]?.totalQuestions || 0} Qs
+                          </p>
+                        </div>
+                        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
                           <Clock className="w-3 h-3" /> 
                           {syncStatus[folder.fullPath]?.lastSync 
                             ? new Date(syncStatus[folder.fullPath].lastSync).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
@@ -1774,8 +1766,10 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 </Card>
               ))}
               {getFoldersAtCurrentPath().length === 0 && (
-                <div className="col-span-full text-center p-12 text-slate-500 border-2 border-dashed rounded-xl">
-                  No folders found.
+                <div className="col-span-full text-center p-12 text-slate-500 border-2 border-dashed border-slate-200 rounded-2xl bg-white">
+                  <Folder className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                  <p className="font-medium">No folders found in this path.</p>
+                  <Button variant="link" className="text-blue-600 font-bold mt-2" onClick={() => setIsCreateFolderModalOpen(true)}>Create your first folder</Button>
                 </div>
               )}
             </div>

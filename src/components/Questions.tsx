@@ -356,34 +356,55 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
   return (
     <div className="space-y-4">
       {/* Top Toolbar */}
-      <div className="flex flex-wrap gap-1.5 items-center bg-muted/50 p-2 rounded-lg">
-        <div className="flex items-center gap-2 mr-2">
-          <Checkbox 
-            checked={selectedIds.length === filteredQuestions.length && filteredQuestions.length > 0} 
-            onCheckedChange={toggleSelectAll}
-          />
-          <span className="text-xs font-medium">All ({filteredQuestions.length})</span>
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center bg-muted/50 p-2 sm:p-3 rounded-xl border border-border/50">
+        <div className="flex items-center justify-between sm:justify-start gap-3">
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              checked={selectedIds.length === filteredQuestions.length && filteredQuestions.length > 0} 
+              onCheckedChange={toggleSelectAll}
+            />
+            <span className="text-xs font-bold text-slate-600">All ({filteredQuestions.length})</span>
+          </div>
+          
+          <div className="flex gap-1 sm:hidden">
+            <Button 
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-8 w-8 p-0" 
+              onClick={() => setViewMode('grid')}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button 
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              className="h-8 w-8 p-0" 
+              onClick={() => setViewMode('list')}
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
         
         {selectedIds.length > 0 && (
-          <div className="flex gap-1.5 border-r pr-2 border-gray-300">
-            <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]"><Tag className="w-3 h-3 mr-1" /> Tag</Button>
-            <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setIsBulkMetadataModalOpen(true)}><Edit className="w-3 h-3 mr-1" /> Edit Metadata</Button>
-            <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setIsAiModalOpen(true)}><Wand2 className="w-3 h-3 mr-1" /> AI</Button>
-            <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={handleExportToWord}><FileText className="w-3 h-3 mr-1" /> Export Word</Button>
-            <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setIsAirtableModalOpen(true)}><Copy className="w-3 h-3 mr-1" /> Save</Button>
-            <Button variant="outline" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setIsSetModalOpen(true)}><FolderPlus className="w-3 h-3 mr-1" /> Set</Button>
-            <Button variant="destructive" size="sm" className="h-7 px-2 text-[10px] text-white" onClick={() => setQuestions(prev => prev.filter(q => !selectedIds.includes(q.id)))}><Trash2 className="w-3 h-3 mr-1" /> Delete</Button>
+          <div className="flex flex-wrap gap-1.5 py-2 sm:py-0 border-y sm:border-y-0 sm:border-r sm:pr-3 border-slate-200">
+            <Button variant="outline" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5"><Tag className="w-3.5 h-3.5" /> Tag</Button>
+            <Button variant="outline" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5" onClick={() => setIsBulkMetadataModalOpen(true)}><Edit className="w-3.5 h-3.5" /> Metadata</Button>
+            <Button variant="outline" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5" onClick={() => setIsAiModalOpen(true)}><Wand2 className="w-3.5 h-3.5" /> AI</Button>
+            <Button variant="outline" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5" onClick={handleExportToWord}><FileText className="w-3.5 h-3.5" /> Word</Button>
+            <Button variant="outline" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5" onClick={() => setIsAirtableModalOpen(true)}><Copy className="w-3.5 h-3.5" /> Save</Button>
+            <Button variant="outline" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5" onClick={() => setIsSetModalOpen(true)}><FolderPlus className="w-3.5 h-3.5" /> Set</Button>
+            <Button variant="destructive" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5 text-white" onClick={() => setQuestions(prev => prev.filter(q => !selectedIds.includes(q.id)))}><Trash2 className="w-3.5 h-3.5" /> Delete</Button>
           </div>
         )}
         
-        <div className="flex-1 flex gap-1.5">
+        <div className="flex flex-1 gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-2 top-2 w-3 h-3 text-muted-foreground" />
-            <Input placeholder="Search..." className="pl-7 h-7 text-xs" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input placeholder="Search questions..." className="pl-9 h-9 text-sm bg-white border-slate-200" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[100px] h-7 text-[10px]">
+            <SelectTrigger className="w-[110px] h-9 text-xs font-bold bg-white border-slate-200">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -392,24 +413,24 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
               <SelectItem value="Published">Published</SelectItem>
             </SelectContent>
           </Select>
-          <div className="flex gap-1 border-l pl-1.5 border-gray-300">
+          <div className="hidden sm:flex gap-1 border-l pl-2 border-slate-200">
             <Button 
               variant={viewMode === 'grid' ? 'secondary' : 'ghost'} 
               size="sm" 
-              className="h-7 px-2" 
+              className="h-8 w-8 p-0" 
               onClick={() => setViewMode('grid')}
               title="Grid View"
             >
-              <LayoutGrid className="w-3.5 h-3.5" />
+              <LayoutGrid className="w-4 h-4" />
             </Button>
             <Button 
               variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
               size="sm" 
-              className="h-7 px-2" 
+              className="h-8 w-8 p-0" 
               onClick={() => setViewMode('list')}
               title="List View"
             >
-              <List className="w-3.5 h-3.5" />
+              <List className="w-4 h-4" />
             </Button>
           </div>
         </div>
