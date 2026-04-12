@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import dotenv from 'dotenv';
 import Airtable from 'airtable';
 import fs from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
@@ -9,6 +10,10 @@ import { createClient } from '@supabase/supabase-js';
 import OpenAI from "openai";
 import pkg from 'pg';
 const { Client } = pkg;
+
+dotenv.config();
+const isServerless = process.env.VERCEL === "1" || process.env.VERCEL === "true";
+let app: express.Express;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR = path.join(__dirname, '.cache');
@@ -18,8 +23,14 @@ if (!existsSync(CACHE_DIR)) {
 }
 
 // Supabase Configuration
-const supabaseUrl = 'https://yxibppbfrugarjoeoijw.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aWJwcGJmcnVnYXJqb2VvaWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTgwNjUsImV4cCI6MjA5MDA5NDA2NX0.m7pkeKKDBW4bunM9V8iR1Wo6TzXdhLHAd9BfFagepO0';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://yxibppbfrugarjoeoijw.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aWJwcGJmcnVnYXJqb2VvaWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTgwNjUsImV4cCI6MjA5MDA5NDA2NX0.m7pkeKKDBW4bunM9V8iR1Wo6TzXdhLHAd9BfFagepO0';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseKey = supabaseServiceRoleKey || supabaseAnonKey;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.warn('Supabase configuration is incomplete. Set SUPABASE_URL and SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY.');
+}
 
 // Custom fetch with timeout
 const fetchWithTimeout = (url: string, options: any = {}) => {
@@ -86,7 +97,7 @@ function handleSupabaseError(error: any, res: express.Response, context: string)
 }
 
 const pgClient = new Client({
-  connectionString: 'postgresql://postgres.yxibppbfrugarjoeoijw:iuTKL5bWoinAH6kr@aws-1-ap-south-1.pooler.supabase.com:6543/postgres',
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres.yxibppbfrugarjoeoijw:iuTKL5bWoinAH6kr@aws-1-ap-south-1.pooler.supabase.com:6543/postgres',
   ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 5000, // 5 second timeout
 });
@@ -318,7 +329,7 @@ const mapQuestionToDb = (q: any) => {
 };
 
 async function startServer() {
-  const app = express();
+  app = express();
   const PORT = 3000;
 
   app.use(express.json({ limit: '50mb' }));
@@ -1478,10 +1489,19 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!isServerless) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  } else {
+    console.log("Server initialized for Vercel serverless function.");
+  }
 }
 
-console.log("Starting server...");
-startServer().catch(err => console.error("Server startup error:", err));
+const appStartup = startServer().catch(err => console.error("Server startup error:", err));
+
+export default async function handler(req: express.Request, res: express.Response) {
+  console.log("Vercel function request:", req.method, req.url);
+  await appStartup;
+  return app(req, res);
+}
