@@ -1090,13 +1090,15 @@ app.get("/api/health", (req, res) => {
     try {
       // Insert a dummy question to ensure the folder exists in the database
       const dummyId = `dummy-${Date.now()}`;
-      await supabase.from('questions').insert({
+      const { error } = await supabase.from('questions').insert({
         question_unique_id: dummyId,
         airtable_table_name: fullPath,
         collection: fullPath,
         question_hin: '--- DUMMY QUESTION FOR FOLDER CREATION ---',
         current_status: 'Draft'
       });
+
+      if (error) throw error;
 
       res.json({ success: true, path: fullPath });
     } catch (error: any) {

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Question, QuestionSet } from '../types';
+import { Question, QuestionSet, Folder } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { Search, Trash2, Edit, Tag, Copy, Wand2, FolderPlus, AlertCircle, ExternalLink, RefreshCw, FileText, Layout, BookOpen, LayoutGrid, List } from 'lucide-react';
 import { safeJson } from '../utils';
@@ -50,9 +50,11 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
   const [newServerFolder, setNewServerFolder] = useState('');
   
   const [isLoadingTables, setIsLoadingTables] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
   const [availableSets, setAvailableSets] = useState<QuestionSet[]>([]);
+  const [localFolders, setLocalFolders] = useState<Folder[]>([]);
   const [selectedSetId, setSelectedSetId] = useState<string>('');
   const [newSetName, setNewSetName] = useState('');
   const [newSetFolderId, setNewSetFolderId] = useState<string>('');
@@ -70,39 +72,47 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
     setQuestions(initialQuestions);
   }, [initialQuestions]);
 
+  const fetchDestinations = () => {
+    setIsLoadingTables(true);
+    setServerError(null);
+    
+    const fetchAirtable = fetch('/api/get-airtable-tables')
+      .then(res => safeJson(res))
+      .catch(() => ({ tables: [] }));
+      
+    const fetchServer = fetch('/api/get-server-folders')
+      .then(async res => {
+        const data = await safeJson(res);
+        if (!res.ok && data.error) {
+          setServerError(data.error);
+          return { folders: [] };
+        }
+        return data;
+      })
+      .catch(() => ({ folders: [] }));
+
+    Promise.all([fetchAirtable, fetchServer]).then(([airtableData, serverData]) => {
+      setAirtableTables(airtableData.tables || []);
+      setServerFolders(serverData.folders || []);
+      setIsLoadingTables(false);
+    });
+  };
+
   useEffect(() => {
     if (isAirtableModalOpen || isSetModalOpen) {
-      setIsLoadingTables(true);
-      setServerError(null);
-      
-      const fetchAirtable = fetch('/api/get-airtable-tables')
-        .then(res => safeJson(res))
-        .catch(() => ({ tables: [] }));
-        
-      const fetchServer = fetch('/api/get-server-folders')
-        .then(async res => {
-          const data = await safeJson(res);
-          if (!res.ok && data.error) {
-            setServerError(data.error);
-            return { folders: [] };
-          }
-          return data;
-        })
-        .catch(() => ({ folders: [] }));
-
-      Promise.all([fetchAirtable, fetchServer]).then(([airtableData, serverData]) => {
-        setAirtableTables(airtableData.tables || []);
-        setServerFolders(serverData.folders || []);
-        setIsLoadingTables(false);
-      });
+      fetchDestinations();
     }
   }, [isAirtableModalOpen, isSetModalOpen]);
 
   useEffect(() => {
     if (isSetModalOpen) {
-      const saved = localStorage.getItem('question_sets');
-      if (saved) {
-        setAvailableSets(JSON.parse(saved));
+      const savedSets = localStorage.getItem('question_sets');
+      if (savedSets) {
+        setAvailableSets(JSON.parse(savedSets));
+      }
+      const savedFolders = localStorage.getItem('question_folders');
+      if (savedFolders) {
+        setLocalFolders(JSON.parse(savedFolders));
       }
     }
   }, [isSetModalOpen]);
@@ -127,10 +137,14 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this question?')) {
-      setQuestions(prev => prev.filter(q => q.id !== id));
-      setSelectedIds(prev => prev.filter(i => i !== id));
-    }
+    setDeleteConfirmId(id);
+  };
+
+  const executeDelete = () => {
+    if (!deleteConfirmId) return;
+    setQuestions(prev => prev.filter(q => q.id !== deleteConfirmId));
+    setSelectedIds(prev => prev.filter(i => i !== deleteConfirmId));
+    setDeleteConfirmId(null);
   };
 
   const handleCopyToTest = () => {
@@ -183,6 +197,24 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
       return alert('Please select at least one destination to save.');
     }
 
+    if (saveDestinations.includes('server')) {
+      if (isCreatingNewFolder && !newServerFolder.trim()) {
+        return alert('Please enter a name for the new folder.');
+      }
+      if (!isCreatingNewFolder && !serverFolder) {
+        return alert('Please select a folder to save to.');
+      }
+    }
+
+    if (saveDestinations.includes('airtable')) {
+      if (isCreatingNewTable && !newTableName.trim()) {
+        return alert('Please enter a name for the new Airtable table.');
+      }
+      if (!isCreatingNewTable && !airtableTableName) {
+        return alert('Please select an Airtable table.');
+      }
+    }
+
     const selectedQuestions = questions.filter(q => selectedIds.includes(q.id));
 
     try {
@@ -223,6 +255,15 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
       
       alert('Questions saved successfully!');
       setIsAirtableModalOpen(false);
+      
+      // Reset states
+      setIsCreatingNewFolder(false);
+      setNewServerFolder('');
+      setIsCreatingNewTable(false);
+      setNewTableName('');
+      
+      // Refresh folders
+      fetchDestinations();
     } catch (error: any) {
       console.error('Error saving questions:', error);
       alert('Error saving questions: ' + error.message);
@@ -477,7 +518,8 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       <SelectValue placeholder="Select a folder..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {serverFolders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                      <SelectItem value="root">Root (No Folder)</SelectItem>
+                      {localFolders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -551,17 +593,58 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Modal */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="sm:max-w-[400px] bg-white border-none shadow-2xl rounded-3xl overflow-hidden p-0">
+          <div className="p-6 text-center">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Question?</h3>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Are you sure you want to delete this question? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex sm:justify-between items-center gap-3">
+            <Button 
+              variant="ghost" 
+              onClick={() => setDeleteConfirmId(null)}
+              className="font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl px-6"
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={executeDelete}
+              className="font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl px-8 shadow-lg shadow-red-200 h-11"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Cloud DB Save Modal */}
       <Dialog open={isAirtableModalOpen} onOpenChange={setIsAirtableModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Save Questions</DialogTitle>
+        <DialogContent className="sm:max-w-[480px] bg-white border-none shadow-2xl rounded-3xl overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 bg-slate-50/50 border-b border-slate-100">
+            <DialogTitle className="text-xl font-bold text-slate-900">Save Questions</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Save Destination</Label>
-              <div className="flex gap-4">
-                <div className="flex items-center space-x-2">
+          <div className="p-6 space-y-6">
+            <div className="space-y-3">
+              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Save Destination</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div 
+                  className={`flex items-center space-x-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                    saveDestinations.includes('server') 
+                      ? 'border-primary bg-primary-light/30' 
+                      : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                  }`}
+                  onClick={() => {
+                    if (saveDestinations.includes('server')) setSaveDestinations(prev => prev.filter(d => d !== 'server'));
+                    else setSaveDestinations(prev => [...prev, 'server']);
+                  }}
+                >
                   <Checkbox 
                     id="dest-server" 
                     checked={saveDestinations.includes('server')}
@@ -569,10 +652,21 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       if (checked) setSaveDestinations(prev => [...prev, 'server']);
                       else setSaveDestinations(prev => prev.filter(d => d !== 'server'));
                     }}
+                    onClick={(e) => e.stopPropagation()}
                   />
-                  <Label htmlFor="dest-server" className="cursor-pointer">Own Server (Fast)</Label>
+                  <Label htmlFor="dest-server" className="cursor-pointer font-semibold text-slate-700">Own Server</Label>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div 
+                  className={`flex items-center space-x-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                    saveDestinations.includes('airtable') 
+                      ? 'border-primary bg-primary-light/30' 
+                      : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                  }`}
+                  onClick={() => {
+                    if (saveDestinations.includes('airtable')) setSaveDestinations(prev => prev.filter(d => d !== 'airtable'));
+                    else setSaveDestinations(prev => [...prev, 'airtable']);
+                  }}
+                >
                   <Checkbox 
                     id="dest-airtable" 
                     checked={saveDestinations.includes('airtable')}
@@ -580,110 +674,147 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       if (checked) setSaveDestinations(prev => [...prev, 'airtable']);
                       else setSaveDestinations(prev => prev.filter(d => d !== 'airtable'));
                     }}
+                    onClick={(e) => e.stopPropagation()}
                   />
-                  <Label htmlFor="dest-airtable" className="cursor-pointer">Airtable DB</Label>
+                  <Label htmlFor="dest-airtable" className="cursor-pointer font-semibold text-slate-700">Airtable DB</Label>
                 </div>
               </div>
             </div>
 
             {serverError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-[11px] shadow-sm">
-                <p className="font-bold mb-1 flex items-center gap-1.5">
-                  <AlertCircle className="w-3 h-3" />
+              <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-700 text-xs shadow-sm">
+                <p className="font-bold mb-1.5 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
                   Database Connection Issue
                 </p>
-                <p className="mb-2 opacity-90">{serverError}</p>
+                <p className="mb-3 text-red-600/90 leading-relaxed">{serverError}</p>
                 <div className="flex gap-2">
                   <a 
                     href="https://supabase.com/dashboard/project/yxibppbfrugarjoeoijw" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="inline-flex items-center px-2 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded transition-colors font-medium"
+                    className="inline-flex items-center px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg transition-colors font-bold text-[10px]"
                   >
-                    Dashboard
-                    <ExternalLink className="w-2.5 h-2.5 ml-1" />
+                    Supabase Dashboard
+                    <ExternalLink className="w-3 h-3 ml-1.5" />
                   </a>
                   <button 
                     onClick={() => window.location.reload()}
-                    className="inline-flex items-center px-2 py-1 bg-white hover:bg-slate-50 border border-red-200 text-red-800 rounded transition-colors font-medium shadow-xs"
+                    className="inline-flex items-center px-3 py-1.5 bg-white hover:bg-slate-50 border border-red-200 text-red-800 rounded-lg transition-colors font-bold shadow-sm text-[10px]"
                   >
-                    Retry
-                    <RefreshCw className="w-2.5 h-2.5 ml-1" />
+                    Retry Connection
+                    <RefreshCw className="w-3 h-3 ml-1.5" />
                   </button>
                 </div>
               </div>
             )}
 
             {isLoadingTables ? (
-              <p className="text-sm text-muted-foreground">Loading destinations...</p>
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="w-6 h-6 animate-spin text-primary/40" />
+              </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {saveDestinations.includes('server') && (
-                  <div className="space-y-2 border p-3 rounded-md bg-muted/30">
-                    <Label>Server Folder</Label>
-                    <Select value={isCreatingNewFolder ? 'new' : serverFolder} onValueChange={(val) => {
-                      if (val === 'new') {
-                        setIsCreatingNewFolder(true);
-                        setServerFolder('');
-                      } else {
-                        setIsCreatingNewFolder(false);
-                        setServerFolder(val);
-                      }
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a folder..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {serverFolders.map(f => <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>)}
-                        <SelectItem value="new">+ Create New Folder</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {isCreatingNewFolder && (
-                      <Input 
-                        placeholder="Enter new folder name..." 
-                        value={newServerFolder} 
-                        onChange={(e) => setNewServerFolder(e.target.value)}
-                      />
-                    )}
+                  <div className="space-y-3 p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
+                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Server Configuration</Label>
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-600">Select Folder</Label>
+                        <Select value={isCreatingNewFolder ? 'new' : serverFolder} onValueChange={(val) => {
+                          if (val === 'new') {
+                            setIsCreatingNewFolder(true);
+                            setServerFolder('');
+                          } else {
+                            setIsCreatingNewFolder(false);
+                            setServerFolder(val);
+                          }
+                        }}>
+                          <SelectTrigger className="bg-white border-slate-200 rounded-xl h-11">
+                            <SelectValue placeholder="Choose a folder..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {serverFolders.map(f => <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>)}
+                            <SelectItem value="new" className="font-bold text-primary">+ Create New Folder</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {isCreatingNewFolder && (
+                        <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <Label className="text-xs font-semibold text-slate-600">New Folder Name</Label>
+                          <Input 
+                            placeholder="e.g., Physics 2024" 
+                            value={newServerFolder} 
+                            onChange={(e) => setNewServerFolder(e.target.value)}
+                            className="bg-white border-slate-200 rounded-xl h-11"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
                 {saveDestinations.includes('airtable') && (
-                  <div className="space-y-2 border p-3 rounded-md bg-muted/30">
-                    <Label>Airtable Table</Label>
-                    <Select value={isCreatingNewTable ? 'new' : airtableTableName} onValueChange={(val) => {
-                      if (val === 'new') {
-                        setIsCreatingNewTable(true);
-                        setAirtableTableName('');
-                      } else {
-                        setIsCreatingNewTable(false);
-                        setAirtableTableName(val);
-                      }
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a table..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {airtableTables.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
-                        <SelectItem value="new">+ Create New Table</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {isCreatingNewTable && (
-                      <Input 
-                        placeholder="Enter new table name..." 
-                        value={newTableName} 
-                        onChange={(e) => setNewTableName(e.target.value)}
-                      />
-                    )}
+                  <div className="space-y-3 p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
+                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Airtable Configuration</Label>
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-600">Select Table</Label>
+                        <Select value={isCreatingNewTable ? 'new' : airtableTableName} onValueChange={(val) => {
+                          if (val === 'new') {
+                            setIsCreatingNewTable(true);
+                            setAirtableTableName('');
+                          } else {
+                            setIsCreatingNewTable(false);
+                            setAirtableTableName(val);
+                          }
+                        }}>
+                          <SelectTrigger className="bg-white border-slate-200 rounded-xl h-11">
+                            <SelectValue placeholder="Choose a table..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {airtableTables.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
+                            <SelectItem value="new" className="font-bold text-primary">+ Create New Table</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {isCreatingNewTable && (
+                        <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <Label className="text-xs font-semibold text-slate-600">New Table Name</Label>
+                          <Input 
+                            placeholder="e.g., Exam Prep 2024" 
+                            value={newTableName} 
+                            onChange={(e) => setNewTableName(e.target.value)}
+                            className="bg-white border-slate-200 rounded-xl h-11"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAirtableModalOpen(false)} disabled={isSaving}>Cancel</Button>
-            <Button onClick={handleSaveQuestions} disabled={isSaving || saveDestinations.length === 0}>
-              {isSaving ? 'Saving...' : 'Save Questions'}
+          <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex sm:justify-between items-center gap-3">
+            <Button 
+              variant="ghost" 
+              onClick={() => setIsAirtableModalOpen(false)} 
+              disabled={isSaving}
+              className="font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl px-6"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveQuestions} 
+              disabled={isSaving || saveDestinations.length === 0}
+              className="font-bold bg-primary hover:bg-primary-hover text-white rounded-xl px-8 shadow-lg shadow-primary/20 h-11 min-w-[140px]"
+            >
+              {isSaving ? (
+                <span className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Saving...
+                </span>
+              ) : 'Save Questions'}
             </Button>
           </DialogFooter>
         </DialogContent>

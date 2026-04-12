@@ -50,6 +50,9 @@ export default function QuestionBank() {
   const [isDeletingFolder, setIsDeletingFolder] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmFolder, setDeleteConfirmFolder] = useState<string | null>(null);
+  const [deleteConfirmQuestion, setDeleteConfirmQuestion] = useState<string | null>(null);
+  const [deleteConfirmBulk, setDeleteConfirmBulk] = useState(false);
+  const [syncConfirmSupabase, setSyncConfirmSupabase] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Edit Page States
@@ -187,9 +190,12 @@ export default function QuestionBank() {
     setIsSyncingAll(false);
   };
 
-  const handleSyncAllSupabase = async () => {
-    if (!confirm("Are you sure you want to sync all Supabase data to Airtable? This will update existing records and create new ones for any unsynced questions.")) return;
-    
+  const handleSyncAllSupabase = () => {
+    setSyncConfirmSupabase(true);
+  };
+
+  const executeSyncAllSupabase = async () => {
+    setSyncConfirmSupabase(false);
     setIsSyncingAll(true);
     try {
       const res = await fetch('/api/sync-all-to-airtable', { method: 'POST' });
@@ -463,14 +469,9 @@ export default function QuestionBank() {
         body: JSON.stringify({ name: newSubfolderName, parentPath })
       });
       if (res.ok) {
-        const data = await res.json();
         setIsCreateFolderModalOpen(false);
         setNewSubfolderName('');
-        // To show the folder, we might need a dummy question or just refresh
-        // For now, let's just add it to the local tables list if it doesn't exist
-        if (!tables.find(t => t.name === data.path)) {
-          setTables(prev => [...prev, { id: `new-${data.path}`, name: data.path, source: 'server' }]);
-        }
+        fetchTables();
       }
     } catch (e) {
       console.error(e);
@@ -507,8 +508,13 @@ export default function QuestionBank() {
     }
   };
 
-  const handleDeleteQuestion = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this question?')) return;
+  const handleDeleteQuestion = (id: string) => {
+    setDeleteConfirmQuestion(id);
+  };
+
+  const executeDeleteQuestion = async () => {
+    if (!deleteConfirmQuestion) return;
+    const id = deleteConfirmQuestion;
     try {
       const res = await fetch('/api/delete-question', {
         method: 'POST',
@@ -526,6 +532,7 @@ export default function QuestionBank() {
           setIsEditPageOpen(false);
           setEditingQuestion(null);
         }
+        setDeleteConfirmQuestion(null);
       } else {
         const data = await res.json();
         alert(data.error || "Failed to delete question");
@@ -536,10 +543,12 @@ export default function QuestionBank() {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.size} selected questions?`)) return;
-    
+    setDeleteConfirmBulk(true);
+  };
+
+  const executeBulkDelete = async () => {
     try {
       const res = await fetch('/api/bulk-delete-questions', {
         method: 'POST',
@@ -549,6 +558,7 @@ export default function QuestionBank() {
       if (res.ok) {
         setQuestions(prev => prev.filter(q => !selectedIds.has(q.id)));
         setSelectedIds(new Set());
+        setDeleteConfirmBulk(false);
         alert('Questions deleted successfully');
       } else {
         const data = await res.json();
@@ -1841,6 +1851,56 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
         </div>
       )}
 
+      {/* Create Folder Modal */}
+      <AnimatePresence>
+        {isCreateFolderModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900">Create New Folder</h3>
+                <Button variant="ghost" size="icon" onClick={() => setIsCreateFolderModalOpen(false)} className="h-8 w-8">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Folder Name</label>
+                  <Input 
+                    placeholder="e.g., Physics 2024" 
+                    value={newSubfolderName} 
+                    onChange={e => setNewSubfolderName(e.target.value)}
+                    className="h-10 font-medium"
+                    autoFocus
+                    onKeyDown={e => e.key === 'Enter' && handleCreateSubfolder()}
+                  />
+                </div>
+              </div>
+              <div className="px-6 py-4 bg-slate-50 border-t flex gap-3">
+                <Button 
+                  variant="ghost" 
+                  className="flex-1 font-bold text-slate-600" 
+                  onClick={() => setIsCreateFolderModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  className="flex-1 font-bold bg-slate-900 text-white" 
+                  onClick={handleCreateSubfolder}
+                  disabled={!newSubfolderName.trim()}
+                >
+                  Create Folder
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {deleteConfirmFolder && (
@@ -1875,6 +1935,127 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   onClick={() => handleDeleteFolder(deleteConfirmFolder)}
                 >
                   Delete Folder
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Question Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmQuestion && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            >
+              <div className="p-6 text-center">
+                <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Question?</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Are you sure you want to delete this question? This action cannot be undone.
+                </p>
+              </div>
+              <div className="px-6 py-4 bg-slate-50 border-t flex gap-3">
+                <Button 
+                  variant="ghost" 
+                  className="flex-1 font-bold text-slate-600" 
+                  onClick={() => setDeleteConfirmQuestion(null)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  className="flex-1 font-bold bg-red-600 hover:bg-red-700 text-white" 
+                  onClick={executeDeleteQuestion}
+                >
+                  Delete
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmBulk && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            >
+              <div className="p-6 text-center">
+                <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Delete {selectedIds.size} Questions?</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Are you sure you want to delete <span className="font-bold text-slate-700">{selectedIds.size}</span> selected questions? 
+                  This action cannot be undone.
+                </p>
+              </div>
+              <div className="px-6 py-4 bg-slate-50 border-t flex gap-3">
+                <Button 
+                  variant="ghost" 
+                  className="flex-1 font-bold text-slate-600" 
+                  onClick={() => setDeleteConfirmBulk(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  className="flex-1 font-bold bg-red-600 hover:bg-red-700 text-white" 
+                  onClick={executeBulkDelete}
+                >
+                  Delete All
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Sync Confirmation Modal */}
+      <AnimatePresence>
+        {syncConfirmSupabase && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 text-center">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <RefreshCw className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Sync to Airtable?</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Are you sure you want to sync all Supabase data to Airtable? 
+                  This will update existing records and create new ones for any unsynced questions.
+                </p>
+              </div>
+              <div className="px-6 py-4 bg-slate-50 border-t flex gap-3">
+                <Button 
+                  variant="ghost" 
+                  className="flex-1 font-bold text-slate-600" 
+                  onClick={() => setSyncConfirmSupabase(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  className="flex-1 font-bold bg-blue-600 hover:bg-blue-700 text-white" 
+                  onClick={executeSyncAllSupabase}
+                >
+                  Start Sync
                 </Button>
               </div>
             </motion.div>
