@@ -335,11 +335,11 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
 
   // API routes FIRST
-  app.get("/api/health", (req, res) => {
+  app.get("/health", (req, res) => {
     res.json({ status: "ok" });
   });
 
-  app.post("/api/ai/generate", async (req, res) => {
+  app.post("/ai/generate", async (req, res) => {
     try {
       const { prompt, config } = req.body;
       if (!prompt || !config) {
@@ -431,7 +431,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/get-airtable-tables", async (req, res) => {
+  app.get("/get-airtable-tables", async (req, res) => {
     const { forceSync } = req.query;
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
@@ -478,7 +478,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/get-table-stats", async (req, res) => {
+  app.post("/get-table-stats", async (req, res) => {
     const { tableName } = req.body;
     
     try {
@@ -527,7 +527,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/sync-all-airtable", async (req, res) => {
+  app.post("/sync-all-airtable", async (req, res) => {
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
 
@@ -625,7 +625,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/sync-all-to-airtable", async (req, res) => {
+  app.post("/sync-all-to-airtable", async (req, res) => {
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
 
@@ -752,7 +752,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/get-airtable-records", async (req, res) => {
+  app.post("/get-airtable-records", async (req, res) => {
     const { tableName, forceSync, collectionPath } = req.body;
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
@@ -883,7 +883,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/get-sync-status", async (req, res) => {
+  app.get("/get-sync-status", async (req, res) => {
     try {
       const result = await pgClient.query('SELECT airtable_table_name, MAX(updated_at) as last_sync, COUNT(*) as total_questions FROM questions GROUP BY airtable_table_name');
       const syncStatus: Record<string, { lastSync: string, totalQuestions: number }> = {};
@@ -901,7 +901,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/create-airtable-table", async (req, res) => {
+  app.post("/create-airtable-table", async (req, res) => {
     const { tableName } = req.body;
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
@@ -978,7 +978,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/get-server-folders", async (req, res) => {
+  app.get("/get-server-folders", async (req, res) => {
     try {
       const { data, error } = await supabase
         .from('questions')
@@ -1000,7 +1000,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/move-questions", async (req, res) => {
+  app.post("/move-questions", async (req, res) => {
     const { ids, targetFolder, targetTable } = req.body;
     if (!ids || !Array.isArray(ids) || targetFolder === undefined) {
       return res.status(400).json({ error: "IDs and target folder are required" });
@@ -1024,7 +1024,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/copy-questions", async (req, res) => {
+  app.post("/copy-questions", async (req, res) => {
     const { ids, targetFolder, targetTable } = req.body;
     if (!ids || !Array.isArray(ids) || targetFolder === undefined) {
       return res.status(400).json({ error: "IDs and target folder are required" });
@@ -1063,7 +1063,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/create-folder", async (req, res) => {
+  app.post("/create-folder", async (req, res) => {
     const { name, parentPath } = req.body;
     if (!name) return res.status(400).json({ error: "Folder name is required" });
 
@@ -1078,7 +1078,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/save-questions", async (req, res) => {
+  app.post("/save-questions", async (req, res) => {
     const { destinations, airtableTable, serverFolder, questions } = req.body;
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
@@ -1130,7 +1130,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/save-to-airtable", async (req, res) => {
+  app.post("/save-to-airtable", async (req, res) => {
     const { tableName, questions } = req.body;
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
@@ -1204,7 +1204,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/update-question", async (req, res) => {
+  app.post("/update-question", async (req, res) => {
     const { question } = req.body;
     
     if (!question || !question.id) {
@@ -1257,7 +1257,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/bulk-update-questions", async (req, res) => {
+  app.post("/bulk-update-questions", async (req, res) => {
     const { ids, data } = req.body;
     
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -1298,7 +1298,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/bulk-update-questions-individual", async (req, res) => {
+  app.post("/bulk-update-questions-individual", async (req, res) => {
     const { questions } = req.body;
     
     if (!questions || !Array.isArray(questions)) {
@@ -1324,7 +1324,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/rename-folder", async (req, res) => {
+  app.post("/rename-folder", async (req, res) => {
     const { oldName, newName } = req.body;
     
     if (!oldName || !newName) {
@@ -1346,7 +1346,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/delete-question", async (req, res) => {
+  app.post("/delete-question", async (req, res) => {
     const { id } = req.body;
     if (!id) return res.status(400).json({ error: "ID is required" });
 
@@ -1364,7 +1364,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/bulk-delete-questions", async (req, res) => {
+  app.post("/bulk-delete-questions", async (req, res) => {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: "IDs are required" });
@@ -1384,7 +1384,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/delete-folder", async (req, res) => {
+  app.post("/delete-folder", async (req, res) => {
     const { folderName } = req.body;
     
     if (!folderName) {
