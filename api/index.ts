@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import Airtable from 'airtable';
@@ -20,8 +19,8 @@ if (!existsSync(CACHE_DIR)) {
 }
 
 // Supabase Configuration
-const supabaseUrl = 'https://yxibppbfrugarjoeoijw.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aWJwcGJmcnVnYXJqb2VvaWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTgwNjUsImV4cCI6MjA5MDA5NDA2NX0.m7pkeKKDBW4bunM9V8iR1Wo6TzXdhLHAd9BfFagepO0';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://yxibppbfrugarjoeoijw.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aWJwcGJmcnVnYXJqb2VvaWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTgwNjUsImV4cCI6MjA5MDA5NDA2NX0.m7pkeKKDBW4bunM9V8iR1Wo6TzXdhLHAd9BfFagepO0';
 
 // Custom fetch with timeout
 const fetchWithTimeout = (url: string, options: any = {}) => {
@@ -1472,13 +1471,15 @@ app.get("/api/health", (req, res) => {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    }).then((vite) => {
-      app.use(vite.middlewares);
-      app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on http://localhost:${PORT}`);
+    import("vite").then(({ createServer: createViteServer }) => {
+      createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      }).then((vite) => {
+        app.use(vite.middlewares);
+        app.listen(PORT, "0.0.0.0", () => {
+          console.log(`Server running on http://localhost:${PORT}`);
+        });
       });
     });
   } else {
