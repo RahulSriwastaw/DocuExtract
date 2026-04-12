@@ -7,7 +7,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from "openai";
 import pkg from 'pg';
-const { Client } = pkg;
+const { Pool } = pkg;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR = process.env.NODE_ENV === 'production' 
@@ -86,11 +86,13 @@ function handleSupabaseError(error: any, res: express.Response, context: string)
   res.status(500).json({ error: error.message || `Failed to ${context}` });
 }
 
-const pgClient = new Client({
+const pgPool = new Pool({
   connectionString: 'postgresql://postgres.yxibppbfrugarjoeoijw:iuTKL5bWoinAH6kr@aws-1-ap-south-1.pooler.supabase.com:6543/postgres',
   ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 15000, // Increased to 15 seconds
-  query_timeout: 15000, // Added query timeout
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 15000,
+  query_timeout: 15000,
 });
 
 let isDbConnected = false;
@@ -103,9 +105,9 @@ async function initDb(retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
       console.log(`Attempting to connect to Supabase DB (Attempt ${i + 1})...`);
-      await pgClient.connect();
+      await pgPool.query('SELECT 1');
       isDbConnected = true;
-      await pgClient.query(`
+      await pgPool.query(`
         CREATE TABLE IF NOT EXISTS questions (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           record_id TEXT,
@@ -156,7 +158,7 @@ async function initDb(retries = 3) {
           UNIQUE(airtable_table_name, question_unique_id)
         );
       `);
-      await pgClient.query(`
+      await pgPool.query(`
         ALTER TABLE questions 
         ADD COLUMN IF NOT EXISTS record_id TEXT,
         ADD COLUMN IF NOT EXISTS question_unique_id TEXT,
@@ -206,14 +208,14 @@ async function initDb(retries = 3) {
       
       // Reload PostgREST schema cache
       try {
-        await pgClient.query(`NOTIFY pgrst, 'reload schema'`);
+        await pgPool.query(`NOTIFY pgrst, 'reload schema'`);
       } catch (e) {
         console.warn("Failed to reload schema cache:", e);
       }
       
       // Add unique constraint if it doesn't exist
       try {
-        await pgClient.query(`
+        await pgPool.query(`
           ALTER TABLE questions ADD CONSTRAINT questions_airtable_table_name_question_unique_id_key UNIQUE (airtable_table_name, question_unique_id);
         `);
       } catch (e: any) {
@@ -222,7 +224,7 @@ async function initDb(retries = 3) {
       
       // Reload PostgREST schema cache so Supabase API sees the new columns
       try {
-        await pgClient.query(`NOTIFY pgrst, 'reload schema';`);
+        await pgPool.query(`NOTIFY pgrst, 'reload schema';`);
         console.log("PostgREST schema cache reloaded.");
       } catch (e: any) {
         console.error("Failed to reload PostgREST schema cache:", e);
@@ -881,7 +883,7 @@ app.get("/api/health", (req, res) => {
 
   app.get("/api/get-sync-status", async (req, res) => {
     try {
-      const result = await pgClient.query('SELECT airtable_table_name, MAX(updated_at) as last_sync, COUNT(*) as total_questions FROM questions GROUP BY airtable_table_name');
+      const result = await pgPool.query('SELECT airtable_table_name, MAX(updated_at) as last_sync, COUNT(*) as total_questions FROM questions GROUP BY airtable_table_name');
       const syncStatus: Record<string, { lastSync: string, totalQuestions: number }> = {};
       result.rows.forEach(row => {
         if (row.airtable_table_name) {

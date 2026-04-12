@@ -13,6 +13,19 @@ export interface AIResponse {
   error?: string;
 }
 
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    if (retries > 0 && (error.status === 503 || error.status === 429)) {
+      console.warn(`Retrying due to ${error.status}. Retries left: ${retries}`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return retryWithBackoff(fn, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+}
+
 export async function generateAIContent(prompt: string, config: AIConfig): Promise<AIResponse> {
   // Always call Gemini from the frontend as per guidelines
   if (config.provider === 'gemini') {
@@ -21,13 +34,14 @@ export async function generateAIContent(prompt: string, config: AIConfig): Promi
       if (!apiKey) throw new Error("Gemini API Key not found. Please check your environment variables.");
       
       const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
+      
+      const response = await retryWithBackoff(() => ai.models.generateContent({
         model: config.model || 'gemini-3-flash-preview',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
         }
-      });
+      }));
       
       return { text: response.text || "" };
     } catch (error: any) {
