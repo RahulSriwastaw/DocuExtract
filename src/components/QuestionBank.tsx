@@ -939,7 +939,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 variations.push({
                   ...v,
                   id: Math.random().toString(36).substr(2, 9),
-                  question_unique_id: Math.random().toString(36).substr(2, 9),
+                  question_unique_id: `var-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                   airtable_table_name: parentQ.airtable_table_name || parentQ.collection || selectedFolder || '',
                   collection: parentQ.collection || parentQ.airtable_table_name || selectedFolder || '',
                   current_status: 'Draft',

@@ -716,22 +716,22 @@ app.get("/api/health", (req, res) => {
             // Handle Updates
             for (let i = 0; i < toUpdate.length; i += batchSize) {
               const chunk = toUpdate.slice(i, i + batchSize);
-              await base(tableName).update(chunk);
+              await base(tableName).update(chunk, { typecast: true });
             }
 
             // Handle Creates
             for (let i = 0; i < toCreate.length; i += batchSize) {
               const chunk = toCreate.slice(i, i + batchSize);
-              const createdRecords = await base(tableName).create(chunk);
+              const createdRecords = await base(tableName).create(chunk, { typecast: true });
               
               // Update Supabase with new record IDs
               const updates = createdRecords.map((r, idx) => ({
-                id: questions.find(q => !q.record_id && q.question_unique_id === chunk[idx].fields.question_unique_id)?.id,
+                question_unique_id: chunk[idx].fields.question_unique_id,
                 record_id: r.id
-              })).filter(u => u.id);
+              })).filter(u => u.question_unique_id);
 
               for (const update of updates) {
-                await supabase.from('questions').update({ record_id: update.record_id }).eq('id', update.id);
+                await supabase.from('questions').update({ record_id: update.record_id }).eq('question_unique_id', update.question_unique_id);
               }
             }
 
@@ -957,8 +957,17 @@ app.get("/api/health", (req, res) => {
             { name: 'action', type: 'singleLineText' },
             { name: 'current_status', type: 'singleLineText' },
             { name: 'sync_code', type: 'singleLineText' },
-            { name: 'error_report', type: 'singleLineText' },
-            { name: 'error_description', type: 'multilineText' }
+            { name: 'error_report', type: 'multilineText' },
+            { 
+              name: 'error_description', 
+              type: 'singleSelect',
+              options: {
+                choices: [
+                  { name: 'updated through airtable special operation' },
+                  { name: 'updated through reverse update action' }
+                ]
+              }
+            }
           ]
         }),
       });
@@ -1013,7 +1022,7 @@ app.get("/api/health", (req, res) => {
           updated_at: new Date().toISOString(),
           action: 'MOVED'
         })
-        .in('id', ids);
+        .in('question_unique_id', ids);
 
       if (error) throw error;
       res.json({ success: true });
@@ -1033,7 +1042,7 @@ app.get("/api/health", (req, res) => {
       const { data: originals, error: fetchError } = await supabase
         .from('questions')
         .select('*')
-        .in('id', ids);
+        .in('question_unique_id', ids);
 
       if (fetchError) throw fetchError;
 
@@ -1068,8 +1077,16 @@ app.get("/api/health", (req, res) => {
     const fullPath = parentPath ? `${parentPath}/${name}` : name;
     
     try {
-      // We don't actually "create" a folder in the DB, we just return the path
-      // The UI will use this path to tag new questions
+      // Insert a dummy question to ensure the folder exists in the database
+      const dummyId = `dummy-${Date.now()}`;
+      await supabase.from('questions').insert({
+        question_unique_id: dummyId,
+        airtable_table_name: fullPath,
+        collection: fullPath,
+        question_hin: '--- DUMMY QUESTION FOR FOLDER CREATION ---',
+        current_status: 'Draft'
+      });
+
       res.json({ success: true, path: fullPath });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -1105,7 +1122,7 @@ app.get("/api/health", (req, res) => {
         const batchSize = 10;
         for (let i = 0; i < airtableRecords.length; i += batchSize) {
           const chunk = airtableRecords.slice(i, i + batchSize);
-          await base(airtableTable).create(chunk);
+          await base(airtableTable).create(chunk, { typecast: true });
         }
       }
 
@@ -1143,7 +1160,7 @@ app.get("/api/health", (req, res) => {
       const records = questions.map((q: any) => ({
         fields: {
           record_id: q.record_id || '',
-          question_unique_id: q.id || q.question_unique_id || '',
+          question_unique_id: q.question_unique_id || q.id || '',
           question_hin: q.question_hin || q.text || '',
           question_eng: q.question_eng || '',
           subject: q.subject || '',
@@ -1184,7 +1201,7 @@ app.get("/api/health", (req, res) => {
       const batchSize = 10;
       for (let i = 0; i < records.length; i += batchSize) {
         const chunk = records.slice(i, i + batchSize);
-        await base(tableName).create(chunk);
+        await base(tableName).create(chunk, { typecast: true });
       }
 
       // 2. Save to Supabase
@@ -1245,7 +1262,7 @@ app.get("/api/health", (req, res) => {
           image: question.image || '',
           updated_at: new Date().toISOString()
         })
-        .eq('id', question.id);
+        .eq('question_unique_id', question.id);
 
       if (error) throw error;
       res.json({ success: true });
@@ -1286,7 +1303,7 @@ app.get("/api/health", (req, res) => {
       const { error } = await supabase
         .from('questions')
         .update(updateData)
-        .in('id', ids);
+        .in('question_unique_id', ids);
 
       if (error) throw error;
       res.json({ success: true });
@@ -1306,13 +1323,14 @@ app.get("/api/health", (req, res) => {
     try {
       const records = questions.map(q => ({
         ...mapQuestionToDb(q),
-        id: q.id,
+        question_unique_id: q.question_unique_id || q.id,
+        airtable_table_name: q.airtable_table_name || q.collection,
         updated_at: new Date().toISOString()
       }));
 
       const { error } = await supabase
         .from('questions')
-        .upsert(records);
+        .upsert(records, { onConflict: 'airtable_table_name,question_unique_id' });
 
       if (error) throw error;
       res.json({ success: true });
@@ -1352,7 +1370,7 @@ app.get("/api/health", (req, res) => {
       const { error } = await supabase
         .from('questions')
         .delete()
-        .eq('id', id);
+        .eq('question_unique_id', id);
 
       if (error) throw error;
       res.json({ success: true });
@@ -1372,7 +1390,7 @@ app.get("/api/health", (req, res) => {
       const { error } = await supabase
         .from('questions')
         .delete()
-        .in('id', ids);
+        .in('question_unique_id', ids);
 
       if (error) throw error;
       res.json({ success: true });

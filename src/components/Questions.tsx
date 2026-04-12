@@ -176,19 +176,40 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
     try {
       setIsSaving(true);
       
-      // Direct Supabase insert
-      const { error } = await supabase
-        .from('questions')
-        .insert(selectedQuestions.map(q => ({
-          question_hin: q.text,
-          answer: q.answer,
-          // Add other fields as needed
-          created_at: new Date().toISOString()
-        })));
-
-      if (error) throw error;
+      let finalAirtableTable = airtableTableName;
       
-      alert('Questions saved successfully to Supabase!');
+      // Create new Airtable table if requested
+      if (saveDestinations.includes('airtable') && isCreatingNewTable && newTableName) {
+        const createRes = await fetch('/api/create-airtable-table', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tableName: newTableName })
+        });
+        
+        if (!createRes.ok) {
+          const errorData = await createRes.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to create new Airtable table');
+        }
+        finalAirtableTable = newTableName;
+      }
+
+      const saveRes = await fetch('/api/save-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destinations: saveDestinations,
+          serverFolder: isCreatingNewFolder ? newServerFolder : serverFolder,
+          airtableTable: finalAirtableTable,
+          questions: selectedQuestions
+        })
+      });
+
+      if (!saveRes.ok) {
+        const errorData = await saveRes.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save questions');
+      }
+      
+      alert('Questions saved successfully!');
       setIsAirtableModalOpen(false);
     } catch (error: any) {
       console.error('Error saving questions:', error);

@@ -143,21 +143,23 @@ ${text}`;
         }
 
         const extracted: any[] = safeJsonParse(responseText);
-        allExtractedQuestions = extracted.map((q: any) => ({
-          id: q.id || Math.random().toString(36).substr(2, 9),
-          question_unique_id: q.id,
-          text: q.question_text,
-          options: q.options,
-          correctOption: q.answer,
-          answer: q.answer,
-          status: 'Draft',
-          difficulty: 'Medium',
-          question_hin: '',
-          question_eng: '',
-          subject: '',
-          chapter: '',
-          type: 'MCQ',
-          page_no: '1',
+        allExtractedQuestions = extracted.map((q: any) => {
+          const baseId = q.id || Math.random().toString(36).substr(2, 9);
+          return {
+            id: baseId,
+            question_unique_id: `${baseId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            text: q.question_text,
+            options: q.options,
+            correctOption: q.answer,
+            answer: q.answer,
+            status: 'Draft',
+            difficulty: 'Medium',
+            question_hin: '',
+            question_eng: '',
+            subject: '',
+            chapter: '',
+            type: 'MCQ',
+            page_no: '1',
           collection: '',
           section: '',
           year: '',
@@ -166,7 +168,8 @@ ${text}`;
           previous_of: '',
           solution_hin: '',
           solution_eng: ''
-        }));
+          };
+        });
       } else if (file && file.type === 'application/pdf') {
         setStage("Analyzing PDF structure...");
         setProgress(5);
@@ -244,18 +247,20 @@ Return a JSON array of objects. Be extremely concise. Use null for empty fields.
               });
 
               const batchData: any[] = safeJsonParse(response.text || '[]');
-              return batchData.map((q: any) => ({
-                id: q.id || Math.random().toString(36).substr(2, 9),
-                question_unique_id: q.id,
-                text: q.question_text,
-                options: q.options,
-                correctOption: q.answer,
-                answer: q.answer,
-                status: 'Draft',
-                difficulty: 'Medium',
-                question_hin: '',
-                question_eng: '',
-                subject: '',
+              return batchData.map((q: any) => {
+                const baseId = q.id || Math.random().toString(36).substr(2, 9);
+                return {
+                  id: baseId,
+                  question_unique_id: `${baseId}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                  text: q.question_text,
+                  options: q.options,
+                  correctOption: q.answer,
+                  answer: q.answer,
+                  status: 'Draft',
+                  difficulty: 'Medium',
+                  question_hin: '',
+                  question_eng: '',
+                  subject: '',
                 chapter: '',
                 type: 'MCQ',
                 page_no: pageNum.toString(),
@@ -267,7 +272,8 @@ Return a JSON array of objects. Be extremely concise. Use null for empty fields.
                 previous_of: '',
                 solution_hin: '',
                 solution_eng: ''
-              }));
+                };
+              });
             } catch (err: any) {
               const isHardQuota = err?.message?.includes('billing details') || err?.message?.includes('current quota');
               const isRateLimit = !isHardQuota && (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota') || err?.error?.code === 429 || err?.status === 'RESOURCE_EXHAUSTED');
