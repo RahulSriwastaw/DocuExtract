@@ -12,8 +12,14 @@ import { supabase } from '../lib/supabaseClient';
 import { Search, Trash2, Edit, Tag, Copy, Wand2, FolderPlus, AlertCircle, ExternalLink, RefreshCw, FileText, Layout, BookOpen, LayoutGrid, List } from 'lucide-react';
 import { safeJson } from '../utils';
 
-export default function Questions({ questions: initialQuestions, onEdit }: { questions: Question[], onEdit: (q: Question) => void }) {
+export default function Questions({ questions: initialQuestions, onEdit, onQuestionsChange }: { questions: Question[], onEdit: (q: Question) => void, onQuestionsChange?: (questions: Question[]) => void }) {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
+
+  useEffect(() => {
+    if (onQuestionsChange) {
+      onQuestionsChange(questions);
+    }
+  }, [questions, onQuestionsChange]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -59,6 +65,10 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
   const handleEditClick = (q: Question) => {
     onEdit(q);
   };
+
+  useEffect(() => {
+    setQuestions(initialQuestions);
+  }, [initialQuestions]);
 
   useEffect(() => {
     if (isAirtableModalOpen || isSetModalOpen) {
@@ -117,8 +127,10 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
   };
 
   const handleDelete = (id: string) => {
-    setQuestions(prev => prev.filter(q => q.id !== id));
-    setSelectedIds(prev => prev.filter(i => i !== id));
+    if (confirm('Are you sure you want to delete this question?')) {
+      setQuestions(prev => prev.filter(q => q.id !== id));
+      setSelectedIds(prev => prev.filter(i => i !== id));
+    }
   };
 
   const handleCopyToTest = () => {
@@ -389,7 +401,7 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
             <Button variant="outline" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5" onClick={handleExportToWord}><FileText className="w-3.5 h-3.5" /> Word</Button>
             <Button variant="outline" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5" onClick={() => setIsAirtableModalOpen(true)}><Copy className="w-3.5 h-3.5" /> Save</Button>
             <Button variant="outline" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5" onClick={() => setIsSetModalOpen(true)}><FolderPlus className="w-3.5 h-3.5" /> Set</Button>
-            <Button variant="destructive" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5 text-white bg-danger hover:bg-danger/90" onClick={() => setQuestions(prev => prev.filter(q => !selectedIds.includes(q.id)))}><Trash2 className="w-3.5 h-3.5" /> Delete</Button>
+            <Button variant="destructive" size="sm" className="h-8 px-2.5 text-[10px] font-bold gap-1.5 text-white bg-danger hover:bg-danger/90" onClick={() => { setQuestions(prev => prev.filter(q => !selectedIds.includes(q.id))); setSelectedIds([]); }}><Trash2 className="w-3.5 h-3.5" /> Delete</Button>
           </div>
         )}
         

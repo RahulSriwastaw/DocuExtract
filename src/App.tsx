@@ -18,6 +18,7 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
   const [extractedQuestions, setExtractedQuestions] = useState<Question[]>([]);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingIndex, setEditingIndex] = useState<number>(-1);
@@ -37,22 +38,50 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const savedDocs = localStorage.getItem('recent_extractions');
-    if (savedDocs) {
-      setDocuments(JSON.parse(savedDocs));
-    } else {
-      setDocuments(mockDocuments);
-    }
+    const fetchDocuments = async () => {
+      try {
+        const res = await fetch('/api/get-documents');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.documents && data.documents.length > 0) {
+            setDocuments(data.documents);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch documents from server:", err);
+      }
+      
+      // Fallback to local storage
+      const savedDocs = localStorage.getItem('recent_extractions');
+      if (savedDocs) {
+        setDocuments(JSON.parse(savedDocs));
+      } else {
+        setDocuments(mockDocuments);
+      }
+    };
+    fetchDocuments();
   }, []);
 
-  const saveDocuments = (newDocs: Document[]) => {
+  const saveDocuments = async (newDocs: Document[]) => {
     setDocuments(newDocs);
     localStorage.setItem('recent_extractions', JSON.stringify(newDocs));
+    
+    try {
+      await fetch('/api/save-documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documents: newDocs })
+      });
+    } catch (err) {
+      console.error("Failed to save documents to server:", err);
+    }
   };
 
   const handleExtractionComplete = (questions: Question[], fileName: string) => {
+    const newDocId = Date.now().toString();
     const newDoc: Document = {
-      id: Date.now().toString(),
+      id: newDocId,
       name: fileName,
       status: 'Completed',
       totalQuestions: questions.length,
@@ -64,6 +93,13 @@ export default function App() {
     const updatedDocs = [newDoc, ...documents];
     saveDocuments(updatedDocs);
     setExtractedQuestions(questions);
+    setCurrentDocumentId(newDocId);
+  };
+
+  const handleDocumentClick = (doc: Document) => {
+    setExtractedQuestions(doc.questions);
+    setCurrentDocumentId(doc.id);
+    setSelectedDocument(null);
   };
 
   const handleEdit = (q: Question) => {
@@ -93,11 +129,40 @@ export default function App() {
     setExtractedQuestions(prev => {
       const updatedList = [...prev];
       updatedList[editingIndex] = updated;
+      
+      // Update the document in the documents array if we are editing a recent extraction
+      if (currentDocumentId) {
+        const updatedDocs = documents.map(doc => {
+          if (doc.id === currentDocumentId) {
+            return { ...doc, questions: updatedList };
+          }
+          return doc;
+        });
+        saveDocuments(updatedDocs);
+      }
+      
       return updatedList;
     });
     setActiveTab('extract');
     setEditingQuestion(null);
     setEditingIndex(-1);
+  };
+
+  const handleQuestionsChange = (newQuestions: Question[]) => {
+    setExtractedQuestions(newQuestions);
+    if (currentDocumentId) {
+      const updatedDocs = documents.map(doc => {
+        if (doc.id === currentDocumentId) {
+          return { ...doc, questions: newQuestions, totalQuestions: newQuestions.length };
+        }
+        return doc;
+      });
+      // Only save if there's an actual change to avoid infinite loops
+      const currentDoc = documents.find(d => d.id === currentDocumentId);
+      if (currentDoc && JSON.stringify(currentDoc.questions) !== JSON.stringify(newQuestions)) {
+        saveDocuments(updatedDocs);
+      }
+    }
   };
 
   return (
@@ -242,40 +307,14 @@ export default function App() {
                 {activeTab === 'extract' && (
                   extractedQuestions.length > 0 ? (
                     <div className="p-8 max-w-7xl mx-auto">
-                      <button onClick={() => setExtractedQuestions([])} className="mb-6 text-sm font-semibold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
+                      <button onClick={() => { setExtractedQuestions([]); setCurrentDocumentId(null); }} className="mb-6 text-sm font-semibold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
                         &larr; Back to Dashboard
                       </button>
-                      <Questions questions={extractedQuestions} onEdit={handleEdit} />
-                    </div>
-                  ) : !selectedDocument ? (
-                    <div className="h-full">
-                      <Dashboard documents={documents} onDocumentClick={setSelectedDocument} onExtractionComplete={handleExtractionComplete} />
+                      <Questions questions={extractedQuestions} onEdit={handleEdit} onQuestionsChange={handleQuestionsChange} />
                     </div>
                   ) : (
-                    <div className="p-8 max-w-7xl mx-auto">
-                      <button onClick={() => setSelectedDocument(null)} className="mb-6 text-sm font-semibold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
-                        &larr; Back to Dashboard
-                      </button>
-                      <h2 className="text-2xl font-semibold mb-6 tracking-tight text-text-heading">{selectedDocument.name}</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {(selectedDocument.questions || []).map((q) => (
-                          <div key={q.id} className="border border-border p-5 rounded-[12px] shadow-sm bg-card hover:shadow-md transition-shadow flex flex-col">
-                            <p className="font-medium text-text-body mb-4 line-clamp-3">{q.text}</p>
-                            <ul className="text-sm text-text-muted mb-6 space-y-1.5 flex-1">
-                              {(q.options || []).map((opt, i) => (
-                                <li key={i} className="flex items-start gap-2">
-                                  <span className="w-4 h-4 rounded-full border border-border flex-shrink-0 mt-0.5"></span>
-                                  <span className="line-clamp-2">{opt}</span>
-                                </li>
-                              ))}
-                            </ul>
-                            <div className="flex gap-2 mt-auto pt-4 border-t border-border">
-                              <Button variant="outline" size="sm" className="flex-1 h-8 text-xs border-border text-text-body hover:bg-slate-50" onClick={() => handleEdit(q)}>Edit</Button>
-                              <Button variant="destructive" size="sm" className="flex-1 h-8 text-xs bg-danger text-white hover:bg-red-600 border-0">Delete</Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="h-full">
+                      <Dashboard documents={documents} onDocumentClick={handleDocumentClick} onExtractionComplete={handleExtractionComplete} />
                     </div>
                   )
                 )}

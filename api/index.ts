@@ -157,6 +157,17 @@ async function initDb(retries = 3) {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
           UNIQUE(airtable_table_name, question_unique_id)
         );
+
+        CREATE TABLE IF NOT EXISTS documents (
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          status TEXT,
+          total_questions INTEGER,
+          total_images INTEGER,
+          upload_date TEXT,
+          questions JSONB,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
       `);
       await pgPool.query(`
         ALTER TABLE questions 
@@ -1359,6 +1370,40 @@ app.get("/api/health", (req, res) => {
       res.json({ success: true });
     } catch (error: any) {
       handleSupabaseError(error, res, "rename folder");
+    }
+  });
+
+  app.post("/api/save-documents", async (req, res) => {
+    const { documents } = req.body;
+    if (!documents || !Array.isArray(documents)) {
+      return res.status(400).json({ error: "Documents array is required" });
+    }
+
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .upsert(documents, { onConflict: 'id' });
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Save documents error:", error);
+      res.status(500).json({ error: error.message || "Failed to save documents" });
+    }
+  });
+
+  app.get("/api/get-documents", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      res.json({ documents: data || [] });
+    } catch (error: any) {
+      console.error("Get documents error:", error);
+      res.status(500).json({ error: error.message || "Failed to get documents" });
     }
   });
 
