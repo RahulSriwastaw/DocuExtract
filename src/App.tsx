@@ -127,74 +127,53 @@ export default function App() {
       {activeTab !== 'edit-question' && (
         <motion.aside 
           initial={false}
-          animate={{ x: isMobileMenuOpen ? 0 : '-100%' }}
+          animate={{ 
+            x: isMobileMenuOpen ? 0 : (window.innerWidth >= 768 ? 0 : '-100%'),
+            width: isSidebarCollapsed ? 64 : 256 
+          }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className={`
-          fixed inset-y-0 left-0 z-40 md:relative md:z-10
-          md:translate-x-0
-          ${isSidebarCollapsed ? 'md:w-16' : 'md:w-64'} 
-          w-64 border-r border-border bg-bg-sidebar flex flex-col shrink-0 shadow-sm transition-all duration-300
-        `}>
-          <div className={`p-4 border-b border-border hidden md:flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
-            {!isSidebarCollapsed && (
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm shrink-0">
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                <h1 className="text-xl font-bold tracking-tight text-text-heading truncate">
-                  DocuExtract
-                </h1>
-              </div>
-            )}
-            {isSidebarCollapsed && (
+            fixed inset-y-0 left-0 z-40 md:relative md:z-10
+            md:translate-x-0
+            ${isSidebarCollapsed ? 'md:w-16' : 'md:w-64'} 
+            w-64 border-r border-border bg-bg-sidebar flex flex-col shrink-0 shadow-xl md:shadow-none transition-all duration-300
+          `}>
+          <div className={`p-4 border-b border-border flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
+            <motion.div 
+              className="flex items-center gap-3 overflow-hidden"
+              animate={{ opacity: isSidebarCollapsed ? 0 : 1 }}
+            >
               <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm shrink-0">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
-            )}
+              <h1 className="text-xl font-bold tracking-tight text-text-heading truncate">
+                DocuExtract
+              </h1>
+            </motion.div>
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className={`h-8 w-8 rounded-lg text-text-muted hover:text-text-body hover:bg-slate-100 ${isSidebarCollapsed ? 'mt-2' : ''}`}
+              className={`h-8 w-8 rounded-lg text-text-muted hover:text-text-body hover:bg-slate-100 ${isSidebarCollapsed ? 'hidden md:flex' : ''}`}
             >
               {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </Button>
           </div>
           
-          {/* Mobile Sidebar Header */}
-          <div className="p-4 border-b border-border flex md:hidden items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <h1 className="text-lg font-bold tracking-tight text-text-heading">
-                DocuExtract
-              </h1>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="h-8 w-8 rounded-lg"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-
           <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
-            {!isSidebarCollapsed && <div className="text-[11px] font-bold text-text-label uppercase tracking-wider mb-3 px-3 mt-2">Menu</div>}
             <Button 
               variant="ghost"
               onClick={() => { setActiveTab('extract'); setIsMobileMenuOpen(false); }}
-              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'extract' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-body hover:bg-slate-50'}`}
+              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'extract' ? 'bg-primary-light text-primary font-semibold' : 'text-text-body hover:bg-slate-50'}`}
               title="Dashboard & Extract"
             >
               <LayoutDashboard className="w-4 h-4 shrink-0" /> 
-              {(!isSidebarCollapsed || isMobileMenuOpen) && <span>Dashboard & Extract</span>}
+              {(!isSidebarCollapsed || isMobileMenuOpen) && <span>Dashboard</span>}
             </Button>
             <Button 
               variant="ghost"
               onClick={() => { setActiveTab('question-bank'); setIsMobileMenuOpen(false); }}
-              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'question-bank' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-body hover:bg-slate-50'}`}
+              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'question-bank' ? 'bg-primary-light text-primary font-semibold' : 'text-text-body hover:bg-slate-50'}`}
               title="Question Bank"
             >
               <Library className="w-4 h-4 shrink-0" /> 
@@ -203,7 +182,7 @@ export default function App() {
             <Button 
               variant="ghost"
               onClick={() => { setActiveTab('sets'); setIsMobileMenuOpen(false); }}
-              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'sets' || activeTab === 'create-set' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-body hover:bg-slate-50'}`}
+              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'sets' || activeTab === 'create-set' ? 'bg-primary-light text-primary font-semibold' : 'text-text-body hover:bg-slate-50'}`}
               title="Question Sets"
             >
               <FolderOpen className="w-4 h-4 shrink-0" /> 
@@ -214,7 +193,7 @@ export default function App() {
             <Button 
               variant="ghost" 
               onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }}
-              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'settings' ? 'bg-primary-light text-primary font-semibold border-l-4 border-primary rounded-l-none' : 'text-text-muted hover:text-text-body hover:bg-slate-50'}`}
+              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'settings' ? 'bg-primary-light text-primary font-semibold' : 'text-text-muted hover:text-text-body hover:bg-slate-50'}`}
               title="Settings"
             >
               <Settings className="w-4 h-4 shrink-0" /> 
