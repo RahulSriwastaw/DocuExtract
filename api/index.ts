@@ -89,7 +89,8 @@ function handleSupabaseError(error: any, res: express.Response, context: string)
 const pgClient = new Client({
   connectionString: 'postgresql://postgres.yxibppbfrugarjoeoijw:iuTKL5bWoinAH6kr@aws-1-ap-south-1.pooler.supabase.com:6543/postgres',
   ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 5000, // 5 second timeout
+  connectionTimeoutMillis: 15000, // Increased to 15 seconds
+  query_timeout: 15000, // Added query timeout
 });
 
 let isDbConnected = false;
