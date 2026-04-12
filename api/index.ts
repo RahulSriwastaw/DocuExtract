@@ -1,46 +1,31 @@
 import express from "express";
+import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import dotenv from 'dotenv';
 import Airtable from 'airtable';
 import fs from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from "openai";
 import pkg from 'pg';
-import util from 'util';
 const { Client } = pkg;
 
-dotenv.config();
-
-// ─── Express App (created at module level, no app.listen) ───────────────────
-const app = express();
-app.use(express.json({ limit: '50mb' }));
-
-const isServerless = process.env.VERCEL === '1';
-const PORT = Number(process.env.PORT) || 3000;
-
-// ─── Cache Directory ─────────────────────────────────────────────────────────
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CACHE_DIR = isServerless ? path.join('/tmp', '.cache') : path.join(__dirname, '.cache');
+const CACHE_DIR = process.env.NODE_ENV === 'production' 
+  ? path.join('/tmp', '.cache') 
+  : path.join(__dirname, '.cache');
 
 if (!existsSync(CACHE_DIR)) {
   mkdirSync(CACHE_DIR, { recursive: true });
 }
 
-// ─── Supabase Configuration ──────────────────────────────────────────────────
-const supabaseUrl = process.env.SUPABASE_URL || 'https://yxibppbfrugarjoeoijw.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aWJwcGJmcnVnYXJqb2VvaWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTgwNjUsImV4cCI6MjA5MDA5NDA2NX0.m7pkeKKDBW4bunM9V8iR1Wo6TzXdhLHAd9BfFagepO0';
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabaseKey = supabaseServiceRoleKey || supabaseAnonKey;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.warn('Supabase configuration is incomplete. Set SUPABASE_URL and SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY.');
-}
+// Supabase Configuration
+const supabaseUrl = 'https://yxibppbfrugarjoeoijw.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4aWJwcGJmcnVnYXJqb2VvaWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MTgwNjUsImV4cCI6MjA5MDA5NDA2NX0.m7pkeKKDBW4bunM9V8iR1Wo6TzXdhLHAd9BfFagepO0';
 
 // Custom fetch with timeout
 const fetchWithTimeout = (url: string, options: any = {}) => {
-  const timeout = options.timeout || 10000;
+  const timeout = options.timeout || 10000; // 10 second default
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   return fetch(url, {
@@ -55,8 +40,10 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
-// ─── Error Handler ───────────────────────────────────────────────────────────
+import util from 'util';
+
 function handleSupabaseError(error: any, res: express.Response, context: string) {
+  // Log the full error for debugging
   console.error(`[Supabase Error] Context: ${context}`, {
     message: error.message,
     code: error.code,
@@ -74,7 +61,7 @@ function handleSupabaseError(error: any, res: express.Response, context: string)
       errorString.includes('ECONNREFUSED') ||
       errorString.includes('Connection terminated') ||
       errorString.includes('fetch failed') ||
-      errorString.includes('<!DOCTYPE html>') ||
+      errorString.includes('<!DOCTYPE html>') || // HTML response usually means Cloudflare error
       errorString.includes('Error code 522')
     )) ||
     (error && (
@@ -85,6 +72,7 @@ function handleSupabaseError(error: any, res: express.Response, context: string)
     ));
 
   if (isPausedError || !isDbConnected) {
+    // If not connected, try to re-initialize in background
     if (!isDbConnected && !dbInitInProgress) {
       initDb(1);
     }
@@ -99,11 +87,10 @@ function handleSupabaseError(error: any, res: express.Response, context: string)
   res.status(500).json({ error: error.message || `Failed to ${context}` });
 }
 
-// ─── PostgreSQL Client ───────────────────────────────────────────────────────
 const pgClient = new Client({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres.yxibppbfrugarjoeoijw:iuTKL5bWoinAH6kr@aws-1-ap-south-1.pooler.supabase.com:6543/postgres',
+  connectionString: 'postgresql://postgres.yxibppbfrugarjoeoijw:iuTKL5bWoinAH6kr@aws-1-ap-south-1.pooler.supabase.com:6543/postgres',
   ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 5000, // 5 second timeout
 });
 
 let isDbConnected = false;
@@ -217,12 +204,14 @@ async function initDb(retries = 3) {
         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
       `);
       
+      // Reload PostgREST schema cache
       try {
         await pgClient.query(`NOTIFY pgrst, 'reload schema'`);
       } catch (e) {
         console.warn("Failed to reload schema cache:", e);
       }
       
+      // Add unique constraint if it doesn't exist
       try {
         await pgClient.query(`
           ALTER TABLE questions ADD CONSTRAINT questions_airtable_table_name_question_unique_id_key UNIQUE (airtable_table_name, question_unique_id);
@@ -231,6 +220,7 @@ async function initDb(retries = 3) {
         // Constraint might already exist, ignore error
       }
       
+      // Reload PostgREST schema cache so Supabase API sees the new columns
       try {
         await pgClient.query(`NOTIFY pgrst, 'reload schema';`);
         console.log("PostgREST schema cache reloaded.");
@@ -252,18 +242,17 @@ async function initDb(retries = 3) {
   }
   dbInitInProgress = false;
 }
+initDb();
 
-// Initialize DB connection (runs on cold start)
-const dbPromise = initDb();
-
-// ─── Question Mapper ─────────────────────────────────────────────────────────
 const mapQuestionToDb = (q: any) => {
   const mapped: any = {};
   
+  // Question text
   if (q.question_hin !== undefined) mapped.question_hin = q.question_hin;
   else if (q.text !== undefined) mapped.question_hin = q.text;
   if (q.question_eng !== undefined) mapped.question_eng = q.question_eng;
   
+  // Classification
   if (q.subject !== undefined) mapped.subject = q.subject;
   if (q.sub_subject !== undefined) mapped.sub_subject = q.sub_subject;
   if (q.chapter !== undefined) mapped.chapter = q.chapter;
@@ -272,6 +261,7 @@ const mapQuestionToDb = (q: any) => {
   if (q.sub_topic !== undefined) mapped.sub_topic = q.sub_topic;
   if (q.keywords !== undefined) mapped.keywords = q.keywords;
   
+  // Options
   if (q.option1_hin !== undefined) mapped.option1_hin = q.option1_hin;
   else if (q.options?.[0] !== undefined) mapped.option1_hin = q.options[0];
   
@@ -293,12 +283,14 @@ const mapQuestionToDb = (q: any) => {
   if (q.option4_eng !== undefined) mapped.option4_eng = q.option4_eng;
   if (q.option5_eng !== undefined) mapped.option5_eng = q.option5_eng;
   
+  // Answer & Solution
   if (q.answer !== undefined) mapped.answer = q.answer;
   else if (q.correctOption !== undefined) mapped.answer = q.correctOption;
   
   if (q.solution_hin !== undefined) mapped.solution_hin = q.solution_hin;
   if (q.solution_eng !== undefined) mapped.solution_eng = q.solution_eng;
   
+  // Metadata
   if (q.type !== undefined) mapped.type = q.type;
   if (q.difficulty !== undefined) mapped.difficulty = q.difficulty;
   if (q.video !== undefined) mapped.video = q.video;
@@ -327,167 +319,116 @@ const mapQuestionToDb = (q: any) => {
   return mapped;
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// API ROUTES (no /api prefix — Vercel strips it automatically)
-// ═══════════════════════════════════════════════════════════════════════════════
+const app = express();
+const PORT = 3000;
 
-app.get("/health", (req, res) => {
+app.use(express.json({ limit: '50mb' }));
+
+// Add request logging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+// API routes FIRST
+app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-app.post("/ai/generate", async (req, res) => {
-  try {
-    const { prompt, config } = req.body;
-    if (!prompt || !config) {
-      return res.status(400).json({ error: "Missing prompt or config" });
-    }
-
-    const { provider, model } = config;
-
-    if (provider === 'openrouter' || provider === 'groq' || provider === 'modal') {
-      let baseURL = "";
-      let apiKey = "";
-      const headers: Record<string, string> = {};
-      
-      if (provider === 'openrouter') {
-        baseURL = "https://openrouter.ai/api/v1";
-        apiKey = process.env.OPENROUTER_API_KEY || "";
-        headers["HTTP-Referer"] = "https://ai.studio/build";
-        headers["X-Title"] = "AI Studio App";
-      } else if (provider === 'groq') {
-        baseURL = "https://api.groq.com/openai/v1";
-        apiKey = process.env.GROQ_API_KEY || "";
-      } else {
-        baseURL = "https://api.us-west-2.modal.direct/v1";
-        apiKey = process.env.MODAL_API_KEY || "";
+  app.post("/api/ai/generate", async (req, res) => {
+    try {
+      const { prompt, config } = req.body;
+      if (!prompt || !config) {
+        return res.status(400).json({ error: "Missing prompt or config" });
       }
-      
-      if (!apiKey) throw new Error(`${provider} API Key not found`);
-      
-      const openai = new OpenAI({ 
-        baseURL, 
-        apiKey,
-        defaultHeaders: headers,
-        timeout: 180000,
-        maxRetries: 5
-      });
-      
-      try {
-        const response = await openai.chat.completions.create({
-          model: model,
-          messages: [{ role: 'user', content: prompt }],
-          response_format: provider === 'modal' ? undefined : { type: 'json_object' },
-          max_tokens: 2000
+
+      const { provider, model } = config;
+
+      if (provider === 'openrouter' || provider === 'groq' || provider === 'modal') {
+        let baseURL = "";
+        let apiKey = "";
+        const headers: Record<string, string> = {};
+        
+        if (provider === 'openrouter') {
+          baseURL = "https://openrouter.ai/api/v1";
+          apiKey = process.env.OPENROUTER_API_KEY || "";
+          headers["HTTP-Referer"] = "https://ai.studio/build";
+          headers["X-Title"] = "AI Studio App";
+        } else if (provider === 'groq') {
+          baseURL = "https://api.groq.com/openai/v1";
+          apiKey = process.env.GROQ_API_KEY || "";
+        } else {
+          baseURL = "https://api.us-west-2.modal.direct/v1";
+          apiKey = process.env.MODAL_API_KEY || "";
+        }
+        
+        if (!apiKey) throw new Error(`${provider} API Key not found`);
+        
+        const openai = new OpenAI({ 
+          baseURL, 
+          apiKey,
+          defaultHeaders: headers,
+          timeout: 180000, // 180 second timeout for bulk operations
+          maxRetries: 5 // Increase built-in retries
         });
         
-        return res.json({ text: response.choices[0].message.content || "" });
-      } catch (apiErr: any) {
-        const isRetryable = apiErr.status === 502 || apiErr.status === 429 || apiErr.name === 'APIConnectionTimeoutError' || apiErr.message?.includes('Too many concurrent requests');
-        
-        if (isRetryable) {
-          let errorType = "Error";
-          if (apiErr.status === 502) errorType = "502 Upstream Error";
-          if (apiErr.status === 429 || apiErr.message?.includes('Too many concurrent requests')) errorType = "429 Rate Limit";
-          if (apiErr.name === 'APIConnectionTimeoutError') errorType = "Timeout";
+        try {
+          const response = await openai.chat.completions.create({
+            model: model,
+            messages: [{ role: 'user', content: prompt }],
+            response_format: provider === 'modal' ? undefined : { type: 'json_object' },
+            max_tokens: 2000
+          });
           
-          console.warn(`${errorType} from ${provider}. Starting manual retry sequence...`);
+          return res.json({ text: response.choices[0].message.content || "" });
+        } catch (apiErr: any) {
+          // If 502, 429 or Timeout, try manual retries with longer backoff
+          const isRetryable = apiErr.status === 502 || apiErr.status === 429 || apiErr.name === 'APIConnectionTimeoutError' || apiErr.message?.includes('Too many concurrent requests');
           
-          for (let attempt = 1; attempt <= 2; attempt++) {
-            const waitTime = (apiErr.status === 429 || apiErr.message?.includes('Too many concurrent requests')) 
-              ? (15000 * attempt)
-              : (5000 * attempt);
+          if (isRetryable) {
+            let errorType = "Error";
+            if (apiErr.status === 502) errorType = "502 Upstream Error";
+            if (apiErr.status === 429 || apiErr.message?.includes('Too many concurrent requests')) errorType = "429 Rate Limit";
+            if (apiErr.name === 'APIConnectionTimeoutError') errorType = "Timeout";
             
-            console.log(`Manual retry attempt ${attempt} for ${provider}. Waiting ${waitTime/1000}s...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime + Math.random() * 3000));
+            console.warn(`${errorType} from ${provider}. Starting manual retry sequence...`);
             
-            try {
-              const retryResponse = await openai.chat.completions.create({
-                model: model,
-                messages: [{ role: 'user', content: prompt }],
-                max_tokens: 2000
-              });
-              return res.json({ text: retryResponse.choices[0].message.content || "" });
-            } catch (retryErr: any) {
-              console.error(`Manual retry ${attempt} failed:`, retryErr.message);
-              if (attempt === 2) throw retryErr;
+            // Try up to 2 manual retries with increasing backoff
+            for (let attempt = 1; attempt <= 2; attempt++) {
+              const waitTime = (apiErr.status === 429 || apiErr.message?.includes('Too many concurrent requests')) 
+                ? (15000 * attempt) // 15s, then 30s
+                : (5000 * attempt); // 5s, then 10s
+              
+              console.log(`Manual retry attempt ${attempt} for ${provider}. Waiting ${waitTime/1000}s...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime + Math.random() * 3000));
+              
+              try {
+                const retryResponse = await openai.chat.completions.create({
+                  model: model,
+                  messages: [{ role: 'user', content: prompt }],
+                  max_tokens: 2000
+                });
+                return res.json({ text: retryResponse.choices[0].message.content || "" });
+              } catch (retryErr: any) {
+                console.error(`Manual retry ${attempt} failed:`, retryErr.message);
+                if (attempt === 2) throw retryErr; // Throw if last manual retry fails
+              }
             }
           }
+          throw apiErr;
         }
-        throw apiErr;
       }
+
+      throw new Error("Unsupported AI Provider");
+    } catch (error: any) {
+      console.error("Server AI Error:", error);
+      const status = (error.status === 429 || error.message?.includes('Too many concurrent requests')) ? 429 : 500;
+      res.status(status).json({ error: error.message || "Unknown AI error" });
     }
+  });
 
-    throw new Error("Unsupported AI Provider");
-  } catch (error: any) {
-    console.error("Server AI Error:", error);
-    const status = (error.status === 429 || error.message?.includes('Too many concurrent requests')) ? 429 : 500;
-    res.status(status).json({ error: error.message || "Unknown AI error" });
-  }
-});
-
-app.get("/get-airtable-tables", async (req, res) => {
-  const { forceSync } = req.query;
-  const apiKey = process.env.AIRTABLE_API_KEY;
-  const baseId = process.env.AIRTABLE_BASE_ID;
-
-  if (!apiKey || !baseId) {
-    return res.status(500).json({ error: "Airtable credentials not configured" });
-  }
-
-  const cacheFile = path.join(CACHE_DIR, `tables.json`);
-
-  try {
-    if (forceSync !== 'true' && existsSync(cacheFile)) {
-      try {
-        const cachedData = await fs.readFile(cacheFile, 'utf-8');
-        const parsed = JSON.parse(cachedData);
-        if (Array.isArray(parsed)) {
-          return res.json({ tables: parsed, source: 'cache' });
-        }
-      } catch (e) {
-        console.error("Failed to parse cache, fetching fresh", e);
-        try { await fs.unlink(cacheFile); } catch (err) {}
-      }
-    }
-
-    const response = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || "Failed to fetch tables");
-    }
-
-    const data = await response.json();
-    console.log('Airtable API response tables:', JSON.stringify(data.tables, null, 2));
-    await fs.writeFile(cacheFile, JSON.stringify(data.tables));
-    res.json({ tables: data.tables, source: 'airtable' });
-  } catch (error: any) {
-    console.error("Airtable error:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch tables" });
-  }
-});
-
-app.post("/get-table-stats", async (req, res) => {
-  const { tableName } = req.body;
-  
-  try {
-    const { count, error } = await supabase
-      .from('questions')
-      .select('*', { count: 'exact', head: true })
-      .eq('airtable_table_name', tableName);
-      
-    if (!error && count !== null && count > 0) {
-      return res.json({ 
-        count: count, 
-        lastUpdated: new Date().toISOString(),
-        source: 'supabase'
-      });
-    }
-
+  app.get("/api/get-airtable-tables", async (req, res) => {
+    const { forceSync } = req.query;
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
 
@@ -495,163 +436,129 @@ app.post("/get-table-stats", async (req, res) => {
       return res.status(500).json({ error: "Airtable credentials not configured" });
     }
 
-    const base = new Airtable({ apiKey }).base(baseId);
-    const records = await base(tableName).select({ fields: [] }).all();
+    const cacheFile = path.join(CACHE_DIR, `tables.json`);
 
-    let lastUpdated = null;
-    if (records.length > 0) {
-      const times = records.map(r => new Date((r as any)._rawJson?.createdTime || 0).getTime());
-      const maxTime = Math.max(...times);
-      if (maxTime > 0) {
-        lastUpdated = new Date(maxTime).toISOString();
-      }
-    }
-
-    res.json({ 
-      count: records.length, 
-      lastUpdated: lastUpdated || new Date().toISOString(),
-      source: 'airtable'
-    });
-  } catch (error: any) {
-    console.error(`Stats error for ${tableName}:`, error);
-    res.status(500).json({ error: error.message || "Failed to fetch table stats" });
-  }
-});
-
-app.post("/sync-all-airtable", async (req, res) => {
-  const apiKey = process.env.AIRTABLE_API_KEY;
-  const baseId = process.env.AIRTABLE_BASE_ID;
-
-  if (!apiKey || !baseId) {
-    return res.status(500).json({ error: "Airtable credentials not configured" });
-  }
-
-  try {
-    const listRes = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-    });
-
-    if (!listRes.ok) {
-      throw new Error("Failed to fetch tables from Airtable");
-    }
-
-    const { tables } = await listRes.json();
-    const results: any[] = [];
-
-    const base = new Airtable({ apiKey }).base(baseId);
-    
-    for (const table of tables) {
-      try {
-        const records = await base(table.name).select().all();
-        const formatted = records.map(r => ({ id: r.id, ...(r as any).fields }));
-
-        if (formatted.length > 0) {
-          const supabaseData = formatted.map(q => ({
-            record_id: q.record_id || q.id || '',
-            question_unique_id: q.question_unique_id || q.id || Math.random().toString(36).substring(7),
-            question_hin: q.question_hin || q.text || '',
-            question_eng: q.question_eng || '',
-            subject: q.subject || '',
-            sub_subject: q.sub_subject || '',
-            chapter: q.chapter || '',
-            sub_chapter: q.sub_chapter || '',
-            topic: q.topic || '',
-            sub_topic: q.sub_topic || '',
-            keywords: q.keywords || '',
-            difficulty: q.difficulty || '',
-            image: q.image || '',
-            option1_hin: q.option1_hin || q.options?.[0] || '',
-            option1_eng: q.option1_eng || '',
-            option2_hin: q.option2_hin || q.options?.[1] || '',
-            option2_eng: q.option2_eng || '',
-            option3_hin: q.option3_hin || q.options?.[2] || '',
-            option3_eng: q.option3_eng || '',
-            option4_hin: q.option4_hin || q.options?.[3] || '',
-            option4_eng: q.option4_eng || '',
-            option5_hin: q.option5_hin || q.options?.[4] || '',
-            option5_eng: q.option5_eng || '',
-            answer: q.answer || q.correctOption || '',
-            solution_hin: q.solution_hin || '',
-            solution_eng: q.solution_eng || '',
-            type: q.type || '',
-            video: q.video || '',
-            page_no: q.page_no || '',
-            collection: q.collection || '',
-            airtable_table_name: table.name,
-            section: q.section || '',
-            year: q.year || '',
-            date: q.date || '',
-            exam: q.exam || '',
-            previous_of: q.previous_of || '',
-            action: q.action || 'UPDATED',
-            current_status: q.status || q.current_status || 'Draft',
-            sync_code: q.sync_code || '',
-            error_report: q.error_report || '',
-            error_description: q.error_description || '',
-            updated_at: new Date().toISOString()
-          }));
-
-          const chunkSize = 500;
-          for (let i = 0; i < supabaseData.length; i += chunkSize) {
-            const chunk = supabaseData.slice(i, i + chunkSize);
-            const { error } = await supabase.from('questions').upsert(chunk, { onConflict: 'airtable_table_name,question_unique_id' });
-            if (error) console.error(`Sync all: chunk ${i} for ${table.name} failed:`, error);
+    try {
+      if (forceSync !== 'true' && existsSync(cacheFile)) {
+        try {
+          const cachedData = await fs.readFile(cacheFile, 'utf-8');
+          const parsed = JSON.parse(cachedData);
+          if (Array.isArray(parsed)) {
+            return res.json({ tables: parsed, source: 'cache' });
           }
-          results.push({ table: table.name, count: formatted.length, status: 'success' });
+        } catch (e) {
+          console.error("Failed to parse cache, fetching fresh", e);
+          // Delete corrupted cache
+          try { await fs.unlink(cacheFile); } catch (err) {}
         }
-      } catch (tableErr: any) {
-        console.error(`Failed to sync table ${table.name}:`, tableErr);
-        results.push({ table: table.name, status: 'failed', error: tableErr.message });
       }
+
+      const response = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || "Failed to fetch tables");
+      }
+
+      const data = await response.json();
+      console.log('Airtable API response tables:', JSON.stringify(data.tables, null, 2));
+      await fs.writeFile(cacheFile, JSON.stringify(data.tables));
+      res.json({ tables: data.tables, source: 'airtable' });
+    } catch (error: any) {
+      console.error("Airtable error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch tables" });
+    }
+  });
+
+  app.post("/api/get-table-stats", async (req, res) => {
+    const { tableName } = req.body;
+    
+    try {
+      // First try to get count from Supabase for speed
+      const { count, error } = await supabase
+        .from('questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('airtable_table_name', tableName);
+        
+      if (!error && count !== null && count > 0) {
+        return res.json({ 
+          count: count, 
+          lastUpdated: new Date().toISOString(),
+          source: 'supabase'
+        });
+      }
+
+      // Fallback to Airtable
+      const apiKey = process.env.AIRTABLE_API_KEY;
+      const baseId = process.env.AIRTABLE_BASE_ID;
+
+      if (!apiKey || !baseId) {
+        return res.status(500).json({ error: "Airtable credentials not configured" });
+      }
+
+      const base = new Airtable({ apiKey }).base(baseId);
+      const records = await base(tableName).select({ fields: [] }).all();
+
+      let lastUpdated = null;
+      if (records.length > 0) {
+        const times = records.map(r => new Date((r as any)._rawJson?.createdTime || 0).getTime());
+        const maxTime = Math.max(...times);
+        if (maxTime > 0) {
+          lastUpdated = new Date(maxTime).toISOString();
+        }
+      }
+
+      res.json({ 
+        count: records.length, 
+        lastUpdated: lastUpdated || new Date().toISOString(),
+        source: 'airtable'
+      });
+    } catch (error: any) {
+      console.error(`Stats error for ${tableName}:`, error);
+      res.status(500).json({ error: error.message || "Failed to fetch table stats" });
+    }
+  });
+
+  app.post("/api/sync-all-airtable", async (req, res) => {
+    const apiKey = process.env.AIRTABLE_API_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID;
+
+    if (!apiKey || !baseId) {
+      return res.status(500).json({ error: "Airtable credentials not configured" });
     }
 
-    res.json({ success: true, results });
-  } catch (error: any) {
-    console.error("Sync all error:", error);
-    res.status(500).json({ error: error.message || "Failed to sync all tables" });
-  }
-});
+    try {
+      // 1. Get all tables
+      const listRes = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
 
-app.post("/sync-all-to-airtable", async (req, res) => {
-  const apiKey = process.env.AIRTABLE_API_KEY;
-  const baseId = process.env.AIRTABLE_BASE_ID;
+      if (!listRes.ok) {
+        throw new Error("Failed to fetch tables from Airtable");
+      }
 
-  if (!apiKey || !baseId) {
-    return res.status(500).json({ error: "Airtable credentials not configured" });
-  }
+      const { tables } = await listRes.json();
+      const results: any[] = [];
 
-  try {
-    const { data: tablesData, error: tablesError } = await supabase
-      .from('questions')
-      .select('airtable_table_name')
-      .not('airtable_table_name', 'is', null);
+      // 2. Sync each table (sequentially to avoid rate limits)
+      const base = new Airtable({ apiKey }).base(baseId);
+      
+      for (const table of tables) {
+        try {
+          const records = await base(table.name).select().all();
+          const formatted = records.map(r => ({ id: r.id, ...(r as any).fields }));
 
-    if (tablesError) throw tablesError;
-
-    const tableNames = Array.from(new Set(tablesData.map(t => t.airtable_table_name)));
-    const results: any[] = [];
-    const base = new Airtable({ apiKey }).base(baseId);
-
-    for (const tableName of tableNames) {
-      try {
-        const { data: questions, error: questionsError } = await supabase
-          .from('questions')
-          .select('*')
-          .eq('airtable_table_name', tableName);
-
-        if (questionsError) throw questionsError;
-
-        if (questions && questions.length > 0) {
-          const toCreate: any[] = [];
-          const toUpdate: any[] = [];
-
-          questions.forEach(q => {
-            const fields = {
-              record_id: q.record_id || '',
-              question_unique_id: q.question_unique_id || '',
-              question_hin: q.question_hin || '',
+          if (formatted.length > 0) {
+            const supabaseData = formatted.map(q => ({
+              record_id: q.record_id || q.id || '',
+              question_unique_id: q.question_unique_id || q.id || Math.random().toString(36).substring(7),
+              question_hin: q.question_hin || q.text || '',
               question_eng: q.question_eng || '',
               subject: q.subject || '',
               sub_subject: q.sub_subject || '',
@@ -662,44 +569,145 @@ app.post("/sync-all-to-airtable", async (req, res) => {
               keywords: q.keywords || '',
               difficulty: q.difficulty || '',
               image: q.image || '',
-              option1_hin: q.option1_hin || '',
+              option1_hin: q.option1_hin || q.options?.[0] || '',
               option1_eng: q.option1_eng || '',
-              option2_hin: q.option2_hin || '',
+              option2_hin: q.option2_hin || q.options?.[1] || '',
               option2_eng: q.option2_eng || '',
-              option3_hin: q.option3_hin || '',
+              option3_hin: q.option3_hin || q.options?.[2] || '',
               option3_eng: q.option3_eng || '',
-              option4_hin: q.option4_hin || '',
+              option4_hin: q.option4_hin || q.options?.[3] || '',
               option4_eng: q.option4_eng || '',
-              option5_hin: q.option5_hin || '',
+              option5_hin: q.option5_hin || q.options?.[4] || '',
               option5_eng: q.option5_eng || '',
-              answer: q.answer || '',
+              answer: q.answer || q.correctOption || '',
               solution_hin: q.solution_hin || '',
               solution_eng: q.solution_eng || '',
               type: q.type || '',
               video: q.video || '',
               page_no: q.page_no || '',
               collection: q.collection || '',
-              airtable_table_name: q.airtable_table_name || '',
+              airtable_table_name: table.name,
               section: q.section || '',
               year: q.year || '',
               date: q.date || '',
               exam: q.exam || '',
               previous_of: q.previous_of || '',
               action: q.action || 'UPDATED',
-              current_status: q.current_status || 'Draft',
+              current_status: q.status || q.current_status || 'Draft',
               sync_code: q.sync_code || '',
               error_report: q.error_report || '',
               error_description: q.error_description || '',
               updated_at: new Date().toISOString()
-            };
+            }));
 
-            if (q.record_id && q.record_id.startsWith('rec')) {
-              toUpdate.push({ id: q.record_id, fields });
-            } else {
-              toCreate.push({ fields });
+            const chunkSize = 500;
+            for (let i = 0; i < supabaseData.length; i += chunkSize) {
+              const chunk = supabaseData.slice(i, i + chunkSize);
+              const { error } = await supabase.from('questions').upsert(chunk, { onConflict: 'airtable_table_name,question_unique_id' });
+              if (error) console.error(`Sync all: chunk ${i} for ${table.name} failed:`, error);
             }
-          });
+            results.push({ table: table.name, count: formatted.length, status: 'success' });
+          }
+        } catch (tableErr: any) {
+          console.error(`Failed to sync table ${table.name}:`, tableErr);
+          results.push({ table: table.name, status: 'failed', error: tableErr.message });
+        }
+      }
 
+      res.json({ success: true, results });
+    } catch (error: any) {
+      console.error("Sync all error:", error);
+      res.status(500).json({ error: error.message || "Failed to sync all tables" });
+    }
+  });
+
+  app.post("/api/sync-all-to-airtable", async (req, res) => {
+    const apiKey = process.env.AIRTABLE_API_KEY;
+    const baseId = process.env.AIRTABLE_BASE_ID;
+
+    if (!apiKey || !baseId) {
+      return res.status(500).json({ error: "Airtable credentials not configured" });
+    }
+
+    try {
+      // 1. Get all unique table names from Supabase
+      const { data: tablesData, error: tablesError } = await supabase
+        .from('questions')
+        .select('airtable_table_name')
+        .not('airtable_table_name', 'is', null);
+
+      if (tablesError) throw tablesError;
+
+      const tableNames = Array.from(new Set(tablesData.map(t => t.airtable_table_name)));
+      const results: any[] = [];
+      const base = new Airtable({ apiKey }).base(baseId);
+
+      // 2. Sync each table
+      for (const tableName of tableNames) {
+        try {
+          const { data: questions, error: questionsError } = await supabase
+            .from('questions')
+            .select('*')
+            .eq('airtable_table_name', tableName);
+
+          if (questionsError) throw questionsError;
+
+          if (questions && questions.length > 0) {
+            const toCreate: any[] = [];
+            const toUpdate: any[] = [];
+
+            questions.forEach(q => {
+              const fields = {
+                record_id: q.record_id || '',
+                question_unique_id: q.question_unique_id || '',
+                question_hin: q.question_hin || '',
+                question_eng: q.question_eng || '',
+                subject: q.subject || '',
+                sub_subject: q.sub_subject || '',
+                chapter: q.chapter || '',
+                sub_chapter: q.sub_chapter || '',
+                topic: q.topic || '',
+                sub_topic: q.sub_topic || '',
+                keywords: q.keywords || '',
+                difficulty: q.difficulty || '',
+                image: q.image || '',
+                option1_hin: q.option1_hin || '',
+                option1_eng: q.option1_eng || '',
+                option2_hin: q.option2_hin || '',
+                option2_eng: q.option2_eng || '',
+                option3_hin: q.option3_hin || '',
+                option3_eng: q.option3_eng || '',
+                option4_hin: q.option4_hin || '',
+                option4_eng: q.option4_eng || '',
+                option5_hin: q.option5_hin || '',
+                option5_eng: q.option5_eng || '',
+                answer: q.answer || '',
+                solution_hin: q.solution_hin || '',
+                solution_eng: q.solution_eng || '',
+                type: q.type || '',
+                video: q.video || '',
+                page_no: q.page_no || '',
+                collection: q.collection || '',
+                airtable_table_name: q.airtable_table_name || '',
+                section: q.section || '',
+                year: q.year || '',
+                date: q.date || '',
+                exam: q.exam || '',
+                previous_of: q.previous_of || '',
+                action: q.action || 'UPDATED',
+                current_status: q.current_status || 'Draft',
+                sync_code: q.sync_code || '',
+                error_report: q.error_report || '',
+                error_description: q.error_description || '',
+                updated_at: new Date().toISOString()
+              };
+
+              if (q.record_id && q.record_id.startsWith('rec')) {
+                toUpdate.push({ id: q.record_id, fields });
+              } else {
+                toCreate.push({ fields });
+              }
+            });
 
             const batchSize = 10;
             
@@ -740,7 +748,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/get-airtable-records", async (req, res) => {
+  app.post("/api/get-airtable-records", async (req, res) => {
     const { tableName, forceSync, collectionPath } = req.body;
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
@@ -871,7 +879,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.get("/get-sync-status", async (req, res) => {
+  app.get("/api/get-sync-status", async (req, res) => {
     try {
       const result = await pgClient.query('SELECT airtable_table_name, MAX(updated_at) as last_sync, COUNT(*) as total_questions FROM questions GROUP BY airtable_table_name');
       const syncStatus: Record<string, { lastSync: string, totalQuestions: number }> = {};
@@ -889,7 +897,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/create-airtable-table", async (req, res) => {
+  app.post("/api/create-airtable-table", async (req, res) => {
     const { tableName } = req.body;
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
@@ -966,7 +974,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.get("/get-server-folders", async (req, res) => {
+  app.get("/api/get-server-folders", async (req, res) => {
     try {
       const { data, error } = await supabase
         .from('questions')
@@ -988,7 +996,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/move-questions", async (req, res) => {
+  app.post("/api/move-questions", async (req, res) => {
     const { ids, targetFolder, targetTable } = req.body;
     if (!ids || !Array.isArray(ids) || targetFolder === undefined) {
       return res.status(400).json({ error: "IDs and target folder are required" });
@@ -1012,7 +1020,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/copy-questions", async (req, res) => {
+  app.post("/api/copy-questions", async (req, res) => {
     const { ids, targetFolder, targetTable } = req.body;
     if (!ids || !Array.isArray(ids) || targetFolder === undefined) {
       return res.status(400).json({ error: "IDs and target folder are required" });
@@ -1051,7 +1059,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/create-folder", async (req, res) => {
+  app.post("/api/create-folder", async (req, res) => {
     const { name, parentPath } = req.body;
     if (!name) return res.status(400).json({ error: "Folder name is required" });
 
@@ -1066,7 +1074,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/save-questions", async (req, res) => {
+  app.post("/api/save-questions", async (req, res) => {
     const { destinations, airtableTable, serverFolder, questions } = req.body;
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
@@ -1118,7 +1126,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/save-to-airtable", async (req, res) => {
+  app.post("/api/save-to-airtable", async (req, res) => {
     const { tableName, questions } = req.body;
     const apiKey = process.env.AIRTABLE_API_KEY;
     const baseId = process.env.AIRTABLE_BASE_ID;
@@ -1192,7 +1200,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/update-question", async (req, res) => {
+  app.post("/api/update-question", async (req, res) => {
     const { question } = req.body;
     
     if (!question || !question.id) {
@@ -1245,7 +1253,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/bulk-update-questions", async (req, res) => {
+  app.post("/api/bulk-update-questions", async (req, res) => {
     const { ids, data } = req.body;
     
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -1286,7 +1294,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/bulk-update-questions-individual", async (req, res) => {
+  app.post("/api/bulk-update-questions-individual", async (req, res) => {
     const { questions } = req.body;
     
     if (!questions || !Array.isArray(questions)) {
@@ -1312,7 +1320,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/rename-folder", async (req, res) => {
+  app.post("/api/rename-folder", async (req, res) => {
     const { oldName, newName } = req.body;
     
     if (!oldName || !newName) {
@@ -1334,7 +1342,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/delete-question", async (req, res) => {
+  app.post("/api/delete-question", async (req, res) => {
     const { id } = req.body;
     if (!id) return res.status(400).json({ error: "ID is required" });
 
@@ -1352,7 +1360,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/bulk-delete-questions", async (req, res) => {
+  app.post("/api/bulk-delete-questions", async (req, res) => {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: "IDs are required" });
@@ -1372,7 +1380,7 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-  app.post("/delete-folder", async (req, res) => {
+  app.post("/api/delete-folder", async (req, res) => {
     const { folderName } = req.body;
     
     if (!folderName) {
@@ -1462,23 +1470,20 @@ app.post("/sync-all-to-airtable", async (req, res) => {
     }
   });
 
-// Local development server
-if (!isServerless) {
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
-
-// Vercel Serverless Handler
-export default async function handler(req: express.Request, res: express.Response) {
-  console.log("Vercel function request:", req.method, req.url);
-  
-  // Ensure DB is initialized before handling request
-  try {
-    await dbPromise;
-  } catch (err) {
-    console.error("DB Initialization failed during request:", err);
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    }).then((vite) => {
+      app.use(vite.middlewares);
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+      });
+    });
+  } else {
+    // In production (Vercel), we don't need to serve static files from Express
+    // Vercel handles static routing via vercel.json
   }
 
-  return app(req, res);
-}
+export default app;

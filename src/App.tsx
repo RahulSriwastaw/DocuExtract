@@ -16,7 +16,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'extract' | 'question-bank' | 'sets' | 'create-set' | 'settings' | 'edit-question'>('extract');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [extractedQuestions, setExtractedQuestions] = useState<Question[]>([]);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -30,14 +29,6 @@ export default function App() {
     } else {
       setDocuments(mockDocuments);
     }
-  }, []);
-
-  useEffect(() => {
-    const updateDesktopMode = () => setIsDesktop(window.matchMedia('(min-width: 768px)').matches);
-    updateDesktopMode();
-
-    window.addEventListener('resize', updateDesktopMode);
-    return () => window.removeEventListener('resize', updateDesktopMode);
   }, []);
 
   const saveDocuments = (newDocs: Document[]) => {
@@ -136,7 +127,7 @@ export default function App() {
       {activeTab !== 'edit-question' && (
         <motion.aside 
           initial={false}
-          animate={{ x: isDesktop ? 0 : (isMobileMenuOpen ? 0 : '-100%') }}
+          animate={{ x: isMobileMenuOpen ? 0 : '-100%' }}
           className={`
           fixed inset-y-0 left-0 z-40 md:relative md:z-10
           md:translate-x-0

@@ -75,9 +75,63 @@ export default function QuestionBank() {
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterExam, setFilterExam] = useState<string>('');
 
+  // Question Set States
+  const [isSetModalOpen, setIsSetModalOpen] = useState(false);
+  const [availableSets, setAvailableSets] = useState<any[]>([]);
+  const [selectedSetId, setSelectedSetId] = useState<string>('');
+  const [newSetName, setNewSetName] = useState('');
+
   useEffect(() => {
     fetchTables();
   }, []);
+
+  useEffect(() => {
+    if (isSetModalOpen) {
+      const saved = localStorage.getItem('question_sets');
+      if (saved) {
+        setAvailableSets(JSON.parse(saved));
+      }
+    }
+  }, [isSetModalOpen]);
+
+  const handleAddToSet = () => {
+    const selectedQuestions = questions.filter(q => selectedIds.has(q.id));
+    let sets = [...availableSets];
+    
+    if (selectedSetId === 'new') {
+      if (!newSetName.trim()) return alert('Please enter a set name');
+      const newSet = {
+        id: Date.now().toString(),
+        name: newSetName,
+        folderId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        questions: selectedQuestions
+      };
+      sets.push(newSet);
+    } else {
+      if (!selectedSetId) return alert('Please select a set');
+      sets = sets.map(s => {
+        if (s.id === selectedSetId) {
+          const existingIds = new Set(s.questions.map((q: any) => q.id));
+          const newQs = selectedQuestions.filter(q => !existingIds.has(q.id));
+          return {
+            ...s,
+            questions: [...s.questions, ...newQs],
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return s;
+      });
+    }
+    
+    localStorage.setItem('question_sets', JSON.stringify(sets));
+    setIsSetModalOpen(false);
+    setNewSetName('');
+    setSelectedSetId('');
+    setSelectedIds(new Set());
+    alert('Questions added to set successfully!');
+  };
 
   const handleRetryFailed = async () => {
     if (failedQuestions.length === 0) return;
@@ -1092,6 +1146,16 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     >
                       <Copy className="w-3 h-3" />
                       Copy
+                    </Button>
+
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setIsSetModalOpen(true)}
+                      className="h-7 px-2 text-[10px] font-bold text-purple-600 border-purple-100 bg-white hover:bg-purple-50 gap-1"
+                    >
+                      <FolderPlus className="w-3 h-3" />
+                      To Set
                     </Button>
                     
                     <Button 
@@ -2224,6 +2288,71 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   disabled={!targetFolderForMove}
                 >
                   {isCopying ? 'Copy Questions' : 'Move Questions'}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Add to Set Modal */}
+      <AnimatePresence>
+        {isSetModalOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900">Add to Question Set</h3>
+                <Button variant="ghost" size="icon" onClick={() => setIsSetModalOpen(false)} className="h-8 w-8">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Select Set</label>
+                  <select 
+                    className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none"
+                    value={selectedSetId}
+                    onChange={(e) => setSelectedSetId(e.target.value)}
+                  >
+                    <option value="">Select a set...</option>
+                    <option value="new">+ Create New Set</option>
+                    {availableSets.map(set => (
+                      <option key={set.id} value={set.id}>{set.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {selectedSetId === 'new' && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">New Set Name</label>
+                    <Input 
+                      value={newSetName}
+                      onChange={(e) => setNewSetName(e.target.value)}
+                      placeholder="Enter set name..."
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="px-6 py-4 bg-slate-50 border-t flex flex-col xs:flex-row gap-3">
+                <Button 
+                  variant="ghost" 
+                  className="flex-1 font-bold text-slate-600 h-10" 
+                  onClick={() => setIsSetModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  className="flex-1 font-bold text-white bg-purple-600 hover:bg-purple-700 h-10"
+                  onClick={handleAddToSet}
+                  disabled={!selectedSetId || (selectedSetId === 'new' && !newSetName.trim())}
+                >
+                  Add {selectedIds.size} Questions
                 </Button>
               </div>
             </motion.div>

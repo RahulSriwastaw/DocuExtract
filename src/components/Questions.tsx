@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Question, QuestionSet } from '../types';
+import { supabase } from '../lib/supabaseClient';
 import { Search, Trash2, Edit, Tag, Copy, Wand2, FolderPlus, AlertCircle, ExternalLink, RefreshCw, FileText, Layout, BookOpen, LayoutGrid, List } from 'lucide-react';
 import { safeJson } from '../utils';
 
@@ -171,51 +172,24 @@ export default function Questions({ questions: initialQuestions, onEdit }: { que
     }
 
     const selectedQuestions = questions.filter(q => selectedIds.includes(q.id));
-    let finalAirtableTable = airtableTableName;
-    let finalServerFolder = serverFolder;
 
     try {
       setIsSaving(true);
       
-      if (saveDestinations.includes('airtable') && isCreatingNewTable) {
-        if (!newTableName.trim()) throw new Error('Please enter a new Airtable table name');
-        const response = await fetch('/api/create-airtable-table', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tableName: newTableName })
-        });
-        const data = await safeJson(response);
-        if (!response.ok) throw new Error(data.error || 'Failed to create table');
-        finalAirtableTable = newTableName;
-      }
+      // Direct Supabase insert
+      const { error } = await supabase
+        .from('questions')
+        .insert(selectedQuestions.map(q => ({
+          question_hin: q.text,
+          answer: q.answer,
+          // Add other fields as needed
+          created_at: new Date().toISOString()
+        })));
 
-      if (saveDestinations.includes('server') && isCreatingNewFolder) {
-        if (!newServerFolder.trim()) throw new Error('Please enter a new Server folder name');
-        finalServerFolder = newServerFolder;
-      }
-
-      const response = await fetch('/api/save-questions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          destinations: saveDestinations,
-          airtableTable: finalAirtableTable,
-          serverFolder: finalServerFolder,
-          questions: selectedQuestions 
-        })
-      });
+      if (error) throw error;
       
-      const data = await safeJson(response);
-      if (!response.ok) throw new Error(data.error || 'Failed to save');
-      
-      alert('Questions saved successfully!');
+      alert('Questions saved successfully to Supabase!');
       setIsAirtableModalOpen(false);
-      setAirtableTableName('');
-      setNewTableName('');
-      setIsCreatingNewTable(false);
-      setServerFolder('');
-      setNewServerFolder('');
-      setIsCreatingNewFolder(false);
     } catch (error: any) {
       console.error('Error saving questions:', error);
       alert('Error saving questions: ' + error.message);
