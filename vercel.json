@@ -1,17 +1,8 @@
 {
+  "version": 2,
   "functions": {
     "api/*.ts": {
-      "runtime": "nodejs20.x"
+      "runtime": "@vercel/node@4.0.0"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+  }
 }
