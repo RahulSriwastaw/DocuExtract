@@ -16,11 +16,25 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'extract' | 'question-bank' | 'sets' | 'create-set' | 'settings' | 'edit-question'>('extract');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [extractedQuestions, setExtractedQuestions] = useState<Question[]>([]);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingIndex, setEditingIndex] = useState<number>(-1);
   const [documents, setDocuments] = useState<Document[]>([]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const savedDocs = localStorage.getItem('recent_extractions');
@@ -128,13 +142,12 @@ export default function App() {
         <motion.aside 
           initial={false}
           animate={{ 
-            x: isMobileMenuOpen ? 0 : (window.innerWidth >= 768 ? 0 : '-100%'),
-            width: isSidebarCollapsed ? 64 : 256 
+            x: isMobile ? (isMobileMenuOpen ? 0 : '-100%') : 0,
+            width: isMobile ? 256 : (isSidebarCollapsed ? 64 : 256) 
           }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className={`
             fixed inset-y-0 left-0 z-40 md:relative md:z-10
-            md:translate-x-0
             ${isSidebarCollapsed ? 'md:w-16' : 'md:w-64'} 
             w-64 border-r border-border bg-bg-sidebar flex flex-col shrink-0 shadow-xl md:shadow-none transition-all duration-300
           `}>
