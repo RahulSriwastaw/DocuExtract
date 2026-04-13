@@ -6,8 +6,9 @@ import { safeJson } from '../utils';
 
 export default function AirtableTables() {
   const [tables, setTables] = useState<any[]>([]);
-  const [stats, setStats] = useState<Record<string, {count: number, lastUpdated: string}>>({});
+  const [stats, setStats] = useState<Record<string, {count: number, lastUpdated: string, error?: string}>>({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTables();
@@ -15,15 +16,19 @@ export default function AirtableTables() {
 
   const fetchTables = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/get-airtable-tables');
       const data = await safeJson(res);
-      if (data.tables) {
+      if (data.error) {
+        setError(data.details ? `${data.error} ${data.details}` : data.error);
+      } else if (data.tables) {
         setTables(data.tables);
         data.tables.forEach((t: any) => fetchStats(t.name));
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setError(e.message || "Failed to connect to Airtable");
     }
     setLoading(false);
   };
@@ -51,6 +56,36 @@ export default function AirtableTables() {
           Refresh
         </Button>
       </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm flex flex-col gap-2">
+          <div className="font-bold flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Airtable Connection Error
+          </div>
+          <p>{error}</p>
+          <div className="flex flex-col gap-1">
+            <p className="text-xs opacity-80 font-semibold">Required Scopes:</p>
+            <ul className="text-xs opacity-80 list-disc list-inside">
+              <li>data.records:read</li>
+              <li>data.records:write</li>
+              <li>schema.bases:read</li>
+              <li>schema.bases:write</li>
+            </ul>
+          </div>
+          <div className="flex gap-3 mt-1">
+            <a 
+              href="https://airtable.com/create/tokens" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs font-bold underline hover:opacity-80"
+            >
+              Create Airtable Token
+            </a>
+            <p className="text-xs opacity-80">Check AIRTABLE_API_KEY and AIRTABLE_BASE_ID in Secrets panel.</p>
+          </div>
+        </div>
+      )}
       
       {loading && tables.length === 0 ? (
         <div className="flex justify-center p-12">

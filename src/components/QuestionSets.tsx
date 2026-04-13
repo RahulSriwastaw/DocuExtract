@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Question, QuestionSet, Folder } from '../types';
+import QuestionSetViewer from './QuestionSetViewer';
 import { Trash2, Download, Edit, Plus, FolderOpen, Database, FolderPlus, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
@@ -417,43 +418,12 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
       </Dialog>
 
       {/* View/Edit Set Modal */}
-      <Dialog open={!!viewingSet} onOpenChange={(open) => !open && setViewingSet(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{viewingSet?.name} - Questions</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-4">
-            {viewingSet?.questions.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No questions in this set.</p>
-            ) : (
-              (viewingSet?.questions || []).map((q, i) => (
-                <div key={q.id || i} className="border p-4 rounded-lg relative group bg-card">
-                  <Button 
-                    variant="destructive" 
-                    size="icon" 
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
-                    onClick={() => removeQuestion(viewingSet.id, q.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                  <p className="font-medium pr-10 text-sm">{q.text || (q as any).question_hin || (q as any).question_eng}</p>
-                  <div className="mt-2 text-xs text-muted-foreground grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {q.options?.map((opt, idx) => (
-                      <div key={idx} className="bg-muted p-1.5 rounded px-2">{opt}</div>
-                    ))}
-                  </div>
-                  <div className="mt-2 text-xs font-semibold text-green-600 bg-green-50 p-1.5 rounded inline-block">
-                    Answer: {q.correctOption || (q as any).answer}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setViewingSet(null)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {viewingSet && (
+        <QuestionSetViewer 
+          questions={viewingSet.questions} 
+          onClose={() => setViewingSet(null)} 
+        />
+      )}
 
       {/* Delete Set Confirmation */}
       <Dialog open={!!setToDelete} onOpenChange={(open) => !open && setSetToDelete(null)}>

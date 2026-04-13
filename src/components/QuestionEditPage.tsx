@@ -77,6 +77,8 @@ export default function QuestionEditPage({
     { label: 'Action', key: 'action' },
     { label: 'Current Status', key: 'current_status' },
     { label: 'Sync Code', key: 'sync_code' },
+    { label: 'Error Report', key: 'error_report' },
+    { label: 'Error Description', key: 'error_description' },
   ];
 
   const handleApplyAIEdit = async () => {

@@ -74,3 +74,19 @@ export interface Document {
   uploadDate: string;
   questions: Question[];
 }
+
+export type QuestionStatus = 'not-visited' | 'not-answered' | 'answered' | 'marked-for-review' | 'answered-marked-for-review';
+
+export interface AnswerState {
+  selectedOption?: string;
+  status: QuestionStatus;
+}
+
+export interface TestAttempt {
+  id: string;
+  questionSetId: string;
+  startTime: string;
+  endTime?: string;
+  answers: Record<number, AnswerState>;
+  score?: number;
+}

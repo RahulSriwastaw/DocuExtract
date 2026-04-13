@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Folder, Loader2, Database, Search, ArrowLeft, FileText, RefreshCw, Clock, ExternalLink, BookOpen, Layout, LayoutGrid, List, Edit, Trash2, Tag, Copy, Plus, Check, ChevronDown, X, AlertCircle, ChevronRight, FolderPlus, Move, Sparkles } from 'lucide-react';
+import { Folder, Loader2, Database, Search, ArrowLeft, FileText, RefreshCw, Clock, ExternalLink, BookOpen, Layout, LayoutGrid, List, Edit, Trash2, Tag, Copy, Plus, Check, ChevronDown, ChevronUp, Eye, X, AlertCircle, ChevronRight, FolderPlus, Move, Sparkles, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { safeJson } from '../utils';
@@ -21,9 +24,11 @@ export default function QuestionBank() {
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
+  const [questionSearch, setQuestionSearch] = useState('');
   const [syncStatus, setSyncStatus] = useState<Record<string, { lastSync: string, totalQuestions: number }>>({});
   const [syncingTables, setSyncingTables] = useState<Record<string, boolean>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
   const [isBulkAIEditModalOpen, setIsBulkAIEditModalOpen] = useState(false);
   const [isBulkAIVariationModalOpen, setIsBulkAIVariationModalOpen] = useState(false); // New state
@@ -64,6 +69,9 @@ export default function QuestionBank() {
   const [syncResults, setSyncResults] = useState<any>(null);
   const [currentPath, setCurrentPath] = useState<string[]>([]);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+  const [isSyncLocationModalOpen, setIsSyncLocationModalOpen] = useState(false);
+  const [folderToConfigureSync, setFolderToConfigureSync] = useState<string | null>(null);
+  const [selectedSyncTable, setSelectedSyncTable] = useState<string>('');
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [newSubfolderName, setNewSubfolderName] = useState('');
   const [isCopying, setIsCopying] = useState(false); // To distinguish between move and copy
@@ -388,7 +396,8 @@ export default function QuestionBank() {
       const data = await safeJson(res);
       if (!res.ok) {
         console.error("Failed to fetch questions:", data.error);
-        alert("Failed to load questions: " + (data.error || "Unknown error"));
+        const detailMsg = data.details ? `\n\nDetails: ${data.details}` : "";
+        alert(`Failed to load questions: ${data.error}${detailMsg}`);
       }
       setQuestions(data.records || []);
     } catch (e) {
@@ -650,6 +659,12 @@ export default function QuestionBank() {
       else next.add(id);
       return next;
     });
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
   };
 
   const selectAll = (all: boolean = true) => {
@@ -1050,6 +1065,11 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
     if (filterType && q.type !== filterType) return false;
     if (filterStatus && (q.current_status || q.status) !== filterStatus) return false;
     if (filterExam && q.exam !== filterExam) return false;
+    if (questionSearch && !(
+      (q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || '').toLowerCase().includes(questionSearch.toLowerCase()) ||
+      (q.option1_hin || q.option1_eng || q.options?.[0] || '').toLowerCase().includes(questionSearch.toLowerCase()) ||
+      (q.option2_hin || q.option2_eng || q.options?.[1] || '').toLowerCase().includes(questionSearch.toLowerCase())
+    )) return false;
     return true;
   });
 
@@ -1288,6 +1308,12 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
           {/* Filters */}
           <div className="flex flex-col gap-2 mb-4 shrink-0">
             <div className="grid grid-cols-2 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-2">
+              <Input 
+                placeholder="Search questions..." 
+                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-slate-700 outline-none w-full sm:w-48"
+                value={questionSearch}
+                onChange={e => setQuestionSearch(e.target.value)}
+              />
               <select
                 className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-slate-700 outline-none w-full sm:w-auto"
                 value={filterSubject}
@@ -1396,136 +1422,231 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
             <div className="flex-1 overflow-y-auto pb-8">
               {viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {filteredQuestions.slice(0, displayCount).map((q, idx) => (
-                    <div key={q.id || idx} className={`bg-white border rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex flex-col relative group ${selectedIds.has(q.id) ? 'border-blue-400 ring-1 ring-blue-400/20' : 'border-slate-200'}`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <div className="relative">
-                            <input 
-                              type="checkbox" 
-                              checked={selectedIds.has(q.id)}
-                              onChange={() => toggleSelection(q.id)}
-                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  {filteredQuestions.slice(0, displayCount).map((q, idx) => {
+                    const isExpanded = expandedIds.includes(q.id);
+                    return (
+                      <motion.div 
+                        layout
+                        key={q.id || idx} 
+                        className={`bg-white border rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex flex-col relative group ${selectedIds.has(q.id) ? 'border-blue-400 ring-1 ring-blue-400/20' : 'border-slate-200'} ${isExpanded ? 'ring-2 ring-blue-400/20' : ''}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1.5">
+                            <div className="relative">
+                              <input 
+                                type="checkbox" 
+                                checked={selectedIds.has(q.id)}
+                                onChange={() => toggleSelection(q.id)}
+                                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                            </div>
+                            <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[9px]">
+                              {idx + 1}
+                            </div>
+                            <div className={`w-1.5 h-1.5 rounded-full ${q.current_status === 'Published' || q.status === 'Published' || q.current_status === 'Saved' ? 'bg-green-500' : q.current_status === 'Editing' ? 'bg-yellow-500' : 'bg-slate-300'}`}></div>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+                              {q.current_status || q.status || 'Draft'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[8px] font-mono text-slate-300">#{q.question_unique_id || q.id?.slice(0, 6)}</span>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 w-6 p-0 rounded-full hover:bg-slate-100 text-blue-600"
+                              onClick={() => toggleExpand(q.id)}
+                            >
+                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Field Completion Indicator */}
+                        <div className="mb-2 flex items-center gap-1 overflow-x-auto pb-1 custom-scrollbar no-scrollbar">
+                          {getFieldCompletionStatus(q).map((field, i) => (
+                            <div 
+                              key={i} 
+                              title={`${field.name}: ${field.filled ? 'Filled' : 'Empty'}`}
+                              className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${field.filled ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]' : 'bg-slate-200'}`}
                             />
-                          </div>
-                          <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[9px]">
-                            {idx + 1}
-                          </div>
-                          <div className={`w-1.5 h-1.5 rounded-full ${q.current_status === 'Published' || q.status === 'Published' || q.current_status === 'Saved' ? 'bg-green-500' : q.current_status === 'Editing' ? 'bg-yellow-500' : 'bg-slate-300'}`}></div>
-                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
-                            {q.current_status || q.status || 'Draft'}
+                          ))}
+                          <span className="text-[7px] font-bold text-slate-400 ml-1 whitespace-nowrap">
+                            {getFieldCompletionStatus(q).filter(f => f.filled).length}/{getFieldCompletionStatus(q).length}
                           </span>
                         </div>
-                        <span className="text-[8px] font-mono text-slate-300">#{q.question_unique_id || q.id?.slice(0, 6)}</span>
-                      </div>
 
-                      {/* Field Completion Indicator */}
-                      <div className="mb-2 flex items-center gap-1 overflow-x-auto pb-1 custom-scrollbar no-scrollbar">
-                        {getFieldCompletionStatus(q).map((field, i) => (
-                          <div 
-                            key={i} 
-                            title={`${field.name}: ${field.filled ? 'Filled' : 'Empty'}`}
-                            className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${field.filled ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]' : 'bg-slate-200'}`}
-                          />
-                        ))}
-                        <span className="text-[7px] font-bold text-slate-400 ml-1 whitespace-nowrap">
-                          {getFieldCompletionStatus(q).filter(f => f.filled).length}/{getFieldCompletionStatus(q).length}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {q.subject && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {q.subject && (
+                            <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+                              {q.subject}
+                            </span>
+                          )}
+                          {q.chapter && (
+                            <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+                              {q.chapter}
+                            </span>
+                          )}
+                          {q.topic && (
+                            <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+                              {q.topic}
+                            </span>
+                          )}
+                          {q.difficulty && (
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                              q.difficulty === 'Easy' ? 'bg-green-50 text-green-600' :
+                              q.difficulty === 'Medium' ? 'bg-yellow-50 text-yellow-600' :
+                              'bg-red-50 text-red-600'
+                            }`}>
+                              {q.difficulty}
+                            </span>
+                          )}
                           <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                            {q.subject}
+                            {q.type || 'MCQ'}
                           </span>
-                        )}
-                        {q.chapter && (
-                          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                            {q.chapter}
-                          </span>
-                        )}
-                        {q.topic && (
-                          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                            {q.topic}
-                          </span>
-                        )}
-                        {q.difficulty && (
-                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
-                            q.difficulty === 'Easy' ? 'bg-green-50 text-green-600' :
-                            q.difficulty === 'Medium' ? 'bg-yellow-50 text-yellow-600' :
-                            'bg-red-50 text-red-600'
-                          }`}>
-                            {q.difficulty}
-                          </span>
-                        )}
-                        <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                          {q.type || 'MCQ'}
-                        </span>
-                        {q.page_no && (
-                          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase">
-                            P. {q.page_no}
-                          </span>
-                        )}
-                        {q.keywords && (
-                          <span className="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded text-[8px] font-bold uppercase border border-purple-100">
-                            {q.keywords}
-                          </span>
-                        )}
-                        {Array.isArray(q.tags) ? q.tags.map((tag: string, i: number) => (
-                          <span key={i} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[8px] font-bold uppercase border border-indigo-100">
-                            {tag}
-                          </span>
-                        )) : (typeof q.tags === 'string' ? JSON.parse(q.tags) : []).map((tag: string, i: number) => (
-                          <span key={i} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[8px] font-bold uppercase border border-indigo-100">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
+                          {q.page_no && (
+                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase">
+                              P. {q.page_no}
+                            </span>
+                          )}
+                          {q.keywords && (
+                            <span className="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded text-[8px] font-bold uppercase border border-purple-100">
+                              {q.keywords}
+                            </span>
+                          )}
+                          {Array.isArray(q.tags) ? q.tags.map((tag: string, i: number) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[8px] font-bold uppercase border border-indigo-100">
+                              {tag}
+                            </span>
+                          )) : (typeof q.tags === 'string' ? JSON.parse(q.tags) : []).map((tag: string, i: number) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[8px] font-bold uppercase border border-indigo-100">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
 
-                      <div className="mb-3 flex-1">
-                        {q.image && (
-                          <div className="mb-2 rounded-lg overflow-hidden border border-slate-100 bg-slate-50 aspect-video flex items-center justify-center">
-                            <img 
-                              src={q.image} 
-                              alt="Question" 
-                              className="max-w-full max-h-full object-contain"
-                              referrerPolicy="no-referrer"
-                            />
-                          </div>
-                        )}
-                        <p className="text-[11px] text-slate-700 leading-relaxed font-medium line-clamp-2">
-                          {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || 'No text'}
-                        </p>
-                      </div>
+                        <div className="mb-3 flex-1 cursor-pointer" onClick={() => toggleExpand(q.id)}>
+                          {q.image && (
+                            <div className="mb-2 rounded-lg overflow-hidden border border-slate-100 bg-slate-50 aspect-video flex items-center justify-center">
+                              <img 
+                                src={q.image} 
+                                alt="Question" 
+                                className="max-w-full max-h-full object-contain"
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          )}
+                          <p className={`text-[11px] text-slate-700 leading-relaxed font-medium ${isExpanded ? '' : 'line-clamp-2'}`}>
+                            {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || 'No text'}
+                          </p>
+                          {!isExpanded && (q.question_hin || q.question_eng || q.text || '').length > 80 && (
+                            <button className="text-[9px] font-bold text-blue-600 mt-1 hover:underline">Read More</button>
+                          )}
+                        </div>
 
-                      <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-50">
-                        <Button 
-                          onClick={() => handleEditClick(q)} 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 text-blue-600 hover:bg-blue-50 hover:text-blue-700 gap-1 text-[9px] font-bold rounded-lg"
-                        >
-                          <Edit className="w-3 h-3" />
-                          Edit
-                        </Button>
-                        <Button 
-                          onClick={() => handleDeleteQuestion(q.id)} 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 text-slate-600 hover:bg-red-50 hover:text-red-600 gap-1 text-[9px] font-bold rounded-lg"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div 
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              {/* Options */}
+                              <div className="mb-3 space-y-1.5 pt-2 border-t border-slate-50">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Options:</span>
+                                <div className="space-y-1">
+                                  {[1, 2, 3, 4, 5].map(i => {
+                                    const optHin = q[`option${i}_hin`];
+                                    const optEng = q[`option${i}_eng`];
+                                    const opt = optHin || optEng;
+                                    if (!opt) return null;
+                                    
+                                    const isCorrect = q.answer === String.fromCharCode(64 + i) || q.answer === i.toString();
+                                    
+                                    return (
+                                      <div key={i} className={`text-[10px] flex items-start gap-1.5 p-1.5 rounded-lg border ${isCorrect ? 'bg-emerald-50 border-emerald-100 text-emerald-700 font-bold' : 'bg-slate-50/50 border-slate-50 text-slate-600'}`}>
+                                        <span className="text-[9px] font-bold text-slate-400 mt-0.5">
+                                          {String.fromCharCode(64 + i)}.
+                                        </span>
+                                        <span className="flex-1">{opt}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Solution */}
+                              {(q.solution_hin || q.solution_eng) && (
+                                <div className="mb-3 p-2 bg-blue-50/50 rounded-lg border border-blue-100">
+                                  <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                                    <Eye className="w-2.5 h-2.5" />
+                                    Solution
+                                  </span>
+                                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                                    {q.solution_hin || q.solution_eng}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Error Info */}
+                              {(q.error_report || q.error_description) && (
+                                <div className="mb-3 p-2 bg-red-50/50 rounded-lg border border-red-100">
+                                  <span className="text-[9px] font-bold text-red-600 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                                    <AlertCircle className="w-2.5 h-2.5" />
+                                    Error Info
+                                  </span>
+                                  {q.error_report && (
+                                    <p className="text-[10px] text-slate-600 leading-relaxed mb-1">
+                                      <span className="font-bold">Report:</span> {q.error_report}
+                                    </p>
+                                  )}
+                                  {q.error_description && (
+                                    <p className="text-[10px] text-slate-600 leading-relaxed">
+                                      <span className="font-bold">Description:</span> {q.error_description}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-50">
+                          <Button 
+                            onClick={() => handleEditClick(q)} 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 text-blue-600 hover:bg-blue-50 hover:text-blue-700 gap-1 text-[9px] font-bold rounded-lg"
+                          >
+                            <Edit className="w-3 h-3" />
+                            Edit
+                          </Button>
+                          <Button 
+                            onClick={() => handleDeleteQuestion(q.id)} 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 text-slate-600 hover:bg-red-50 hover:text-red-600 gap-1 text-[9px] font-bold rounded-lg"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </Button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredQuestions.slice(0, displayCount).map((q, idx) => (
-                    <div key={q.id || idx} className={`bg-white border rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex items-center gap-4 group ${selectedIds.has(q.id) ? 'border-blue-400 ring-1 ring-blue-400/20' : 'border-slate-200'}`}>
-                      <div className="shrink-0 flex items-center gap-3">
+                  {filteredQuestions.slice(0, displayCount).map((q, idx) => {
+                    const isExpanded = expandedIds.includes(q.id);
+                    return (
+                      <motion.div 
+                        layout
+                        key={q.id || idx} 
+                        className={`bg-white border rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex flex-col group ${selectedIds.has(q.id) ? 'border-blue-400 ring-1 ring-blue-400/20' : 'border-slate-200'} ${isExpanded ? 'ring-2 ring-blue-400/20' : ''}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="shrink-0 flex items-center gap-3">
                         <input 
                           type="checkbox" 
                           checked={selectedIds.has(q.id)}
@@ -1537,7 +1658,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                         </div>
                       </div>
 
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleExpand(q.id)}>
                         <div className="flex items-center gap-2 mb-1">
                           <div className={`w-2 h-2 rounded-full ${q.current_status === 'Published' || q.status === 'Published' || q.current_status === 'Saved' ? 'bg-green-500' : q.current_status === 'Editing' ? 'bg-yellow-500' : 'bg-slate-300'}`}></div>
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{q.current_status || q.status || 'Draft'}</span>
@@ -1576,7 +1697,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                               />
                             </div>
                           )}
-                          <p className="text-sm text-slate-800 font-medium truncate">
+                          <p className={`text-sm text-slate-800 font-medium ${isExpanded ? '' : 'truncate'}`}>
                             {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || 'No question text found'}
                           </p>
                         </div>
@@ -1596,39 +1717,119 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                         </div>
                       </div>
 
-                      <div className="hidden md:flex gap-2 shrink-0">
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-md border border-green-100 text-[9px] font-bold">
-                          <BookOpen className="w-2.5 h-2.5" />
-                          Bank
-                        </div>
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md border border-cyan-100 text-[9px] font-bold">
-                          <Layout className="w-2.5 h-2.5" />
-                          1 Test
-                        </div>
-                      </div>
-                      <div className="flex gap-1.5 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <Button 
-                          onClick={() => handleEditClick(q)} 
-                          variant="outline" 
+                          variant="ghost" 
                           size="sm" 
-                          className="h-7 w-7 p-0 border-yellow-200 bg-white text-yellow-600 hover:bg-yellow-50 hover:border-yellow-300"
-                          title="Edit"
+                          className="h-8 w-8 p-0 rounded-full hover:bg-slate-100 text-blue-600"
+                          onClick={() => toggleExpand(q.id)}
                         >
-                          <Edit className="w-3.5 h-3.5" />
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </Button>
-                        <Button 
-                          onClick={() => handleDeleteQuestion(q.id)} 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-7 w-7 p-0 border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        <div className="hidden md:flex gap-2">
+                          <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-md border border-green-100 text-[9px] font-bold">
+                            <BookOpen className="w-2.5 h-2.5" />
+                            Bank
+                          </div>
+                          <div className="flex items-center gap-1 px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md border border-cyan-100 text-[9px] font-bold">
+                            <Layout className="w-2.5 h-2.5" />
+                            1 Test
+                          </div>
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          <Button 
+                            onClick={() => handleEditClick(q)} 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 w-7 p-0 border-yellow-200 bg-white text-yellow-600 hover:bg-yellow-50 hover:border-yellow-300"
+                            title="Edit"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button 
+                            onClick={() => handleDeleteQuestion(q.id)} 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 w-7 p-0 border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+
+                    <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden ml-14 mt-4"
+                          >
+                            {/* Options */}
+                            <div className="mb-4 space-y-2 pt-2 border-t border-slate-50">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Options:</span>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {[1, 2, 3, 4, 5].map(i => {
+                                  const optHin = q[`option${i}_hin`];
+                                  const optEng = q[`option${i}_eng`];
+                                  const opt = optHin || optEng;
+                                  if (!opt) return null;
+                                  
+                                  const isCorrect = q.answer === String.fromCharCode(64 + i) || q.answer === i.toString();
+                                  
+                                  return (
+                                    <div key={i} className={`text-[12px] flex items-start gap-2 p-2 rounded-lg border ${isCorrect ? 'bg-emerald-50 border-emerald-100 text-emerald-700 font-bold' : 'bg-slate-50/50 border-slate-50 text-slate-600'}`}>
+                                      <span className="text-[10px] font-bold text-slate-400 mt-0.5">
+                                        {String.fromCharCode(64 + i)}.
+                                      </span>
+                                      <span className="flex-1">{opt}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Solution */}
+                            {(q.solution_hin || q.solution_eng) && (
+                              <div className="mb-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
+                                  <Eye className="w-3 h-3" />
+                                  Solution / Explanation
+                                </span>
+                                <p className="text-[11px] text-slate-600 leading-relaxed">
+                                  {q.solution_hin || q.solution_eng}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Error Info */}
+                            {(q.error_report || q.error_description) && (
+                              <div className="mb-4 p-3 bg-red-50/50 rounded-xl border border-red-100">
+                                <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Error Info
+                                </span>
+                                {q.error_report && (
+                                  <p className="text-[11px] text-slate-600 leading-relaxed mb-1">
+                                    <span className="font-bold">Report:</span> {q.error_report}
+                                  </p>
+                                )}
+                                {q.error_description && (
+                                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                                    <span className="font-bold">Description:</span> {q.error_description}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
+              </div>
               )}
               {filteredQuestions.length === 0 && (
                 <div className="col-span-full text-center py-12 text-slate-500 border-2 border-dashed rounded-xl bg-white">
@@ -1755,44 +1956,38 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   <CardContent className="p-5 flex flex-col items-center text-center relative">
                     {/* Folder Actions Overlay */}
                     {renamingFolder !== folder.fullPath && (
-                      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRenamingFolder(folder.fullPath);
-                            setNewFolderName(folder.name);
-                          }}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteConfirmFolder(folder.fullPath);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        {folder.isTable && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePushToAirtable(folder.name, e);
-                            }}
-                            title="Push to Airtable"
-                          >
-                            <Database className="w-4 h-4" />
-                          </Button>
-                        )}
+                      <div className="absolute top-3 right-3 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger>
+                            <div className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-full cursor-pointer hover:bg-slate-100">
+                              <MoreVertical className="w-4 h-4" />
+                            </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => { setRenamingFolder(folder.fullPath); setNewFolderName(folder.name); }}>
+                              <Edit className="w-4 h-4 mr-2" /> Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { /* TODO: Implement Move */ alert('Move functionality coming soon'); }}>
+                              <Move className="w-4 h-4 mr-2" /> Move
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { /* TODO: Implement Copy */ alert('Copy functionality coming soon'); }}>
+                              <Copy className="w-4 h-4 mr-2" /> Copy
+                            </DropdownMenuItem>
+                            {folder.isTable && (
+                              <>
+                                <DropdownMenuItem onClick={(e) => handlePushToAirtable(folder.name, e)}>
+                                  <Database className="w-4 h-4 mr-2" /> Push to Airtable
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { setFolderToConfigureSync(folder.fullPath); setIsSyncLocationModalOpen(true); }}>
+                                  <Layout className="w-4 h-4 mr-2" /> Set Sync Location
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            <DropdownMenuItem onClick={() => setDeleteConfirmFolder(folder.fullPath)} className="text-red-600 hover:text-red-700">
+                              <Trash2 className="w-4 h-4 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     )}
 
@@ -3186,6 +3381,51 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
           </div>
         )}
       </AnimatePresence>
+      {isSyncLocationModalOpen && (
+        <Dialog open={isSyncLocationModalOpen} onOpenChange={setIsSyncLocationModalOpen}>
+          <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden border-0 shadow-2xl">
+            <DialogHeader className="px-6 py-4 border-b bg-slate-50/50">
+              <DialogTitle className="text-lg font-semibold text-slate-800">Set Sync Location</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 p-6">
+              <div className="space-y-2">
+                <Label className="text-slate-700 font-medium">Select Airtable Table</Label>
+                <Select value={selectedSyncTable} onValueChange={setSelectedSyncTable}>
+                  <SelectTrigger className="w-full bg-white border-slate-200 shadow-sm h-11">
+                    <SelectValue placeholder="Select Table" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tables.filter(t => t.isTable).map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter className="px-6 py-4 border-t bg-slate-50/50">
+              <Button variant="ghost" onClick={() => setIsSyncLocationModalOpen(false)} className="text-slate-500">Cancel</Button>
+              <Button onClick={async () => {
+                if (!folderToConfigureSync || !selectedSyncTable) return;
+                try {
+                  const res = await fetch('/api/update-folder-sync-location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folderName: folderToConfigureSync, airtableTableName: selectedSyncTable })
+                  });
+                  if (res.ok) {
+                    alert('Sync location updated successfully!');
+                    setIsSyncLocationModalOpen(false);
+                    fetchTables();
+                  } else {
+                    alert('Failed to update sync location.');
+                  }
+                } catch (e) {
+                  console.error(e);
+                  alert('An error occurred.');
+                }
+              }} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg px-6">Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

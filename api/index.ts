@@ -1,4 +1,5 @@
 import express from "express";
+import 'dotenv/config';
 import path from "path";
 import { fileURLToPath } from "url";
 import Airtable from 'airtable';
@@ -474,7 +475,13 @@ app.get("/api/health", (req, res) => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error?.message || "Failed to fetch tables");
+        const errorMessage = errorData.error?.message || "Failed to fetch tables";
+        const errorType = errorData.error?.type || "";
+        
+        if (errorType === 'NOT_AUTHORIZED' || response.status === 401) {
+          throw new Error("Airtable access denied (NOT_AUTHORIZED). Please ensure your AIRTABLE_API_KEY is a valid Personal Access Token (starts with 'pat.') and has the 'schema.bases:read' scope.");
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -483,6 +490,15 @@ app.get("/api/health", (req, res) => {
       res.json({ tables: data.tables, source: 'airtable' });
     } catch (error: any) {
       console.error("Airtable error:", error);
+      const isNotAuthorized = error.statusCode === 401 || error.statusCode === 403 || error.error === 'NOT_AUTHORIZED' || (error.message && error.message.includes('NOT_AUTHORIZED'));
+      
+      if (isNotAuthorized) {
+        return res.status(400).json({ 
+          error: "Airtable access denied (NOT_AUTHORIZED).",
+          details: "Please check your AIRTABLE_API_KEY. Ensure it is a valid Personal Access Token (starts with 'pat.') and has the following scopes: 'data.records:read', 'data.records:write', 'schema.bases:read', 'schema.bases:write'. Also verify it has access to the specific base.",
+          message: error.message
+        });
+      }
       res.status(500).json({ error: error.message || "Failed to fetch tables" });
     }
   });
@@ -532,6 +548,15 @@ app.get("/api/health", (req, res) => {
       });
     } catch (error: any) {
       console.error(`Stats error for ${tableName}:`, error);
+      const isNotAuthorized = error.statusCode === 401 || error.statusCode === 403 || error.error === 'NOT_AUTHORIZED' || (error.message && error.message.includes('NOT_AUTHORIZED'));
+      
+      if (isNotAuthorized) {
+        return res.status(400).json({ 
+          error: "Airtable access denied (NOT_AUTHORIZED).",
+          details: "Please check your AIRTABLE_API_KEY. Ensure it is a valid Personal Access Token (starts with 'pat.') and has the following scopes: 'data.records:read', 'data.records:write', 'schema.bases:read', 'schema.bases:write'. Also verify it has access to the specific base.",
+          message: error.message
+        });
+      }
       res.status(500).json({ error: error.message || "Failed to fetch table stats" });
     }
   });
@@ -553,7 +578,12 @@ app.get("/api/health", (req, res) => {
       });
 
       if (!listRes.ok) {
-        throw new Error("Failed to fetch tables from Airtable");
+        const errorData = await listRes.json().catch(() => ({}));
+        const errorType = errorData.error?.type || "";
+        if (errorType === 'NOT_AUTHORIZED' || listRes.status === 401) {
+          throw new Error("Airtable access denied (NOT_AUTHORIZED). Please ensure your AIRTABLE_API_KEY is a valid Personal Access Token (starts with 'pat.') and has the 'schema.bases:read' scope.");
+        }
+        throw new Error(errorData.error?.message || "Failed to fetch tables from Airtable");
       }
 
       const { tables } = await listRes.json();
@@ -757,6 +787,15 @@ app.get("/api/health", (req, res) => {
       res.json({ success: true, results });
     } catch (error: any) {
       console.error("Sync to Airtable error:", error);
+      const isNotAuthorized = error.statusCode === 401 || error.statusCode === 403 || error.error === 'NOT_AUTHORIZED' || (error.message && error.message.includes('NOT_AUTHORIZED'));
+      
+      if (isNotAuthorized) {
+        return res.status(400).json({ 
+          error: "Airtable access denied (NOT_AUTHORIZED).",
+          details: "Please check your AIRTABLE_API_KEY. Ensure it is a valid Personal Access Token (starts with 'pat.') and has the following scopes: 'data.records:read', 'data.records:write', 'schema.bases:read', 'schema.bases:write'. Also verify it has access to the specific base.",
+          message: error.message
+        });
+      }
       res.status(500).json({ error: error.message || "Failed to sync to Airtable" });
     }
   });
@@ -874,10 +913,12 @@ app.get("/api/health", (req, res) => {
       console.error(`Fetch error for ${tableName}:`, error);
       
       // Handle Airtable specific errors
-      if (error.statusCode === 401 || error.statusCode === 403) {
+      if (error.statusCode === 401 || error.statusCode === 403 || error.error === 'NOT_AUTHORIZED' || (error.message && error.message.includes('NOT_AUTHORIZED'))) {
         return res.status(400).json({ 
-          error: "Airtable access denied (NOT_AUTHORIZED). Please check your AIRTABLE_API_KEY and ensure it has 'data.records:read' scope and access to the base.",
-          details: error.message
+          error: "Airtable access denied (NOT_AUTHORIZED).",
+          details: "Please check your AIRTABLE_API_KEY. Ensure it is a valid Personal Access Token (starts with 'pat.') and has the following scopes: 'data.records:read', 'data.records:write', 'schema.bases:read', 'schema.bases:write'. Also verify it has access to the specific base.",
+          message: error.message,
+          type: error.type || 'NOT_AUTHORIZED'
         });
       }
       
@@ -1122,33 +1163,14 @@ app.get("/api/health", (req, res) => {
         updated_at: new Date().toISOString()
       }));
 
-      // 1. Save to Airtable if selected
-      if (destinations.includes('airtable')) {
-        if (!apiKey || !baseId) {
-          throw new Error("Airtable credentials not configured");
-        }
-        if (!airtableTable) {
-          throw new Error("Airtable table name is required");
-        }
-        const base = new Airtable({ apiKey }).base(baseId);
-        const airtableRecords = records.map((r: any) => ({ fields: r }));
-        const batchSize = 10;
-        for (let i = 0; i < airtableRecords.length; i += batchSize) {
-          const chunk = airtableRecords.slice(i, i + batchSize);
-          await base(airtableTable).create(chunk, { typecast: true });
-        }
+      // 1. Save to Supabase (Server)
+      if (!serverFolder && !airtableTable) {
+        throw new Error("Folder name is required for server save");
       }
-
-      // 2. Save to Supabase (Server) if selected
-      if (destinations.includes('server')) {
-        if (!serverFolder && !airtableTable) {
-          throw new Error("Folder name is required for server save");
-        }
-        const { error } = await supabase.from('questions').upsert(records, { onConflict: 'airtable_table_name,question_unique_id' });
-        if (error) {
-          console.error("Supabase sync error during save:", error);
-          throw new Error("Failed to save to Server DB: " + error.message);
-        }
+      const { error } = await supabase.from('questions').upsert(records, { onConflict: 'airtable_table_name,question_unique_id' });
+      if (error) {
+        console.error("Supabase sync error during save:", error);
+        throw new Error("Failed to save to Server DB: " + error.message);
       }
 
       res.json({ success: true });
@@ -1228,6 +1250,15 @@ app.get("/api/health", (req, res) => {
       res.json({ success: true });
     } catch (error: any) {
       console.error("Save error:", error);
+      const isNotAuthorized = error.statusCode === 401 || error.statusCode === 403 || error.error === 'NOT_AUTHORIZED' || (error.message && error.message.includes('NOT_AUTHORIZED'));
+      
+      if (isNotAuthorized) {
+        return res.status(400).json({ 
+          error: "Airtable access denied (NOT_AUTHORIZED).",
+          details: "Please check your AIRTABLE_API_KEY. Ensure it is a valid Personal Access Token (starts with 'pat.') and has the following scopes: 'data.records:read', 'data.records:write', 'schema.bases:read', 'schema.bases:write'. Also verify it has access to the specific base.",
+          message: error.message
+        });
+      }
       res.status(500).json({ error: error.message || "Failed to save data" });
     }
   });
@@ -1478,62 +1509,31 @@ app.get("/api/health", (req, res) => {
         }
       }
 
-      // 3. Try to delete from Airtable if it's an Airtable table
-      const apiKey = process.env.AIRTABLE_API_KEY;
-      const baseId = process.env.AIRTABLE_BASE_ID;
-      
-      if (apiKey && baseId) {
-        try {
-          // 3a. List tables to find the ID for the folderName (Metadata API)
-          // Note: This requires 'schema.bases:read' scope
-          const listRes = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-            },
-          });
-          
-          if (listRes.ok) {
-            const { tables } = await listRes.json();
-            const table = tables.find((t: any) => t.name === folderName || t.id === folderName);
-            
-            if (table) {
-              // 3b. Delete via Airtable Meta API using Table ID
-              // Note: This requires 'schema.bases:write' scope
-              const deleteRes = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables/${table.id}`, {
-                method: 'DELETE',
-                headers: {
-                  Authorization: `Bearer ${apiKey}`,
-                },
-              });
-              
-              if (!deleteRes.ok) {
-                const errData = await deleteRes.json();
-                // If it's already deleted (NOT_FOUND), we can ignore it
-                if (errData.error === 'NOT_FOUND') {
-                  console.log(`Airtable table ${folderName} (${table.id}) was already deleted.`);
-                } else {
-                  console.warn(`Airtable table deletion failed for ${folderName} (${table.id}):`, errData);
-                }
-              } else {
-                console.log(`Successfully deleted Airtable table ${folderName} (${table.id})`);
-              }
-            } else {
-              console.warn(`Airtable table not found for name "${folderName}" during deletion attempt.`);
-            }
-          } else if (listRes.status === 401 || listRes.status === 403) {
-            console.warn(`Airtable Metadata API access denied (NOT_AUTHORIZED). Ensure your token has 'schema.bases:read' and 'schema.bases:write' scopes.`);
-          } else {
-            const errData = await listRes.json();
-            console.warn(`Failed to list Airtable tables for deletion:`, errData);
-          }
-        } catch (atErr) {
-          console.warn(`Airtable delete error for ${folderName}:`, atErr);
-        }
-      }
-
       res.json({ success: true });
     } catch (error: any) {
       handleSupabaseError(error, res, "delete folder");
+    }
+  });
+
+  app.post("/api/update-folder-sync-location", async (req, res) => {
+    const { folderName, airtableTableName } = req.body;
+    
+    if (!folderName) {
+      return res.status(400).json({ error: "Folder name is required" });
+    }
+
+    try {
+      // Update the folder's airtable_table_name in Supabase
+      const { error } = await supabase
+        .from('questions')
+        .update({ airtable_table_name: airtableTableName || null })
+        .eq('collection', folderName);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Update folder sync location error:", error);
+      res.status(500).json({ error: error.message || "Failed to update sync location" });
     }
   });
 
