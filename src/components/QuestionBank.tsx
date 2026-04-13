@@ -2629,22 +2629,25 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 </Button>
               </div>
               <div className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Select Target Folder</label>
-                  <div className="max-h-60 overflow-y-auto border rounded-xl p-2 space-y-1">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Select Target Folder</label>
+                  <div className="max-h-72 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1 bg-slate-50/30">
                     <button 
                       onClick={() => setTargetFolderForMove('Root')}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors ${targetFolderForMove === 'Root' ? 'bg-blue-50 text-blue-600' : 'hover:bg-slate-50 text-slate-600'}`}
+                      className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-3 ${targetFolderForMove === 'Root' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'hover:bg-white hover:shadow-sm text-slate-700'}`}
                     >
+                      <Database className={`w-4 h-4 ${targetFolderForMove === 'Root' ? 'text-white' : 'text-slate-400'}`} />
                       Root (Airtable Tables)
                     </button>
+                    <div className="h-px bg-slate-100 my-1 mx-2"></div>
                     {allFolders.map(folder => (
                       <button 
                         key={folder.fullPath}
                         onClick={() => setTargetFolderForMove(folder.fullPath)}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors ${targetFolderForMove === folder.fullPath ? 'bg-blue-50 text-blue-600' : 'hover:bg-slate-50 text-slate-600'}`}
+                        className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-3 ${targetFolderForMove === folder.fullPath ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'hover:bg-white hover:shadow-sm text-slate-700'}`}
                       >
-                        {folder.fullPath}
+                        <Folder className={`w-4 h-4 ${targetFolderForMove === folder.fullPath ? 'text-white' : 'text-slate-400'}`} />
+                        <span className="truncate">{folder.fullPath}</span>
                       </button>
                     ))}
                   </div>

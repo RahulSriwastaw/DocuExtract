@@ -647,13 +647,13 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
           </DialogHeader>
           <div className="p-6 space-y-6">
             <div className="space-y-3">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Save Destination</Label>
+              <Label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Save Destination</Label>
               <div className="grid grid-cols-2 gap-3">
                 <div 
-                  className={`flex items-center space-x-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                  className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
                     saveDestinations.includes('server') 
-                      ? 'border-primary bg-primary-light/30' 
-                      : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                      ? 'border-primary bg-primary-light/40 shadow-sm' 
+                      : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                   onClick={() => {
                     if (saveDestinations.includes('server')) setSaveDestinations(prev => prev.filter(d => d !== 'server'));
@@ -668,14 +668,15 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       else setSaveDestinations(prev => prev.filter(d => d !== 'server'));
                     }}
                     onClick={(e) => e.stopPropagation()}
+                    className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                   />
-                  <Label htmlFor="dest-server" className="cursor-pointer font-semibold text-slate-700">Own Server</Label>
+                  <Label htmlFor="dest-server" className="cursor-pointer font-bold text-slate-800">Own Server</Label>
                 </div>
                 <div 
-                  className={`flex items-center space-x-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                  className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
                     saveDestinations.includes('airtable') 
-                      ? 'border-primary bg-primary-light/30' 
-                      : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                      ? 'border-primary bg-primary-light/40 shadow-sm' 
+                      : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                   onClick={() => {
                     if (saveDestinations.includes('airtable')) setSaveDestinations(prev => prev.filter(d => d !== 'airtable'));
@@ -690,8 +691,9 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       else setSaveDestinations(prev => prev.filter(d => d !== 'airtable'));
                     }}
                     onClick={(e) => e.stopPropagation()}
+                    className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                   />
-                  <Label htmlFor="dest-airtable" className="cursor-pointer font-semibold text-slate-700">Airtable DB</Label>
+                  <Label htmlFor="dest-airtable" className="cursor-pointer font-bold text-slate-800">Airtable DB</Label>
                 </div>
               </div>
             </div>
@@ -731,11 +733,11 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
             ) : (
               <div className="space-y-5">
                 {saveDestinations.includes('server') && (
-                  <div className="space-y-3 p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
-                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Server Configuration</Label>
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-600">Select Folder</Label>
+                  <div className="space-y-4 p-5 rounded-2xl border border-slate-200 bg-slate-50 shadow-inner">
+                    <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Server Configuration</Label>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-bold text-slate-700">Select Folder</Label>
                         <Select value={isCreatingNewFolder ? 'new' : serverFolder} onValueChange={(val) => {
                           if (val === 'new') {
                             setIsCreatingNewFolder(true);
@@ -745,23 +747,29 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                             setServerFolder(val);
                           }
                         }}>
-                          <SelectTrigger className="bg-white border-slate-200 rounded-xl h-11">
+                          <SelectTrigger className="bg-white border-slate-300 rounded-xl h-12 shadow-sm focus:ring-2 focus:ring-primary/20">
                             <SelectValue placeholder="Choose a folder..." />
                           </SelectTrigger>
-                          <SelectContent>
-                            {serverFolders.map(f => <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>)}
-                            <SelectItem value="new" className="font-bold text-primary">+ Create New Folder</SelectItem>
+                          <SelectContent className="bg-white border-slate-200 shadow-2xl rounded-xl z-[100]">
+                            {serverFolders.map(f => (
+                              <SelectItem key={f.id} value={f.name} className="py-3 px-4 cursor-pointer focus:bg-slate-50 font-medium text-slate-700">
+                                {f.name}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="new" className="font-bold text-primary py-3 px-4 cursor-pointer focus:bg-primary-light/10 border-t border-slate-100 mt-1">
+                              + Create New Folder
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       {isCreatingNewFolder && (
-                        <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                          <Label className="text-xs font-semibold text-slate-600">New Folder Name</Label>
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <Label className="text-sm font-bold text-slate-700">New Folder Name</Label>
                           <Input 
                             placeholder="e.g., Physics 2024" 
                             value={newServerFolder} 
                             onChange={(e) => setNewServerFolder(e.target.value)}
-                            className="bg-white border-slate-200 rounded-xl h-11"
+                            className="bg-white border-slate-300 rounded-xl h-12 shadow-sm focus:ring-2 focus:ring-primary/20"
                           />
                         </div>
                       )}
@@ -770,11 +778,11 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                 )}
 
                 {saveDestinations.includes('airtable') && (
-                  <div className="space-y-3 p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
-                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Airtable Configuration</Label>
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-600">Select Table</Label>
+                  <div className="space-y-4 p-5 rounded-2xl border border-slate-200 bg-slate-50 shadow-inner">
+                    <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Airtable Configuration</Label>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-bold text-slate-700">Select Table</Label>
                         <Select value={isCreatingNewTable ? 'new' : airtableTableName} onValueChange={(val) => {
                           if (val === 'new') {
                             setIsCreatingNewTable(true);
@@ -784,23 +792,29 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                             setAirtableTableName(val);
                           }
                         }}>
-                          <SelectTrigger className="bg-white border-slate-200 rounded-xl h-11">
+                          <SelectTrigger className="bg-white border-slate-300 rounded-xl h-12 shadow-sm focus:ring-2 focus:ring-primary/20">
                             <SelectValue placeholder="Choose a table..." />
                           </SelectTrigger>
-                          <SelectContent>
-                            {airtableTables.map(t => <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>)}
-                            <SelectItem value="new" className="font-bold text-primary">+ Create New Table</SelectItem>
+                          <SelectContent className="bg-white border-slate-200 shadow-2xl rounded-xl z-[100]">
+                            {airtableTables.map(t => (
+                              <SelectItem key={t.id} value={t.name} className="py-3 px-4 cursor-pointer focus:bg-slate-50 font-medium text-slate-700">
+                                {t.name}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="new" className="font-bold text-primary py-3 px-4 cursor-pointer focus:bg-primary-light/10 border-t border-slate-100 mt-1">
+                              + Create New Table
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       {isCreatingNewTable && (
-                        <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                          <Label className="text-xs font-semibold text-slate-600">New Table Name</Label>
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <Label className="text-sm font-bold text-slate-700">New Table Name</Label>
                           <Input 
                             placeholder="e.g., Exam Prep 2024" 
                             value={newTableName} 
                             onChange={(e) => setNewTableName(e.target.value)}
-                            className="bg-white border-slate-200 rounded-xl h-11"
+                            className="bg-white border-slate-300 rounded-xl h-12 shadow-sm focus:ring-2 focus:ring-primary/20"
                           />
                         </div>
                       )}
