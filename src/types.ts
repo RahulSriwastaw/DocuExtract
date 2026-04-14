@@ -55,6 +55,20 @@ export interface Question {
   sub_chapter?: string;
   keywords?: string;
   
+  // Airtable variations
+  Question?: string;
+  Name?: string;
+  question?: string;
+  Answer?: string;
+  'Correct Option'?: string;
+  Solution?: string;
+  solution?: string;
+  Subject?: string;
+  Chapter?: string;
+  Page?: string;
+  Page_No?: string;
+  Tags?: string | string[];
+  
   // Legacy fields for UI compatibility
   text: string;
   options: string[];

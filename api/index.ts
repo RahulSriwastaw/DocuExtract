@@ -261,73 +261,123 @@ initDb();
 const mapQuestionToDb = (q: any) => {
   const mapped: any = {};
   
+  const getVal = (variations: string[]) => {
+    for (const v of variations) {
+      if (q[v] !== undefined && q[v] !== null && q[v] !== '') return q[v];
+    }
+    return undefined;
+  };
+
   // Question text
-  if (q.question_hin !== undefined) mapped.question_hin = q.question_hin;
-  else if (q.text !== undefined) mapped.question_hin = q.text;
-  if (q.question_eng !== undefined) mapped.question_eng = q.question_eng;
+  const qHin = getVal(['question_hin', 'text', 'Question', 'question', 'Name', 'Question Hindi', 'Question_Hin', 'Question Text', 'question_text', 'Question_Text', 'QuestionText']);
+  if (qHin !== undefined) mapped.question_hin = qHin;
+  
+  const qEng = getVal(['question_eng', 'Question_Eng', 'question_en', 'Question English', 'Question_En', 'Question Text English', 'Question_Text_Eng']);
+  if (qEng !== undefined) mapped.question_eng = qEng;
   
   // Classification
-  if (q.subject !== undefined) mapped.subject = q.subject;
-  if (q.sub_subject !== undefined) mapped.sub_subject = q.sub_subject;
-  if (q.chapter !== undefined) mapped.chapter = q.chapter;
-  if (q.sub_chapter !== undefined) mapped.sub_chapter = q.sub_chapter;
-  if (q.topic !== undefined) mapped.topic = q.topic;
-  if (q.sub_topic !== undefined) mapped.sub_topic = q.sub_topic;
-  if (q.keywords !== undefined) mapped.keywords = q.keywords;
+  const subject = getVal(['subject', 'Subject']);
+  if (subject !== undefined) mapped.subject = subject;
+  
+  const subSubject = getVal(['sub_subject', 'Sub_Subject', 'Sub Subject']);
+  if (subSubject !== undefined) mapped.sub_subject = subSubject;
+  
+  const chapter = getVal(['chapter', 'Chapter']);
+  if (chapter !== undefined) mapped.chapter = chapter;
+  
+  const subChapter = getVal(['sub_chapter', 'Sub_Chapter', 'Sub Chapter']);
+  if (subChapter !== undefined) mapped.sub_chapter = subChapter;
+  
+  const topic = getVal(['topic', 'Topic']);
+  if (topic !== undefined) mapped.topic = topic;
+  
+  const subTopic = getVal(['sub_topic', 'Sub_Topic', 'Sub Topic']);
+  if (subTopic !== undefined) mapped.sub_topic = subTopic;
+  
+  const keywords = getVal(['keywords', 'Keywords']);
+  if (keywords !== undefined) mapped.keywords = keywords;
   
   // Options
-  if (q.option1_hin !== undefined) mapped.option1_hin = q.option1_hin;
-  else if (q.options?.[0] !== undefined) mapped.option1_hin = q.options[0];
-  
-  if (q.option2_hin !== undefined) mapped.option2_hin = q.option2_hin;
-  else if (q.options?.[1] !== undefined) mapped.option2_hin = q.options[1];
-  
-  if (q.option3_hin !== undefined) mapped.option3_hin = q.option3_hin;
-  else if (q.options?.[2] !== undefined) mapped.option3_hin = q.options[2];
-  
-  if (q.option4_hin !== undefined) mapped.option4_hin = q.option4_hin;
-  else if (q.options?.[3] !== undefined) mapped.option4_hin = q.options[3];
-  
-  if (q.option5_hin !== undefined) mapped.option5_hin = q.option5_hin;
-  else if (q.options?.[4] !== undefined) mapped.option5_hin = q.options[4];
-  
-  if (q.option1_eng !== undefined) mapped.option1_eng = q.option1_eng;
-  if (q.option2_eng !== undefined) mapped.option2_eng = q.option2_eng;
-  if (q.option3_eng !== undefined) mapped.option3_eng = q.option3_eng;
-  if (q.option4_eng !== undefined) mapped.option4_eng = q.option4_eng;
-  if (q.option5_eng !== undefined) mapped.option5_eng = q.option5_eng;
+  for (let i = 1; i <= 5; i++) {
+    const optHin = getVal([
+      `option${i}_hin`, `Option_${i}`, `option${i}`, `Option ${i}`, `Option_${i}_Hin`, `Option ${i} Hindi`, 
+      `Option${i}`, `opt${i}`, `Opt ${i}`, `Choice ${i}`, `choice${i}`
+    ]);
+    if (optHin !== undefined) mapped[`option${i}_hin`] = optHin;
+    else if (q.options && q.options[i-1] !== undefined) mapped[`option${i}_hin`] = q.options[i-1];
+    
+    const optEng = getVal([
+      `option${i}_eng`, `Option_${i}_Eng`, `Option ${i} English`, `Option_${i}_En`, 
+      `Option${i} English`, `opt${i}_eng`, `Choice ${i} English`
+    ]);
+    if (optEng !== undefined) mapped[`option${i}_eng`] = optEng;
+  }
   
   // Answer & Solution
-  if (q.answer !== undefined) mapped.answer = q.answer;
-  else if (q.correctOption !== undefined) mapped.answer = q.correctOption;
+  const answer = getVal(['answer', 'Answer', 'correctOption', 'Correct Option', 'Correct_Option']);
+  if (answer !== undefined) mapped.answer = answer;
   
-  if (q.solution_hin !== undefined) mapped.solution_hin = q.solution_hin;
-  if (q.solution_eng !== undefined) mapped.solution_eng = q.solution_eng;
+  const solHin = getVal(['solution_hin', 'Solution', 'solution', 'Solution Hindi', 'Solution_Hin']);
+  if (solHin !== undefined) mapped.solution_hin = solHin;
+  
+  const solEng = getVal(['solution_eng', 'Solution_Eng', 'Solution English', 'Solution_En']);
+  if (solEng !== undefined) mapped.solution_eng = solEng;
   
   // Metadata
-  if (q.type !== undefined) mapped.type = q.type;
-  if (q.difficulty !== undefined) mapped.difficulty = q.difficulty;
-  if (q.video !== undefined) mapped.video = q.video;
-  if (q.page_no !== undefined) mapped.page_no = q.page_no;
-  if (q.collection !== undefined) mapped.collection = q.collection;
-  if (q.airtable_table_name !== undefined) mapped.airtable_table_name = q.airtable_table_name;
-  if (q.section !== undefined) mapped.section = q.section;
-  if (q.year !== undefined) mapped.year = q.year;
-  if (q.date !== undefined) mapped.date = q.date;
-  if (q.exam !== undefined) mapped.exam = q.exam;
-  if (q.previous_of !== undefined) mapped.previous_of = q.previous_of;
-  if (q.action !== undefined) mapped.action = q.action;
+  const type = getVal(['type', 'Type']);
+  if (type !== undefined) mapped.type = type;
   
-  if (q.current_status !== undefined) mapped.current_status = q.current_status;
-  else if (q.status !== undefined) mapped.current_status = q.status;
+  const difficulty = getVal(['difficulty', 'Difficulty']);
+  if (difficulty !== undefined) mapped.difficulty = difficulty;
   
-  if (q.sync_code !== undefined) mapped.sync_code = q.sync_code;
-  if (q.error_report !== undefined) mapped.error_report = q.error_report;
-  if (q.error_description !== undefined) mapped.error_description = q.error_description;
-  if (q.image !== undefined) mapped.image = q.image;
+  const video = getVal(['video', 'Video', 'Video Link', 'Video_Link']);
+  if (video !== undefined) mapped.video = video;
   
-  if (q.tags !== undefined) {
-    mapped.tags = Array.isArray(q.tags) ? q.tags : (typeof q.tags === 'string' ? JSON.parse(q.tags) : []);
+  const pageNo = getVal(['page_no', 'Page_No', 'Page', 'Page No', 'page_number']);
+  if (pageNo !== undefined) mapped.page_no = pageNo;
+  
+  const collection = getVal(['collection', 'Collection']);
+  if (collection !== undefined) mapped.collection = collection;
+  
+  const tableName = getVal(['airtable_table_name', 'Table_Name', 'Table Name', 'tableName']);
+  if (tableName !== undefined) mapped.airtable_table_name = tableName;
+  
+  const section = getVal(['section', 'Section']);
+  if (section !== undefined) mapped.section = section;
+  
+  const year = getVal(['year', 'Year']);
+  if (year !== undefined) mapped.year = year;
+  
+  const date = getVal(['date', 'Date']);
+  if (date !== undefined) mapped.date = date;
+  
+  const exam = getVal(['exam', 'Exam']);
+  if (exam !== undefined) mapped.exam = exam;
+  
+  const prevOf = getVal(['previous_of', 'Previous_Of', 'Previous Of']);
+  if (prevOf !== undefined) mapped.previous_of = prevOf;
+  
+  const action = getVal(['action', 'Action']);
+  if (action !== undefined) mapped.action = action;
+  
+  const status = getVal(['current_status', 'status', 'Status', 'Current Status', 'Current_Status']);
+  if (status !== undefined) mapped.current_status = status;
+  
+  const syncCode = getVal(['sync_code', 'Sync_Code', 'Sync Code']);
+  if (syncCode !== undefined) mapped.sync_code = syncCode;
+  
+  const errReport = getVal(['error_report', 'Error_Report', 'Error Report']);
+  if (errReport !== undefined) mapped.error_report = errReport;
+  
+  const errDesc = getVal(['error_description', 'Error_Description', 'Error Description']);
+  if (errDesc !== undefined) mapped.error_description = errDesc;
+  
+  const image = getVal(['image', 'Image']);
+  if (image !== undefined) mapped.image = image;
+  
+  const tags = getVal(['tags', 'Tags']);
+  if (tags !== undefined) {
+    mapped.tags = Array.isArray(tags) ? tags : (typeof tags === 'string' ? (tags.includes('[') ? JSON.parse(tags) : tags.split(',').map((t: string) => t.trim())) : []);
   }
 
   return mapped;
@@ -441,13 +491,89 @@ app.get("/api/health", (req, res) => {
     }
   });
 
-  app.get("/api/get-airtable-tables", async (req, res) => {
-    const { forceSync } = req.query;
-    const apiKey = process.env.AIRTABLE_API_KEY;
-    const baseId = process.env.AIRTABLE_BASE_ID;
+  app.get("/api/test-airtable", async (req, res) => {
+    const apiKey = process.env.AIRTABLE_API_KEY?.trim();
+    const baseId = process.env.AIRTABLE_BASE_ID?.trim();
+
+    const results: any = {
+      apiKeyConfigured: !!apiKey,
+      baseIdConfigured: !!baseId,
+      apiKeyPrefix: apiKey ? (apiKey.startsWith('pat.') ? 'pat.' : 'other') : null,
+      metaApi: { status: 'pending' },
+      recordsApi: { status: 'pending' }
+    };
 
     if (!apiKey || !baseId) {
-      return res.status(500).json({ error: "Airtable credentials not configured" });
+      return res.status(400).json({ error: "Airtable credentials not configured", results });
+    }
+
+    // 1. Test Meta API
+    try {
+      const metaRes = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
+        headers: { Authorization: `Bearer ${apiKey}` }
+      });
+      results.metaApi.status = metaRes.status;
+      if (metaRes.ok) {
+        const data = await metaRes.json();
+        results.metaApi.tableCount = data.tables?.length || 0;
+        results.metaApi.success = true;
+      } else {
+        const err = await metaRes.json();
+        results.metaApi.error = err.error?.type || err.error?.message || "Failed";
+        results.metaApi.success = false;
+      }
+    } catch (e: any) {
+      results.metaApi.status = 'error';
+      results.metaApi.error = e.message;
+      results.metaApi.success = false;
+    }
+
+    // 2. Test Records API
+    try {
+      const base = new Airtable({ apiKey }).base(baseId);
+      // Try to list tables first to get a valid table name if possible, or just use a dummy one to test auth
+      // Actually, we can just try to fetch from any table if we have one from Meta API
+      let tableToTest = 'Questions'; // Default guess
+      if (results.metaApi.success && results.metaApi.tableCount > 0) {
+        // We'll try the first table found
+        try {
+          const metaRes = await fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
+            headers: { Authorization: `Bearer ${apiKey}` }
+          });
+          const data = await metaRes.json();
+          if (data.tables && data.tables.length > 0) {
+            tableToTest = data.tables[0].name;
+          }
+        } catch (e) {}
+      }
+
+      try {
+        await base(tableToTest).select({ maxRecords: 1 }).firstPage();
+        results.recordsApi.success = true;
+        results.recordsApi.status = 200;
+        results.recordsApi.testedTable = tableToTest;
+      } catch (e: any) {
+        results.recordsApi.success = false;
+        results.recordsApi.status = e.statusCode || 500;
+        results.recordsApi.error = e.error || e.message;
+        results.recordsApi.type = e.type || 'UNKNOWN';
+      }
+    } catch (e: any) {
+      results.recordsApi.status = 'error';
+      results.recordsApi.error = e.message;
+      results.recordsApi.success = false;
+    }
+
+    res.json(results);
+  });
+
+  app.get("/api/get-airtable-tables", async (req, res) => {
+    const { forceSync } = req.query;
+    const apiKey = process.env.AIRTABLE_API_KEY?.trim();
+    const baseId = process.env.AIRTABLE_BASE_ID?.trim();
+
+    if (!apiKey || !baseId) {
+      return res.status(500).json({ error: "Airtable credentials not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID in the Secrets panel." });
     }
 
     const cacheFile = path.join(CACHE_DIR, `tables.json`);
@@ -522,11 +648,11 @@ app.get("/api/health", (req, res) => {
       }
 
       // Fallback to Airtable
-      const apiKey = process.env.AIRTABLE_API_KEY;
-      const baseId = process.env.AIRTABLE_BASE_ID;
+      const apiKey = process.env.AIRTABLE_API_KEY?.trim();
+      const baseId = process.env.AIRTABLE_BASE_ID?.trim();
 
       if (!apiKey || !baseId) {
-        return res.status(500).json({ error: "Airtable credentials not configured" });
+        return res.status(500).json({ error: "Airtable credentials not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID in the Secrets panel." });
       }
 
       const base = new Airtable({ apiKey }).base(baseId);
@@ -562,11 +688,11 @@ app.get("/api/health", (req, res) => {
   });
 
   app.post("/api/sync-all-airtable", async (req, res) => {
-    const apiKey = process.env.AIRTABLE_API_KEY;
-    const baseId = process.env.AIRTABLE_BASE_ID;
+    const apiKey = process.env.AIRTABLE_API_KEY?.trim();
+    const baseId = process.env.AIRTABLE_BASE_ID?.trim();
 
     if (!apiKey || !baseId) {
-      return res.status(500).json({ error: "Airtable credentials not configured" });
+      return res.status(500).json({ error: "Airtable credentials not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID in the Secrets panel." });
     }
 
     try {
@@ -665,11 +791,11 @@ app.get("/api/health", (req, res) => {
   });
 
   app.post("/api/sync-all-to-airtable", async (req, res) => {
-    const apiKey = process.env.AIRTABLE_API_KEY;
-    const baseId = process.env.AIRTABLE_BASE_ID;
+    const apiKey = process.env.AIRTABLE_API_KEY?.trim();
+    const baseId = process.env.AIRTABLE_BASE_ID?.trim();
 
     if (!apiKey || !baseId) {
-      return res.status(500).json({ error: "Airtable credentials not configured" });
+      return res.status(500).json({ error: "Airtable credentials not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID in the Secrets panel." });
     }
 
     try {
@@ -739,11 +865,14 @@ app.get("/api/health", (req, res) => {
                 previous_of: q.previous_of || '',
                 action: q.action || 'UPDATED',
                 current_status: q.current_status || 'Draft',
-                sync_code: q.sync_code || '',
-                error_report: q.error_report || '',
-                error_description: q.error_description || '',
                 updated_at: new Date().toISOString()
               };
+
+              if (q.sync_code) (fields as any).sync_code = q.sync_code;
+              if (q.error_report) (fields as any).error_report = q.error_report;
+              if (q.error_description) (fields as any).error_description = q.error_description;
+              if (q.image) (fields as any).image = q.image;
+              if (q.tags) (fields as any).tags = Array.isArray(q.tags) ? q.tags.join(', ') : q.tags;
 
               if (q.record_id && q.record_id.startsWith('rec')) {
                 toUpdate.push({ id: q.record_id, fields });
@@ -802,8 +931,8 @@ app.get("/api/health", (req, res) => {
 
   app.post("/api/get-airtable-records", async (req, res) => {
     const { tableName, forceSync, collectionPath } = req.body;
-    const apiKey = process.env.AIRTABLE_API_KEY;
-    const baseId = process.env.AIRTABLE_BASE_ID;
+    const apiKey = process.env.AIRTABLE_API_KEY?.trim();
+    const baseId = process.env.AIRTABLE_BASE_ID?.trim();
 
     try {
       // 1. Try fetching from Supabase first (if not forceSync)
@@ -841,58 +970,31 @@ app.get("/api/health", (req, res) => {
 
       // 2. Fetch from Airtable
       if (!apiKey || !baseId) {
-        return res.status(500).json({ error: "Airtable credentials not configured" });
+        return res.status(500).json({ error: "Airtable credentials not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID in the Secrets panel." });
+      }
+
+      if (!apiKey.startsWith('pat.')) {
+        console.warn("Airtable API Key does not start with 'pat.'. Airtable now requires Personal Access Tokens.");
       }
 
       const base = new Airtable({ apiKey }).base(baseId);
       const records = await base(tableName).select().all();
       console.log(`Fetched ${records.length} records from Airtable for table ${tableName}`);
-      const formatted = records.map(r => ({ id: r.id, ...(r as any).fields }));
+      const formatted = records.map(r => {
+        const raw = { id: r.id, ...(r as any).fields };
+        return {
+          ...raw,
+          ...mapQuestionToDb(raw)
+        };
+      });
       
       // 3. Sync to Supabase in background
       if (formatted.length > 0) {
         const supabaseData = formatted.map(q => ({
+          ...mapQuestionToDb(q),
           record_id: q.record_id || q.id || '',
           question_unique_id: q.question_unique_id || q.id || Math.random().toString(36).substring(7),
-          question_hin: q.question_hin || q.text || '',
-          question_eng: q.question_eng || '',
-          subject: q.subject || '',
-          sub_subject: q.sub_subject || '',
-          chapter: q.chapter || '',
-          sub_chapter: q.sub_chapter || '',
-          topic: q.topic || '',
-          sub_topic: q.sub_topic || '',
-          keywords: q.keywords || '',
-          difficulty: q.difficulty || '',
-          image: q.image || '',
-          option1_hin: q.option1_hin || q.options?.[0] || '',
-          option1_eng: q.option1_eng || '',
-          option2_hin: q.option2_hin || q.options?.[1] || '',
-          option2_eng: q.option2_eng || '',
-          option3_hin: q.option3_hin || q.options?.[2] || '',
-          option3_eng: q.option3_eng || '',
-          option4_hin: q.option4_hin || q.options?.[3] || '',
-          option4_eng: q.option4_eng || '',
-          option5_hin: q.option5_hin || q.options?.[4] || '',
-          option5_eng: q.option5_eng || '',
-          answer: q.answer || q.correctOption || '',
-          solution_hin: q.solution_hin || '',
-          solution_eng: q.solution_eng || '',
-          type: q.type || '',
-          video: q.video || '',
-          page_no: q.page_no || '',
-          collection: q.collection || '',
           airtable_table_name: tableName,
-          section: q.section || '',
-          year: q.year || '',
-          date: q.date || '',
-          exam: q.exam || '',
-          previous_of: q.previous_of || '',
-          action: q.action || 'UPDATED',
-          current_status: q.status || q.current_status || 'Draft',
-          sync_code: q.sync_code || '',
-          error_report: q.error_report || '',
-          error_description: q.error_description || '',
           updated_at: new Date().toISOString()
         }));
         
@@ -1010,16 +1112,7 @@ app.get("/api/health", (req, res) => {
             { name: 'current_status', type: 'singleLineText' },
             { name: 'sync_code', type: 'singleLineText' },
             { name: 'error_report', type: 'multilineText' },
-            { 
-              name: 'error_description', 
-              type: 'singleSelect',
-              options: {
-                choices: [
-                  { name: 'updated through airtable special operation' },
-                  { name: 'updated through reverse update action' }
-                ]
-              }
-            }
+            { name: 'error_description', type: 'multilineText' }
           ]
         }),
       });
@@ -1182,18 +1275,18 @@ app.get("/api/health", (req, res) => {
 
   app.post("/api/save-to-airtable", async (req, res) => {
     const { tableName, questions } = req.body;
-    const apiKey = process.env.AIRTABLE_API_KEY;
-    const baseId = process.env.AIRTABLE_BASE_ID;
+    const apiKey = process.env.AIRTABLE_API_KEY?.trim();
+    const baseId = process.env.AIRTABLE_BASE_ID?.trim();
 
     if (!apiKey || !baseId) {
-      return res.status(500).json({ error: "Airtable credentials not configured" });
+      return res.status(500).json({ error: "Airtable credentials not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID in the Secrets panel." });
     }
 
     try {
       const base = new Airtable({ apiKey }).base(baseId);
       
-      const records = questions.map((q: any) => ({
-        fields: {
+      const records = questions.map((q: any) => {
+        const fields: any = {
           record_id: q.record_id || '',
           question_unique_id: q.question_unique_id || q.id || '',
           question_hin: q.question_hin || q.text || '',
@@ -1225,12 +1318,17 @@ app.get("/api/health", (req, res) => {
           previous_of: q.previous_of || '',
           action: q.action || 'UPDATED',
           current_status: q.status || q.current_status || 'Draft',
-          sync_code: q.sync_code || '',
-          error_report: q.error_report || '',
-          error_description: q.error_description || '',
           updated_at: new Date().toISOString()
-        }
-      }));
+        };
+
+        if (q.sync_code) fields.sync_code = q.sync_code;
+        if (q.error_report) fields.error_report = q.error_report;
+        if (q.error_description) fields.error_description = q.error_description;
+        if (q.image) fields.image = q.image;
+        if (q.tags) fields.tags = Array.isArray(q.tags) ? q.tags.join(', ') : q.tags;
+
+        return { fields };
+      });
 
       // 1. Save to Airtable
       const batchSize = 10;
@@ -1413,9 +1511,19 @@ app.get("/api/health", (req, res) => {
     }
 
     try {
+      const mappedDocuments = documents.map((doc: any) => ({
+        id: doc.id,
+        name: doc.name,
+        status: doc.status,
+        total_questions: doc.totalQuestions || doc.total_questions || 0,
+        total_images: doc.totalImages || doc.total_images || 0,
+        upload_date: doc.uploadDate || doc.upload_date || '',
+        questions: doc.questions || []
+      }));
+
       const { error } = await supabase
         .from('documents')
-        .upsert(documents, { onConflict: 'id' });
+        .upsert(mappedDocuments, { onConflict: 'id' });
 
       if (error) throw error;
       res.json({ success: true });
@@ -1433,7 +1541,18 @@ app.get("/api/health", (req, res) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      res.json({ documents: data || [] });
+
+      const mappedData = (data || []).map((doc: any) => ({
+        id: doc.id,
+        name: doc.name,
+        status: doc.status,
+        totalQuestions: doc.total_questions || 0,
+        totalImages: doc.total_images || 0,
+        uploadDate: doc.upload_date || '',
+        questions: doc.questions || []
+      }));
+
+      res.json({ documents: mappedData });
     } catch (error: any) {
       console.error("Get documents error:", error);
       res.status(500).json({ error: error.message || "Failed to get documents" });

@@ -9,6 +9,8 @@ export default function AirtableTables() {
   const [stats, setStats] = useState<Record<string, {count: number, lastUpdated: string, error?: string}>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<any>(null);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     fetchTables();
@@ -33,6 +35,23 @@ export default function AirtableTables() {
     setLoading(false);
   };
 
+  const testConnection = async () => {
+    setTesting(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/test-airtable');
+      const data = await safeJson(res);
+      setTestResults(data);
+      if (data.error) {
+        setError(data.error);
+      }
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message || "Test failed");
+    }
+    setTesting(false);
+  };
+
   const fetchStats = async (tableName: string) => {
     try {
       const res = await fetch('/api/get-table-stats', {
@@ -51,11 +70,60 @@ export default function AirtableTables() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Cloud Databases</h2>
-        <Button onClick={fetchTables} variant="outline" disabled={loading}>
-          {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={testConnection} variant="ghost" size="sm" disabled={testing || loading} className="text-xs font-bold">
+            {testing ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-2" />}
+            Test Connection
+          </Button>
+          <Button onClick={fetchTables} variant="outline" disabled={loading}>
+            {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+            Refresh
+          </Button>
+        </div>
       </div>
+
+      {testResults && (
+        <Card className={`border-2 ${testResults.metaApi?.success && testResults.recordsApi?.success ? 'border-emerald-100 bg-emerald-50/30' : 'border-amber-100 bg-amber-50/30'}`}>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm font-bold flex items-center justify-between">
+              Airtable Connection Test Results
+              <Button variant="ghost" size="sm" onClick={() => setTestResults(null)} className="h-6 w-6 p-0">×</Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="py-2 space-y-2">
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="space-y-1">
+                <p className="font-bold text-slate-500 uppercase">Configuration</p>
+                <div className="flex items-center gap-2">
+                  <span className={testResults.apiKeyConfigured ? 'text-emerald-600' : 'text-red-600'}>●</span>
+                  API Key: {testResults.apiKeyConfigured ? `Configured (${testResults.apiKeyPrefix})` : 'Missing'}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={testResults.baseIdConfigured ? 'text-emerald-600' : 'text-red-600'}>●</span>
+                  Base ID: {testResults.baseIdConfigured ? 'Configured' : 'Missing'}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="font-bold text-slate-500 uppercase">API Status</p>
+                <div className="flex items-center gap-2">
+                  <span className={testResults.metaApi?.success ? 'text-emerald-600' : 'text-red-600'}>●</span>
+                  Meta API: {testResults.metaApi?.success ? `Success (${testResults.metaApi.tableCount} tables)` : `Failed (${testResults.metaApi?.error || 'Unknown'})`}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={testResults.recordsApi?.success ? 'text-emerald-600' : 'text-red-600'}>●</span>
+                  Records API: {testResults.recordsApi?.success ? `Success (Tested: ${testResults.recordsApi.testedTable})` : `Failed (${testResults.recordsApi?.error || 'Unknown'})`}
+                </div>
+              </div>
+            </div>
+            {!testResults.recordsApi?.success && testResults.recordsApi?.error === 'NOT_AUTHORIZED' && (
+              <div className="mt-2 p-2 bg-amber-100 border border-amber-200 rounded text-[10px] text-amber-900 font-medium">
+                <strong>Fix:</strong> Your API Key (PAT) is valid but doesn't have the <strong>data.records:read</strong> scope for this base. 
+                Go to <a href="https://airtable.com/create/tokens" target="_blank" className="underline">Airtable Tokens</a> and add the required scopes.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm flex flex-col gap-2">

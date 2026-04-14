@@ -947,9 +947,9 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                 {/* Question Text */}
                 <div className="mb-4 flex-1 cursor-pointer" onClick={() => toggleExpand(q.id)}>
                   <p className={`text-sm text-text-body leading-relaxed font-medium ${isExpanded ? '' : 'line-clamp-3'}`}>
-                    {q.text}
+                    {q.text || q.question_hin || q.question_eng || q.Question || q.Name || q.question || 'No text'}
                   </p>
-                  {!isExpanded && (q.text || '').length > 100 && (
+                  {!isExpanded && (q.text || q.question_hin || q.question_eng || '').length > 100 && (
                     <button className="text-[10px] font-bold text-primary mt-1 hover:underline">Read More</button>
                   )}
                 </div>

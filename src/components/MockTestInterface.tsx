@@ -40,13 +40,19 @@ export default function MockTestInterface({ questions, onClose }: Props) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getQuestionText = (q: Question) => {
-    if (language === 'hin') return (q as any).question_hin || q.text || (q as any).question_eng;
-    return q.text || (q as any).question_eng || (q as any).question_hin;
+  const getQuestionText = (q: Question | any) => {
+    const qHin = q.question_hin || q.question_eng || q.text || q.Question || q.question || q.Name || q['Question Text'] || q.question_text;
+    const qEng = q.question_eng || q.Question_Eng || q.question_en || q.Question_En || q.QuestionText;
+    if (language === 'hin') return qHin || qEng || 'No text';
+    return qEng || qHin || 'No text';
   };
-  const getOptionText = (q: Question, idx: number) => {
-    if (language === 'hin') return (q as any)[`option${idx + 1}_hin`] || q.options?.[idx] || (q as any)[`option${idx + 1}_eng`];
-    return (q as any)[`option${idx + 1}_eng`] || q.options?.[idx] || (q as any)[`option${idx + 1}_hin`];
+  const getOptionText = (q: Question | any, idx: number) => {
+    const i = idx + 1;
+    const optHin = q[`option${i}_hin`] || q[`Option_${i}`] || q[`option${i}`] || q[`Option ${i}`] || q[`Option_${i}_Hin`] || q[`Option ${i} Hindi`];
+    const optEng = q[`option${i}_eng`] || q[`Option_${i}_Eng`] || q[`Option ${i} English`] || q[`Option_${i}_En`];
+    
+    if (language === 'hin') return optHin || optEng || (q.options?.[idx]);
+    return optEng || optHin || (q.options?.[idx]);
   };
 
   const handleAnswer = (option: string, status: QuestionStatus = 'answered') => {
@@ -132,16 +138,19 @@ export default function MockTestInterface({ questions, onClose }: Props) {
     if (viewingSolutions) {
       const q = questions[currentIndex];
       const ans = answers[currentIndex];
-      const correctAns = (q.correctOption || q.answer || '').toString().trim();
+      const correctAns = (q.correctOption || q.answer || q.Answer || q['Correct Option'] || '').toString().trim();
       const options = getAllOptions(q);
       const correctOptionText = options[parseInt(correctAns) - 1] || correctAns;
       
       // Improved solution logic to check multiple possible fields
       const getExplanation = () => {
+        const solHin = (q as any).solution_hin || (q as any).explanation_hin || (q as any).solution || (q as any).Solution || (q as any).explanation;
+        const solEng = (q as any).solution_eng || (q as any).explanation_eng || (q as any).Solution_Eng || (q as any).Solution_En;
+        
         if (language === 'hin') {
-          return (q as any).solution_hin || (q as any).explanation_hin || (q as any).solution_eng || (q as any).explanation_eng || (q as any).explanation;
+          return solHin || solEng;
         }
-        return (q as any).solution_eng || (q as any).explanation_eng || (q as any).solution_hin || (q as any).explanation_hin || (q as any).explanation;
+        return solEng || solHin;
       };
       
       const solution = getExplanation();

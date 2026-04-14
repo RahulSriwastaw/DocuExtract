@@ -155,26 +155,26 @@ export default function QuestionBank() {
     }
   };
 
-  const getFieldCompletionStatus = (q: Question) => {
+  const getFieldCompletionStatus = (q: Question | any) => {
     const fields = [
-      { name: 'Question', filled: !!(q.question_hin || q.question_eng || q.text) },
-      { name: 'Subject', filled: !!q.subject },
-      { name: 'Sub Subject', filled: !!q.sub_subject },
-      { name: 'Chapter', filled: !!q.chapter },
-      { name: 'Sub Chapter', filled: !!q.sub_chapter },
-      { name: 'Topic', filled: !!q.topic },
-      { name: 'Sub Topic', filled: !!q.sub_topic },
-      { name: 'Keywords', filled: !!q.keywords },
-      { name: 'Option 1', filled: !!(q.option1_hin || q.option1_eng) },
-      { name: 'Option 2', filled: !!(q.option2_hin || q.option2_eng) },
-      { name: 'Option 3', filled: !!(q.option3_hin || q.option3_eng) },
-      { name: 'Option 4', filled: !!(q.option4_hin || q.option4_eng) },
-      { name: 'Answer', filled: !!q.answer },
-      { name: 'Solution', filled: !!(q.solution_hin || q.solution_eng) },
-      { name: 'Type', filled: !!q.type },
-      { name: 'Difficulty', filled: !!q.difficulty },
-      { name: 'Exam', filled: !!q.exam },
-      { name: 'Year', filled: !!q.year },
+      { name: 'Question', filled: !!(q.question_hin || q.question_eng || q.text || q.Question || q.question || q.Name) },
+      { name: 'Subject', filled: !!(q.subject || q.Subject) },
+      { name: 'Sub Subject', filled: !!(q.sub_subject || q.Sub_Subject || q['Sub Subject']) },
+      { name: 'Chapter', filled: !!(q.chapter || q.Chapter) },
+      { name: 'Sub Chapter', filled: !!(q.sub_chapter || q.Sub_Chapter || q['Sub Chapter']) },
+      { name: 'Topic', filled: !!(q.topic || q.Topic) },
+      { name: 'Sub Topic', filled: !!(q.sub_topic || q.Sub_Topic || q['Sub Topic']) },
+      { name: 'Keywords', filled: !!(q.keywords || q.Keywords) },
+      { name: 'Option 1', filled: !!(q.option1_hin || q.option1_eng || q.Option_1 || q.option1 || q['Option 1']) },
+      { name: 'Option 2', filled: !!(q.option2_hin || q.option2_eng || q.Option_2 || q.option2 || q['Option 2']) },
+      { name: 'Option 3', filled: !!(q.option3_hin || q.option3_eng || q.Option_3 || q.option3 || q['Option 3']) },
+      { name: 'Option 4', filled: !!(q.option4_hin || q.option4_eng || q.Option_4 || q.option4 || q['Option 4']) },
+      { name: 'Answer', filled: !!(q.answer || q.Answer || q.correctOption || q['Correct Option']) },
+      { name: 'Solution', filled: !!(q.solution_hin || q.solution_eng || q.Solution || q.solution) },
+      { name: 'Type', filled: !!(q.type || q.Type) },
+      { name: 'Difficulty', filled: !!(q.difficulty || q.Difficulty) },
+      { name: 'Exam', filled: !!(q.exam || q.Exam) },
+      { name: 'Year', filled: !!(q.year || q.Year) },
     ];
     return fields;
   };
@@ -585,20 +585,20 @@ export default function QuestionBank() {
     
     const mapped: Question = {
       id: q.id,
-      text: q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || '',
+      text: q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || q['Question Text'] || q.question_text || '',
       options: [
-        q.option1_hin || q.option1_eng || q.options?.[0] || '',
-        q.option2_hin || q.option2_eng || q.options?.[1] || '',
-        q.option3_hin || q.option3_eng || q.options?.[2] || '',
-        q.option4_hin || q.option4_eng || q.options?.[3] || '',
-        q.option5_hin || q.option5_eng || q.options?.[4] || ''
+        q.option1_hin || q.option1_eng || q.options?.[0] || q.Option_1 || q.Option1 || q['Option 1'] || '',
+        q.option2_hin || q.option2_eng || q.options?.[1] || q.Option_2 || q.Option2 || q['Option 2'] || '',
+        q.option3_hin || q.option3_eng || q.options?.[2] || q.Option_3 || q.Option3 || q['Option 3'] || '',
+        q.option4_hin || q.option4_eng || q.options?.[3] || q.Option_4 || q.Option4 || q['Option 4'] || '',
+        q.option5_hin || q.option5_eng || q.options?.[4] || q.Option_5 || q.Option5 || q['Option 5'] || ''
       ].filter(Boolean),
-      correctOption: q.answer || q.correctOption || '',
+      correctOption: q.answer || q.correctOption || q.Answer || q['Correct Option'] || '',
       status: q.current_status || q.status || 'Draft',
-      subject: q.subject || '',
-      difficulty: q.difficulty || 'Medium',
-      type: q.type || 'MCQ Single',
-      page_no: q.page_no,
+      subject: q.subject || q.Subject || '',
+      difficulty: q.difficulty || q.Difficulty || 'Medium',
+      type: q.type || q.Type || 'MCQ Single',
+      page_no: q.page_no || q.Page_No || q.Page || '',
       ...q
     };
     
@@ -1476,41 +1476,41 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                         </div>
 
                         <div className="flex flex-wrap gap-1 mb-2">
-                          {q.subject && (
+                          {(q.subject || q.Subject) && (
                             <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                              {q.subject}
+                              {q.subject || q.Subject}
                             </span>
                           )}
-                          {q.chapter && (
+                          {(q.chapter || q.Chapter) && (
                             <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                              {q.chapter}
+                              {q.chapter || q.Chapter}
                             </span>
                           )}
-                          {q.topic && (
+                          {(q.topic || q.Topic) && (
                             <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                              {q.topic}
+                              {q.topic || q.Topic}
                             </span>
                           )}
-                          {q.difficulty && (
+                          {(q.difficulty || q.Difficulty) && (
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
-                              q.difficulty === 'Easy' ? 'bg-green-50 text-green-600' :
-                              q.difficulty === 'Medium' ? 'bg-yellow-50 text-yellow-600' :
+                              (q.difficulty || q.Difficulty) === 'Easy' ? 'bg-green-50 text-green-600' :
+                              (q.difficulty || q.Difficulty) === 'Medium' ? 'bg-yellow-50 text-yellow-600' :
                               'bg-red-50 text-red-600'
                             }`}>
-                              {q.difficulty}
+                              {q.difficulty || q.Difficulty}
                             </span>
                           )}
                           <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                            {q.type || 'MCQ'}
+                            {q.type || q.Type || 'MCQ'}
                           </span>
-                          {q.page_no && (
+                          {(q.page_no || q.Page_No || q.Page) && (
                             <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase">
-                              P. {q.page_no}
+                              P. {q.page_no || q.Page_No || q.Page}
                             </span>
                           )}
-                          {q.keywords && (
+                          {(q.keywords || q.Keywords) && (
                             <span className="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded text-[8px] font-bold uppercase border border-purple-100">
-                              {q.keywords}
+                              {q.keywords || q.Keywords}
                             </span>
                           )}
                           {Array.isArray(q.tags) ? q.tags.map((tag: string, i: number) => (
@@ -1536,7 +1536,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                             </div>
                           )}
                           <p className={`text-[11px] text-slate-700 leading-relaxed font-medium ${isExpanded ? '' : 'line-clamp-2'}`}>
-                            {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || 'No text'}
+                            {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || q['Question Text'] || q.question_text || 'No text'}
                           </p>
                           {!isExpanded && (q.question_hin || q.question_eng || q.text || '').length > 80 && (
                             <button className="text-[9px] font-bold text-blue-600 mt-1 hover:underline">Read More</button>
@@ -1556,12 +1556,13 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Options:</span>
                                 <div className="space-y-1">
                                   {[1, 2, 3, 4, 5].map(i => {
-                                    const optHin = q[`option${i}_hin`];
-                                    const optEng = q[`option${i}_eng`];
-                                    const opt = optHin || optEng;
+                                    const optHin = q[`option${i}_hin`] || q[`Option_${i}`] || q[`option${i}`] || q[`Option ${i}`];
+                                    const optEng = q[`option${i}_eng`] || q[`Option_${i}_Eng`] || q[`Option ${i} English`];
+                                    const opt = optHin || optEng || (q.options && q.options[i-1]);
                                     if (!opt) return null;
                                     
-                                    const isCorrect = q.answer === String.fromCharCode(64 + i) || q.answer === i.toString();
+                                    const answer = q.answer || q.Answer || q.correctOption || q['Correct Option'];
+                                    const isCorrect = answer === String.fromCharCode(64 + i) || answer === i.toString();
                                     
                                     return (
                                       <div key={i} className={`text-[10px] flex items-start gap-1.5 p-1.5 rounded-lg border ${isCorrect ? 'bg-emerald-50 border-emerald-100 text-emerald-700 font-bold' : 'bg-slate-50/50 border-slate-50 text-slate-600'}`}>
@@ -1576,14 +1577,14 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                               </div>
 
                               {/* Solution */}
-                              {(q.solution_hin || q.solution_eng) && (
+                              {(q.solution_hin || q.solution_eng || q.solution || q.Solution) && (
                                 <div className="mb-3 p-2 bg-blue-50/50 rounded-lg border border-blue-100">
                                   <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider block mb-1 flex items-center gap-1">
                                     <Eye className="w-2.5 h-2.5" />
                                     Solution
                                   </span>
                                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                                    {q.solution_hin || q.solution_eng}
+                                    {q.solution_hin || q.solution_eng || q.solution || q.Solution}
                                   </p>
                                 </div>
                               )}
@@ -1698,7 +1699,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                             </div>
                           )}
                           <p className={`text-sm text-slate-800 font-medium ${isExpanded ? '' : 'truncate'}`}>
-                            {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || 'No question text found'}
+                            {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || q['Question Text'] || q.question_text || 'No question text found'}
                           </p>
                         </div>
                         
@@ -2562,7 +2563,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                                   {failedQuestions.map(q => (
                                     <div key={q.id} className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-red-900/20 shadow-sm">
                                       <span className="text-[10px] font-medium text-slate-300 truncate flex-1 mr-2">
-                                        {q.question_hin || q.question_eng || q.text || 'No text'}
+                                        {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || q['Question Text'] || q.question_text || 'No text'}
                                       </span>
                                       <Button 
                                         size="sm" 
@@ -2640,14 +2641,14 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       Root (Airtable Tables)
                     </button>
                     <div className="h-px bg-slate-100 my-1 mx-2"></div>
-                    {allFolders.map(folder => (
+                    {tables.map(folder => (
                       <button 
-                        key={folder.fullPath}
-                        onClick={() => setTargetFolderForMove(folder.fullPath)}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-3 ${targetFolderForMove === folder.fullPath ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'hover:bg-white hover:shadow-sm text-slate-700'}`}
+                        key={folder.id || folder.fullPath}
+                        onClick={() => setTargetFolderForMove(folder.fullPath || folder.name)}
+                        className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-3 ${targetFolderForMove === (folder.fullPath || folder.name) ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'hover:bg-white hover:shadow-sm text-slate-700'}`}
                       >
-                        <Folder className={`w-4 h-4 ${targetFolderForMove === folder.fullPath ? 'text-white' : 'text-slate-400'}`} />
-                        <span className="truncate">{folder.fullPath}</span>
+                        <Folder className={`w-4 h-4 ${targetFolderForMove === (folder.fullPath || folder.name) ? 'text-white' : 'text-slate-400'}`} />
+                        <span className="truncate">{folder.fullPath || folder.name}</span>
                       </button>
                     ))}
                   </div>
@@ -3294,7 +3295,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                                   {failedQuestions.map(q => (
                                     <div key={q.id} className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-red-900/20 shadow-sm">
                                       <span className="text-[10px] font-medium text-slate-300 truncate flex-1 mr-2">
-                                        {q.question_hin || q.question_eng || q.text || 'No text'}
+                                        {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || q['Question Text'] || q.question_text || 'No text'}
                                       </span>
                                       <Button 
                                         size="sm" 
