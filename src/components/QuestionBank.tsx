@@ -1,10 +1,13 @@
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay, useDraggable, useDroppable, pointerWithin, rectIntersection, getFirstCollision } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import React, { useState, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Folder, Loader2, Database, Search, ArrowLeft, FileText, RefreshCw, Clock, ExternalLink, BookOpen, Layout, LayoutGrid, List, Edit, Trash2, Tag, Copy, Plus, Check, ChevronDown, ChevronUp, Eye, X, AlertCircle, ChevronRight, FolderPlus, Move, Sparkles, MoreVertical } from 'lucide-react';
+import { Folder, Loader2, Database, Search, ArrowLeft, FileText, RefreshCw, Clock, ExternalLink, BookOpen, Layout, LayoutGrid, List, Edit, Trash2, Tag, Copy, Plus, Check, ChevronDown, ChevronUp, Eye, X, AlertCircle, ChevronRight, FolderPlus, Move, Sparkles, MoreVertical, ChevronLeft } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +16,313 @@ import QuestionEditPage from './QuestionEditPage';
 import { Question } from '../types';
 import { AnimatePresence, motion } from 'motion/react';
 import { generateAIContent, AIProvider, AI_MODELS } from '../services/aiService';
+
+
+const DraggableQuestionCard = ({ q, idx, isExpanded, selectedIds, toggleSelection, toggleExpand, getFieldCompletionStatus, setEditingQuestion, setEditingIndex, setIsEditPageOpen, handleDeleteQuestion }: { key?: any, q: Question, idx: number, isExpanded: boolean, selectedIds: Set<string>, toggleSelection: any, toggleExpand: any, getFieldCompletionStatus: any, setEditingQuestion: any, setEditingIndex: any, setIsEditPageOpen: any, handleDeleteQuestion: any }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: q.id,
+    data: {
+      type: 'question',
+      question: q
+    }
+  });
+
+  const style = transform ? {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 1,
+  } : undefined;
+
+  return (
+    <motion.div 
+      ref={setNodeRef}
+      style={style}
+      layout
+      {...attributes}
+      {...listeners}
+      className={`bg-white border rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex flex-col relative group ${selectedIds.has(q.id) ? 'border-blue-400 ring-1 ring-blue-400/20' : 'border-slate-200'} ${isExpanded ? 'ring-2 ring-blue-400/20' : ''}`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <div className="relative" onPointerDown={(e) => e.stopPropagation()}>
+            <input 
+              type="checkbox" 
+              checked={selectedIds.has(q.id)}
+              onChange={() => toggleSelection(q.id)}
+              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+          {/* Drag Handle (Visual only now) */}
+          <div className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-100 rounded text-slate-400">
+            <Layout className="w-3.5 h-3.5" />
+          </div>
+          <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[9px]">
+            {idx + 1}
+          </div>
+          <div className={`w-1.5 h-1.5 rounded-full ${q.current_status === 'Published' || q.status === 'Published' || q.current_status === 'Saved' ? 'bg-green-500' : q.current_status === 'Editing' ? 'bg-yellow-500' : 'bg-slate-300'}`}></div>
+          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+            {q.current_status || q.status || 'Draft'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[8px] font-mono text-slate-300">#{q.question_unique_id || q.id?.slice(0, 6)}</span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 w-6 p-0 rounded-full hover:bg-slate-100 text-blue-600"
+            onClick={() => toggleExpand(q.id)}
+          >
+            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* Field Completion Indicator */}
+      <div className="mb-2 flex items-center gap-1 overflow-x-auto pb-1 custom-scrollbar no-scrollbar">
+        {getFieldCompletionStatus(q).map((field: any, i: number) => (
+          <div 
+            key={i} 
+            title={`${field.name}: ${field.filled ? 'Filled' : 'Empty'}`}
+            className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${field.filled ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]' : 'bg-slate-200'}`}
+          />
+        ))}
+        <span className="text-[7px] font-bold text-slate-400 ml-1 whitespace-nowrap">
+          {getFieldCompletionStatus(q).filter((f: any) => f.filled).length}/{getFieldCompletionStatus(q).length}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-1 mb-2">
+        {(q.subject || q.Subject) && (
+          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+            {q.subject || q.Subject}
+          </span>
+        )}
+        {(q.chapter || q.Chapter) && (
+          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+            {q.chapter || q.Chapter}
+          </span>
+        )}
+        {(q.topic || q.Topic) && (
+          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+            {q.topic || q.Topic}
+          </span>
+        )}
+        {(q.difficulty || q.Difficulty) && (
+          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+            (q.difficulty || q.Difficulty) === 'Easy' ? 'bg-green-50 text-green-600' :
+            (q.difficulty || q.Difficulty) === 'Medium' ? 'bg-yellow-50 text-yellow-600' :
+            'bg-red-50 text-red-600'
+          }`}>
+            {q.difficulty || q.Difficulty}
+          </span>
+        )}
+        <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+          {q.type || q.Type || 'MCQ'}
+        </span>
+        {(q.page_no || q.Page_No || q.Page) && (
+          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase">
+            P. {q.page_no || q.Page_No || q.Page}
+          </span>
+        )}
+      </div>
+
+      <div className="flex-1 min-h-0">
+        <p className={`text-[11px] font-bold text-slate-800 leading-relaxed ${isExpanded ? '' : 'line-clamp-3'}`}>
+          {q.question_hin || q.text || q.Question || q.Name || q.question}
+        </p>
+        {isExpanded && (
+          <div className="mt-3 space-y-3 pt-3 border-t border-slate-100">
+            {q.question_eng && (
+              <div>
+                <span className="text-[8px] font-bold text-slate-400 uppercase mb-1 block">English</span>
+                <p className="text-[11px] text-slate-600 leading-relaxed">{q.question_eng}</p>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-1.5">
+              {[1, 2, 3, 4, 5].map(i => {
+                const optHin = q[`option${i}_hin` as keyof Question] || q.options?.[i-1];
+                const optEng = q[`option${i}_eng` as keyof Question];
+                if (!optHin && !optEng) return null;
+                const isCorrect = q.answer === String.fromCharCode(64 + i) || q.answer === String(i) || q.correctOption === String(i);
+                return (
+                  <div key={i} className={`p-2 rounded-lg border text-[10px] ${isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                    <span className="font-bold mr-2">{String.fromCharCode(64 + i)}.</span>
+                    {optHin} {optEng && <span className="text-slate-400 ml-1">({optEng})</span>}
+                  </div>
+                );
+              })}
+            </div>
+            {(q.solution_hin || q.solution_eng) && (
+              <div className="bg-blue-50/50 p-2 rounded-lg border border-blue-100">
+                <span className="text-[8px] font-bold text-blue-400 uppercase mb-1 block">Solution</span>
+                <p className="text-[10px] text-blue-800 leading-relaxed">
+                  {q.solution_hin}
+                  {q.solution_eng && <span className="block mt-1 text-blue-600 italic">{q.solution_eng}</span>}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-7 w-7 p-0 rounded-lg hover:bg-blue-50 text-blue-600"
+            onClick={() => { setEditingQuestion(q); setEditingIndex(idx); setIsEditPageOpen(true); }}
+          >
+            <Edit className="w-3.5 h-3.5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-7 w-7 p-0 rounded-lg hover:bg-red-50 text-red-600"
+            onClick={() => handleDeleteQuestion(q.id)}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-1">
+          {q.error_report && (
+            <div className="h-5 w-5 rounded bg-red-100 text-red-600 flex items-center justify-center" title={q.error_report}>
+              <AlertCircle className="w-3 h-3" />
+            </div>
+          )}
+          {q.image && (
+            <div className="h-5 w-5 rounded bg-blue-100 text-blue-600 flex items-center justify-center">
+              <Layout className="w-3 h-3" />
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const DroppableSidebarFolder = ({ folder, openFolder, currentPath }: { key?: any, folder: any, openFolder: any, currentPath: string[] }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `sidebar-${folder.fullPath}`,
+    data: {
+      type: 'folder',
+      folder
+    }
+  });
+
+  const isActive = currentPath.join('/') === folder.fullPath;
+
+  return (
+    <div 
+      ref={setNodeRef}
+      onClick={() => openFolder(folder.fullPath)}
+      className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all ${isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'} ${isOver ? 'bg-blue-100 ring-2 ring-blue-500' : ''}`}
+    >
+      <Folder className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-500 fill-blue-200' : 'text-slate-400'}`} />
+      <span className={`text-xs truncate ${isActive ? 'font-bold' : 'font-medium'}`}>{folder.name}</span>
+      {isOver && <div className="ml-auto w-2 h-2 rounded-full bg-blue-500 animate-pulse" />}
+    </div>
+  );
+};
+
+const SortableFolderCard = ({ folder, openFolder, renamingFolder, setRenamingFolder, setNewFolderName, newFolderName, handleRenameFolder, setTargetFolderForMove, setIsCopying, setIsMoveModalOpen, setSelectedIds, handlePushToAirtable, setFolderToConfigureSync, setIsSyncLocationModalOpen, setDeleteConfirmFolder }: { key?: any, folder: any, openFolder: any, renamingFolder: any, setRenamingFolder: any, setNewFolderName: any, newFolderName: any, handleRenameFolder: any, setTargetFolderForMove: any, setIsCopying: any, setIsMoveModalOpen: any, setSelectedIds: any, handlePushToAirtable: any, setFolderToConfigureSync: any, setIsSyncLocationModalOpen: any, setDeleteConfirmFolder: any }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({ 
+    id: folder.id,
+    data: {
+      type: 'folder',
+      folder
+    }
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <Card 
+        className={`group cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 border-slate-200 rounded-2xl overflow-hidden bg-white ${isOver ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/30' : ''}`}
+        onClick={() => openFolder(folder.fullPath)}
+      >
+        <CardContent className="p-5 flex flex-col items-center text-center relative">
+          {/* Folder Actions Overlay */}
+          {renamingFolder !== folder.fullPath && (
+            <div className="absolute top-3 right-3 transition-opacity" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <div className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-full cursor-pointer hover:bg-slate-100">
+                    <MoreVertical className="w-4 h-4" />
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => { setRenamingFolder(folder.fullPath); setNewFolderName(folder.name); }}>
+                    <Edit className="w-4 h-4 mr-2" /> Rename
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setTargetFolderForMove(null); setIsCopying(false); setIsMoveModalOpen(true); setSelectedIds(new Set([folder.id])); }}>
+                    <Move className="w-4 h-4 mr-2" /> Move
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setTargetFolderForMove(null); setIsCopying(true); setIsMoveModalOpen(true); setSelectedIds(new Set([folder.id])); }}>
+                    <Copy className="w-4 h-4 mr-2" /> Copy
+                  </DropdownMenuItem>
+                  {folder.isTable && (
+                    <>
+                      <DropdownMenuItem onClick={(e) => handlePushToAirtable(folder.name, e)}>
+                        <Database className="w-4 h-4 mr-2" /> Push to Airtable
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setFolderToConfigureSync(folder.fullPath); setIsSyncLocationModalOpen(true); }}>
+                        <Layout className="w-4 h-4 mr-2" /> Set Sync Location
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuItem onClick={() => setDeleteConfirmFolder(folder.fullPath)} className="text-red-600 hover:text-red-700">
+                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform mb-4 ${folder.isTable ? 'bg-blue-50' : 'bg-amber-50'}`}>
+            {folder.isTable ? (
+              <Folder className="w-8 h-8 text-blue-500 fill-blue-100" />
+            ) : (
+              <FileText className="w-8 h-8 text-amber-500" />
+            )}
+          </div>
+          <div className="w-full">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              {folder.isTable ? 'Folder' : 'Question File'}
+            </p>
+            {renamingFolder === folder.fullPath ? (
+              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                <Input 
+                  value={newFolderName}
+                  onChange={e => setNewFolderName(e.target.value)}
+                  className="h-8 text-xs font-bold"
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleRenameFolder(folder.fullPath);
+                    if (e.key === 'Escape') setRenamingFolder(null);
+                  }}
+                />
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => handleRenameFolder(folder.fullPath)}>
+                  <Check className="w-4 h-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => setRenamingFolder(null)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <h3 className="text-sm font-bold text-slate-900 truncate" title={folder.name}>{folder.name}</h3>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 export default function QuestionBank() {
   const [tables, setTables] = useState<any[]>([]);
@@ -85,6 +395,8 @@ export default function QuestionBank() {
   const [filterType, setFilterType] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterExam, setFilterExam] = useState<string>('');
+  const [filterErrors, setFilterErrors] = useState<boolean>(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Question Set States
   const [isSetModalOpen, setIsSetModalOpen] = useState(false);
@@ -144,6 +456,142 @@ export default function QuestionBank() {
     alert('Questions added to set successfully!');
   };
 
+
+  const [activeId, setActiveId] = useState(null);
+
+  const [isDragCopying, setIsDragCopying] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) {
+        setIsDragCopying(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.altKey && !e.ctrlKey && !e.metaKey) {
+        setIsDragCopying(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    // Also check on window focus/blur
+    const handleBlur = () => setIsDragCopying(false);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: any) => {
+    console.log('Drag Start:', event.active.id, event.active.data.current);
+    setActiveId(event.active.id);
+  };
+
+  const handleDragEnd = async (event: any) => {
+    const { active, over } = event;
+    console.log('Drag End:', { activeId: active.id, overId: over?.id, overData: over?.data?.current });
+    
+    if (!over) {
+      setActiveId(null);
+      return;
+    }
+
+    // Case 1: Moving/Copying a question to a folder
+    if (active.data.current?.type === 'question' && over.data.current?.type === 'folder') {
+      const questionId = active.id;
+      const targetFolder = over.data.current.folder.fullPath;
+      
+      console.log('Processing question move/copy to:', targetFolder);
+      
+      // Check for modifier keys to determine if it's a copy operation
+      const isCopy = isDragCopying;
+      
+      // If the dragged question is part of a selection, move/copy all selected questions
+      const idsToProcess = selectedIds.has(questionId) ? Array.from(selectedIds) : [questionId];
+      
+      try {
+        const endpoint = isCopy ? '/api/copy-questions' : '/api/move-questions';
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            ids: idsToProcess, 
+            targetFolder: targetFolder,
+            targetTable: targetFolder.split('/')[0]
+          })
+        });
+        if (res.ok) {
+          alert(`Successfully ${isCopy ? 'copied' : 'moved'} ${idsToProcess.length} question(s) to ${targetFolder || 'Root'}`);
+          if (selectedFolder) openFolder(selectedFolder);
+          fetchTables();
+          if (!isCopy) setSelectedIds(new Set());
+        } else {
+          const data = await safeJson(res);
+          alert(data.error || `Failed to ${isCopy ? 'copy' : 'move'} question`);
+        }
+      } catch (e) {
+        console.error(e);
+        alert(`An error occurred during ${isCopy ? 'copy' : 'move'}.`);
+      }
+    }
+    
+    // Case 2: Moving/Copying a folder into another folder
+    if (active.data.current?.type === 'folder' && over.data.current?.type === 'folder' && active.id !== over.id) {
+      const sourceFolder = active.data.current.folder.fullPath;
+      const targetFolder = over.data.current.folder.fullPath;
+      
+      // Prevent moving a folder into itself or its own subfolders
+      if (targetFolder.startsWith(sourceFolder)) {
+        alert("Cannot move/copy a folder into itself or its subfolders.");
+        setActiveId(null);
+        return;
+      }
+
+      const isCopy = isDragCopying;
+      console.log(`Processing folder ${isCopy ? 'copy' : 'move'}: ${sourceFolder} to ${targetFolder}`);
+      
+      try {
+        const endpoint = isCopy ? '/api/copy-folder' : '/api/move-folder';
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceFolder, targetFolder })
+        });
+        
+        if (res.ok) {
+          alert(`Successfully ${isCopy ? 'copied' : 'moved'} folder to ${targetFolder || 'Root'}`);
+          fetchTables();
+          if (!isCopy && (selectedFolder === sourceFolder || selectedFolder?.startsWith(sourceFolder + '/'))) {
+            openFolder(targetFolder); // Navigate away from the moved folder
+          }
+        } else {
+          const data = await safeJson(res);
+          alert(data.error || `Failed to ${isCopy ? 'copy' : 'move'} folder`);
+        }
+      } catch (e) {
+        console.error(e);
+        alert(`An error occurred while ${isCopy ? 'copying' : 'moving'} the folder.`);
+      }
+    }
+
+    setActiveId(null);
+  };
+
   const handleRetryFailed = async () => {
     if (failedQuestions.length === 0) return;
     const failedIds = new Set(failedQuestions.map(q => q.id));
@@ -183,7 +631,7 @@ export default function QuestionBank() {
     setIsSyncingAll(true);
     try {
       const res = await fetch('/api/sync-all-airtable', { method: 'POST' });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (res.ok) {
         setSyncResults(data.results);
         fetchTables();
@@ -207,7 +655,7 @@ export default function QuestionBank() {
     setIsSyncingAll(true);
     try {
       const res = await fetch('/api/sync-all-to-airtable', { method: 'POST' });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (res.ok) {
         setSyncResults(data.results);
         fetchTables();
@@ -326,7 +774,7 @@ export default function QuestionBank() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tableName })
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       
       if (res.ok && data.records && data.records.length > 0) {
         // 2. Push to Airtable
@@ -339,7 +787,7 @@ export default function QuestionBank() {
         if (pushRes.ok) {
           alert(`Successfully pushed ${data.records.length} questions to Airtable for "${tableName}"`);
         } else {
-          const pushData = await pushRes.json();
+          const pushData = await safeJson(pushRes);
           alert(pushData.error || "Failed to push to Airtable");
         }
       } else {
@@ -399,7 +847,13 @@ export default function QuestionBank() {
         const detailMsg = data.details ? `\n\nDetails: ${data.details}` : "";
         alert(`Failed to load questions: ${data.error}${detailMsg}`);
       }
-      setQuestions(data.records || []);
+      
+      // Ensure each question has a consistent ID for dnd-kit
+      const records = (data.records || []).map((q: any) => ({
+        ...q,
+        id: q.question_unique_id || q.id
+      }));
+      setQuestions(records);
     } catch (e) {
       console.error(e);
       alert("An error occurred while loading questions.");
@@ -416,7 +870,7 @@ export default function QuestionBank() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await safeJson(response);
         throw new Error(errorData.error || 'Failed to update questions');
       }
       
@@ -503,12 +957,13 @@ export default function QuestionBank() {
       });
       if (res.ok) {
         alert(`Successfully ${isCopy ? 'copied' : 'moved'} ${selectedIds.size} questions.`);
+        setIsMoveModalOpen(false);
         setIsMoveToFolderModalOpen(false);
         setSelectedIds(new Set());
         if (selectedFolder) openFolder(selectedFolder);
         fetchTables();
       } else {
-        const data = await res.json();
+        const data = await safeJson(res);
         alert(data.error || "Failed to complete operation");
       }
     } catch (e) {
@@ -543,7 +998,7 @@ export default function QuestionBank() {
         }
         setDeleteConfirmQuestion(null);
       } else {
-        const data = await res.json();
+        const data = await safeJson(res);
         alert(data.error || "Failed to delete question");
       }
     } catch (e) {
@@ -570,7 +1025,7 @@ export default function QuestionBank() {
         setDeleteConfirmBulk(false);
         alert('Questions deleted successfully');
       } else {
-        const data = await res.json();
+        const data = await safeJson(res);
         alert(data.error || "Failed to delete questions");
       }
     } catch (e) {
@@ -696,7 +1151,7 @@ export default function QuestionBank() {
         setNewFolderName('');
         fetchTables(); // Refresh to ensure everything is in sync
       } else {
-        const data = await res.json();
+        const data = await safeJson(res);
         alert(data.error || "Failed to rename folder");
       }
     } catch (e) {
@@ -720,7 +1175,7 @@ export default function QuestionBank() {
         setIsDeletingFolder(null);
         fetchTables(); // Refresh
       } else {
-        const data = await res.json();
+        const data = await safeJson(res);
         setErrorMessage(data.error || "Failed to delete folder");
       }
     } catch (e) {
@@ -893,7 +1348,7 @@ Return the updated questions as a JSON array of objects. Ensure each object has 
         });
         
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
+          const errorData = await safeJson(response);
           throw new Error(errorData.error || 'Database update failed');
         }
         
@@ -1034,7 +1489,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
         });
         
         if (!saveRes.ok) {
-          const errorData = await saveRes.json().catch(() => ({}));
+          const errorData = await safeJson(saveRes);
           throw new Error(errorData.error || 'Failed to save variations to server');
         }
         
@@ -1060,6 +1515,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
   const filteredTables = tables.filter(t => (t.name || '').toLowerCase().includes((search || '').toLowerCase()));
 
   const filteredQuestions = questions.filter(q => {
+    if (filterErrors && !(q.error_report || q.error_description)) return false;
     if (filterSubject && q.subject !== filterSubject) return false;
     if (filterDifficulty && q.difficulty !== filterDifficulty) return false;
     if (filterType && q.type !== filterType) return false;
@@ -1096,10 +1552,55 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {selectedFolder ? (
-        <div className="p-2 sm:p-4 max-w-7xl mx-auto flex flex-col h-full bg-white w-full overflow-hidden">
-          {/* Bulk Action Bar */}
+    <DndContext 
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="h-full flex flex-col overflow-hidden">
+        {selectedFolder ? (
+          <div className="flex-1 flex overflow-hidden">
+            {/* Sidebar */}
+            {isSidebarOpen && (
+              <div className="w-64 border-r bg-slate-50/50 flex flex-col shrink-0 overflow-hidden hidden md:flex">
+                <div className="p-4 border-b bg-white flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Folders</h3>
+                  <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)} className="h-6 w-6">
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                  <DroppableSidebarFolder 
+                    folder={{ name: 'Root', fullPath: '' }} 
+                    openFolder={openFolder} 
+                    currentPath={currentPath} 
+                  />
+                  {tables.map(folder => (
+                    <DroppableSidebarFolder 
+                      key={folder.id || folder.fullPath}
+                      folder={folder}
+                      openFolder={openFolder}
+                      currentPath={currentPath}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
+              {!isSidebarOpen && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setIsSidebarOpen(true)} 
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-50 h-8 w-8 bg-white shadow-md border rounded-r-xl hidden md:flex"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              )}
+              <div className="p-2 sm:p-4 max-w-7xl mx-auto flex flex-col h-full w-full overflow-hidden">
+                {/* Bulk Action Bar */}
           <AnimatePresence>
             {selectedIds.size > 0 && (
               <motion.div 
@@ -1314,6 +1815,17 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 value={questionSearch}
                 onChange={e => setQuestionSearch(e.target.value)}
               />
+              
+              <Button
+                variant={filterErrors ? "destructive" : "outline"}
+                size="sm"
+                onClick={() => setFilterErrors(!filterErrors)}
+                className={`h-8 text-[10px] font-bold rounded-lg ${filterErrors ? 'bg-red-600 hover:bg-red-700 text-white' : 'text-slate-600'}`}
+              >
+                <AlertCircle className="w-3 h-3 mr-1" />
+                {filterErrors ? 'Showing Errors' : 'Show Errors'}
+              </Button>
+
               <select
                 className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-slate-700 outline-none w-full sm:w-auto"
                 value={filterSubject}
@@ -1361,10 +1873,16 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
             </div>
 
             {/* Active Filters Display */}
-            {(filterSubject || filterDifficulty || filterType || filterStatus || filterExam) && (
+            {(filterSubject || filterDifficulty || filterType || filterStatus || filterExam || filterErrors) && (
               <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
                 <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Active Filters:</span>
                 
+                {filterErrors && (
+                  <span className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 rounded-md text-[10px] font-bold border border-red-100">
+                    Errors Only
+                    <button onClick={() => setFilterErrors(false)} className="hover:text-red-900"><X className="w-3 h-3" /></button>
+                  </span>
+                )}
                 {filterSubject && (
                   <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-[10px] font-bold border border-blue-100">
                     Subject: {filterSubject}
@@ -1405,6 +1923,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     setFilterType('');
                     setFilterStatus('');
                     setFilterExam('');
+                    setFilterErrors(false);
                   }}
                   className="h-6 text-[10px] font-bold text-slate-500 hover:text-slate-900 ml-auto"
                 >
@@ -1422,415 +1941,42 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
             <div className="flex-1 overflow-y-auto pb-8">
               {viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {filteredQuestions.slice(0, displayCount).map((q, idx) => {
-                    const isExpanded = expandedIds.includes(q.id);
-                    return (
-                      <motion.div 
-                        layout
-                        key={q.id || idx} 
-                        className={`bg-white border rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex flex-col relative group ${selectedIds.has(q.id) ? 'border-blue-400 ring-1 ring-blue-400/20' : 'border-slate-200'} ${isExpanded ? 'ring-2 ring-blue-400/20' : ''}`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-1.5">
-                            <div className="relative">
-                              <input 
-                                type="checkbox" 
-                                checked={selectedIds.has(q.id)}
-                                onChange={() => toggleSelection(q.id)}
-                                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                              />
-                            </div>
-                            <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[9px]">
-                              {idx + 1}
-                            </div>
-                            <div className={`w-1.5 h-1.5 rounded-full ${q.current_status === 'Published' || q.status === 'Published' || q.current_status === 'Saved' ? 'bg-green-500' : q.current_status === 'Editing' ? 'bg-yellow-500' : 'bg-slate-300'}`}></div>
-                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
-                              {q.current_status || q.status || 'Draft'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[8px] font-mono text-slate-300">#{q.question_unique_id || q.id?.slice(0, 6)}</span>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-6 w-6 p-0 rounded-full hover:bg-slate-100 text-blue-600"
-                              onClick={() => toggleExpand(q.id)}
-                            >
-                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Field Completion Indicator */}
-                        <div className="mb-2 flex items-center gap-1 overflow-x-auto pb-1 custom-scrollbar no-scrollbar">
-                          {getFieldCompletionStatus(q).map((field, i) => (
-                            <div 
-                              key={i} 
-                              title={`${field.name}: ${field.filled ? 'Filled' : 'Empty'}`}
-                              className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${field.filled ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]' : 'bg-slate-200'}`}
-                            />
-                          ))}
-                          <span className="text-[7px] font-bold text-slate-400 ml-1 whitespace-nowrap">
-                            {getFieldCompletionStatus(q).filter(f => f.filled).length}/{getFieldCompletionStatus(q).length}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {(q.subject || q.Subject) && (
-                            <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                              {q.subject || q.Subject}
-                            </span>
-                          )}
-                          {(q.chapter || q.Chapter) && (
-                            <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                              {q.chapter || q.Chapter}
-                            </span>
-                          )}
-                          {(q.topic || q.Topic) && (
-                            <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                              {q.topic || q.Topic}
-                            </span>
-                          )}
-                          {(q.difficulty || q.Difficulty) && (
-                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
-                              (q.difficulty || q.Difficulty) === 'Easy' ? 'bg-green-50 text-green-600' :
-                              (q.difficulty || q.Difficulty) === 'Medium' ? 'bg-yellow-50 text-yellow-600' :
-                              'bg-red-50 text-red-600'
-                            }`}>
-                              {q.difficulty || q.Difficulty}
-                            </span>
-                          )}
-                          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
-                            {q.type || q.Type || 'MCQ'}
-                          </span>
-                          {(q.page_no || q.Page_No || q.Page) && (
-                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase">
-                              P. {q.page_no || q.Page_No || q.Page}
-                            </span>
-                          )}
-                          {(q.keywords || q.Keywords) && (
-                            <span className="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded text-[8px] font-bold uppercase border border-purple-100">
-                              {q.keywords || q.Keywords}
-                            </span>
-                          )}
-                          {Array.isArray(q.tags) ? q.tags.map((tag: string, i: number) => (
-                            <span key={i} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[8px] font-bold uppercase border border-indigo-100">
-                              {tag}
-                            </span>
-                          )) : (typeof q.tags === 'string' ? JSON.parse(q.tags) : []).map((tag: string, i: number) => (
-                            <span key={i} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[8px] font-bold uppercase border border-indigo-100">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-
-                        <div className="mb-3 flex-1 cursor-pointer" onClick={() => toggleExpand(q.id)}>
-                          {q.image && (
-                            <div className="mb-2 rounded-lg overflow-hidden border border-slate-100 bg-slate-50 aspect-video flex items-center justify-center">
-                              <img 
-                                src={q.image} 
-                                alt="Question" 
-                                className="max-w-full max-h-full object-contain"
-                                referrerPolicy="no-referrer"
-                              />
-                            </div>
-                          )}
-                          <p className={`text-[11px] text-slate-700 leading-relaxed font-medium ${isExpanded ? '' : 'line-clamp-2'}`}>
-                            {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || q['Question Text'] || q.question_text || 'No text'}
-                          </p>
-                          {!isExpanded && (q.question_hin || q.question_eng || q.text || '').length > 80 && (
-                            <button className="text-[9px] font-bold text-blue-600 mt-1 hover:underline">Read More</button>
-                          )}
-                        </div>
-
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div 
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden"
-                            >
-                              {/* Options */}
-                              <div className="mb-3 space-y-1.5 pt-2 border-t border-slate-50">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Options:</span>
-                                <div className="space-y-1">
-                                  {[1, 2, 3, 4, 5].map(i => {
-                                    const optHin = q[`option${i}_hin`] || q[`Option_${i}`] || q[`option${i}`] || q[`Option ${i}`];
-                                    const optEng = q[`option${i}_eng`] || q[`Option_${i}_Eng`] || q[`Option ${i} English`];
-                                    const opt = optHin || optEng || (q.options && q.options[i-1]);
-                                    if (!opt) return null;
-                                    
-                                    const answer = q.answer || q.Answer || q.correctOption || q['Correct Option'];
-                                    const isCorrect = answer === String.fromCharCode(64 + i) || answer === i.toString();
-                                    
-                                    return (
-                                      <div key={i} className={`text-[10px] flex items-start gap-1.5 p-1.5 rounded-lg border ${isCorrect ? 'bg-emerald-50 border-emerald-100 text-emerald-700 font-bold' : 'bg-slate-50/50 border-slate-50 text-slate-600'}`}>
-                                        <span className="text-[9px] font-bold text-slate-400 mt-0.5">
-                                          {String.fromCharCode(64 + i)}.
-                                        </span>
-                                        <span className="flex-1">{opt}</span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              {/* Solution */}
-                              {(q.solution_hin || q.solution_eng || q.solution || q.Solution) && (
-                                <div className="mb-3 p-2 bg-blue-50/50 rounded-lg border border-blue-100">
-                                  <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                    <Eye className="w-2.5 h-2.5" />
-                                    Solution
-                                  </span>
-                                  <p className="text-[10px] text-slate-600 leading-relaxed">
-                                    {q.solution_hin || q.solution_eng || q.solution || q.Solution}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* Error Info */}
-                              {(q.error_report || q.error_description) && (
-                                <div className="mb-3 p-2 bg-red-50/50 rounded-lg border border-red-100">
-                                  <span className="text-[9px] font-bold text-red-600 uppercase tracking-wider block mb-1 flex items-center gap-1">
-                                    <AlertCircle className="w-2.5 h-2.5" />
-                                    Error Info
-                                  </span>
-                                  {q.error_report && (
-                                    <p className="text-[10px] text-slate-600 leading-relaxed mb-1">
-                                      <span className="font-bold">Report:</span> {q.error_report}
-                                    </p>
-                                  )}
-                                  {q.error_description && (
-                                    <p className="text-[10px] text-slate-600 leading-relaxed">
-                                      <span className="font-bold">Description:</span> {q.error_description}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-
-                        <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-50">
-                          <Button 
-                            onClick={() => handleEditClick(q)} 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-7 text-blue-600 hover:bg-blue-50 hover:text-blue-700 gap-1 text-[9px] font-bold rounded-lg"
-                          >
-                            <Edit className="w-3 h-3" />
-                            Edit
-                          </Button>
-                          <Button 
-                            onClick={() => handleDeleteQuestion(q.id)} 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-7 text-slate-600 hover:bg-red-50 hover:text-red-600 gap-1 text-[9px] font-bold rounded-lg"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            Delete
-                          </Button>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                  {filteredQuestions.slice(0, displayCount).map((q, idx) => (
+                    <DraggableQuestionCard 
+                      key={q.id || idx}
+                      q={q}
+                      idx={idx}
+                      isExpanded={expandedIds.includes(q.id)}
+                      selectedIds={selectedIds}
+                      toggleSelection={toggleSelection}
+                      toggleExpand={toggleExpand}
+                      getFieldCompletionStatus={getFieldCompletionStatus}
+                      setEditingQuestion={setEditingQuestion}
+                      setEditingIndex={setEditingIndex}
+                      setIsEditPageOpen={setIsEditPageOpen}
+                      handleDeleteQuestion={handleDeleteQuestion}
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredQuestions.slice(0, displayCount).map((q, idx) => {
-                    const isExpanded = expandedIds.includes(q.id);
-                    return (
-                      <motion.div 
-                        layout
-                        key={q.id || idx} 
-                        className={`bg-white border rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex flex-col group ${selectedIds.has(q.id) ? 'border-blue-400 ring-1 ring-blue-400/20' : 'border-slate-200'} ${isExpanded ? 'ring-2 ring-blue-400/20' : ''}`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="shrink-0 flex items-center gap-3">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedIds.has(q.id)}
-                          onChange={() => toggleSelection(q.id)}
-                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                        />
-                        <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
-                          {idx + 1}
-                        </div>
-                      </div>
-
-                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleExpand(q.id)}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className={`w-2 h-2 rounded-full ${q.current_status === 'Published' || q.status === 'Published' || q.current_status === 'Saved' ? 'bg-green-500' : q.current_status === 'Editing' ? 'bg-yellow-500' : 'bg-slate-300'}`}></div>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{q.current_status || q.status || 'Draft'}</span>
-                          <span className="text-[10px] text-slate-400">•</span>
-                          <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">{q.subject || 'General'}</span>
-                          <span className="text-[10px] text-slate-400">•</span>
-                          <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tight">{q.type || 'Single Choice'}</span>
-                          
-                          {(() => {
-                            const tags = Array.isArray(q.tags) ? q.tags : (typeof q.tags === 'string' ? JSON.parse(q.tags) : []);
-                            if (tags.length > 0) {
-                              return (
-                                <>
-                                  <span className="text-[10px] text-slate-400">•</span>
-                                  <div className="flex gap-1">
-                                    {tags.map((tag: string, i: number) => (
-                                      <span key={i} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[8px] font-bold uppercase border border-indigo-100">
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {q.image && (
-                            <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center">
-                              <img 
-                                src={q.image} 
-                                alt="Q" 
-                                className="max-w-full max-h-full object-contain"
-                                referrerPolicy="no-referrer"
-                              />
-                            </div>
-                          )}
-                          <p className={`text-sm text-slate-800 font-medium ${isExpanded ? '' : 'truncate'}`}>
-                            {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || q['Question Text'] || q.question_text || 'No question text found'}
-                          </p>
-                        </div>
-                        
-                        {/* List View Field Completion Indicator */}
-                        <div className="flex items-center gap-1 mt-1 overflow-x-auto no-scrollbar">
-                          {getFieldCompletionStatus(q).map((field, i) => (
-                            <div 
-                              key={i} 
-                              title={`${field.name}: ${field.filled ? 'Filled' : 'Empty'}`}
-                              className={`w-1 h-1 rounded-full shrink-0 ${field.filled ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                            />
-                          ))}
-                          <span className="text-[7px] font-bold text-slate-400 ml-1">
-                            {getFieldCompletionStatus(q).filter(f => f.filled).length} fields
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 rounded-full hover:bg-slate-100 text-blue-600"
-                          onClick={() => toggleExpand(q.id)}
-                        >
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </Button>
-                        <div className="hidden md:flex gap-2">
-                          <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-md border border-green-100 text-[9px] font-bold">
-                            <BookOpen className="w-2.5 h-2.5" />
-                            Bank
-                          </div>
-                          <div className="flex items-center gap-1 px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-md border border-cyan-100 text-[9px] font-bold">
-                            <Layout className="w-2.5 h-2.5" />
-                            1 Test
-                          </div>
-                        </div>
-                        <div className="flex gap-1.5 shrink-0">
-                          <Button 
-                            onClick={() => handleEditClick(q)} 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-7 w-7 p-0 border-yellow-200 bg-white text-yellow-600 hover:bg-yellow-50 hover:border-yellow-300"
-                            title="Edit"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button 
-                            onClick={() => handleDeleteQuestion(q.id)} 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-7 w-7 p-0 border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <AnimatePresence>
-                        {isExpanded && (
-                          <motion.div 
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden ml-14 mt-4"
-                          >
-                            {/* Options */}
-                            <div className="mb-4 space-y-2 pt-2 border-t border-slate-50">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Options:</span>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {[1, 2, 3, 4, 5].map(i => {
-                                  const optHin = q[`option${i}_hin`];
-                                  const optEng = q[`option${i}_eng`];
-                                  const opt = optHin || optEng;
-                                  if (!opt) return null;
-                                  
-                                  const isCorrect = q.answer === String.fromCharCode(64 + i) || q.answer === i.toString();
-                                  
-                                  return (
-                                    <div key={i} className={`text-[12px] flex items-start gap-2 p-2 rounded-lg border ${isCorrect ? 'bg-emerald-50 border-emerald-100 text-emerald-700 font-bold' : 'bg-slate-50/50 border-slate-50 text-slate-600'}`}>
-                                      <span className="text-[10px] font-bold text-slate-400 mt-0.5">
-                                        {String.fromCharCode(64 + i)}.
-                                      </span>
-                                      <span className="flex-1">{opt}</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {/* Solution */}
-                            {(q.solution_hin || q.solution_eng) && (
-                              <div className="mb-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
-                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
-                                  <Eye className="w-3 h-3" />
-                                  Solution / Explanation
-                                </span>
-                                <p className="text-[11px] text-slate-600 leading-relaxed">
-                                  {q.solution_hin || q.solution_eng}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* Error Info */}
-                            {(q.error_report || q.error_description) && (
-                              <div className="mb-4 p-3 bg-red-50/50 rounded-xl border border-red-100">
-                                <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
-                                  <AlertCircle className="w-3 h-3" />
-                                  Error Info
-                                </span>
-                                {q.error_report && (
-                                  <p className="text-[11px] text-slate-600 leading-relaxed mb-1">
-                                    <span className="font-bold">Report:</span> {q.error_report}
-                                  </p>
-                                )}
-                                {q.error_description && (
-                                  <p className="text-[11px] text-slate-600 leading-relaxed">
-                                    <span className="font-bold">Description:</span> {q.error_description}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  );
-                })}
-              </div>
+                  {filteredQuestions.slice(0, displayCount).map((q, idx) => (
+                    <DraggableQuestionCard 
+                      key={q.id || idx}
+                      q={q}
+                      idx={idx}
+                      isExpanded={expandedIds.includes(q.id)}
+                      selectedIds={selectedIds}
+                      toggleSelection={toggleSelection}
+                      toggleExpand={toggleExpand}
+                      getFieldCompletionStatus={getFieldCompletionStatus}
+                      setEditingQuestion={setEditingQuestion}
+                      setEditingIndex={setEditingIndex}
+                      setIsEditPageOpen={setIsEditPageOpen}
+                      handleDeleteQuestion={handleDeleteQuestion}
+                    />
+                  ))}
+                </div>
               )}
               {filteredQuestions.length === 0 && (
                 <div className="col-span-full text-center py-12 text-slate-500 border-2 border-dashed rounded-xl bg-white">
@@ -1846,7 +1992,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
               )}
             </div>
           )}
+          </div>
         </div>
+      </div>
       ) : (
         <div className="p-4 sm:p-8 max-w-7xl mx-auto h-full flex flex-col overflow-y-auto">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
@@ -1949,91 +2097,24 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
               {getFoldersAtCurrentPath()
                 .filter(f => (f.name || '').toLowerCase().includes((search || '').toLowerCase()))
                 .map(folder => (
-                <Card 
+                <SortableFolderCard 
                   key={folder.id} 
-                  className="group cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 border-slate-200 rounded-2xl overflow-hidden bg-white"
-                  onClick={() => openFolder(folder.fullPath)}
-                >
-                  <CardContent className="p-5 flex flex-col items-center text-center relative">
-                    {/* Folder Actions Overlay */}
-                    {renamingFolder !== folder.fullPath && (
-                      <div className="absolute top-3 right-3 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger>
-                            <div className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-full cursor-pointer hover:bg-slate-100">
-                              <MoreVertical className="w-4 h-4" />
-                            </div>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => { setRenamingFolder(folder.fullPath); setNewFolderName(folder.name); }}>
-                              <Edit className="w-4 h-4 mr-2" /> Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { /* TODO: Implement Move */ alert('Move functionality coming soon'); }}>
-                              <Move className="w-4 h-4 mr-2" /> Move
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { /* TODO: Implement Copy */ alert('Copy functionality coming soon'); }}>
-                              <Copy className="w-4 h-4 mr-2" /> Copy
-                            </DropdownMenuItem>
-                            {folder.isTable && (
-                              <>
-                                <DropdownMenuItem onClick={(e) => handlePushToAirtable(folder.name, e)}>
-                                  <Database className="w-4 h-4 mr-2" /> Push to Airtable
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => { setFolderToConfigureSync(folder.fullPath); setIsSyncLocationModalOpen(true); }}>
-                                  <Layout className="w-4 h-4 mr-2" /> Set Sync Location
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            <DropdownMenuItem onClick={() => setDeleteConfirmFolder(folder.fullPath)} className="text-red-600 hover:text-red-700">
-                              <Trash2 className="w-4 h-4 mr-2" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    )}
-
-                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform mb-4">
-                      <Folder className="w-8 h-8 text-blue-500 fill-blue-100" />
-                    </div>
-                    <div className="w-full">
-                      {renamingFolder === folder.fullPath ? (
-                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                          <Input 
-                            value={newFolderName}
-                            onChange={e => setNewFolderName(e.target.value)}
-                            className="h-8 text-xs font-bold"
-                            autoFocus
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') handleRenameFolder(folder.fullPath);
-                              if (e.key === 'Escape') setRenamingFolder(null);
-                            }}
-                          />
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => handleRenameFolder(folder.fullPath)}>
-                            <Check className="w-4 h-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => setRenamingFolder(null)}>
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <h3 className="font-bold text-slate-800 line-clamp-1 text-base">{folder.name}</h3>
-                      )}
-                      <div className="flex flex-col items-center gap-1 mt-3">
-                        <div className="flex items-center gap-3">
-                          <p className="text-[11px] font-bold text-slate-500 flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full">
-                            <Database className="w-3 h-3" /> {syncStatus[folder.fullPath]?.totalQuestions || 0} Qs
-                          </p>
-                        </div>
-                        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
-                          <Clock className="w-3 h-3" /> 
-                          {syncStatus[folder.fullPath]?.lastSync 
-                            ? new Date(syncStatus[folder.fullPath].lastSync).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
-                            : 'Never synced'}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                  folder={folder} 
+                  openFolder={openFolder}
+                  renamingFolder={renamingFolder}
+                  setRenamingFolder={setRenamingFolder}
+                  setNewFolderName={setNewFolderName}
+                  newFolderName={newFolderName}
+                  handleRenameFolder={handleRenameFolder}
+                  setTargetFolderForMove={setTargetFolderForMove}
+                  setIsCopying={setIsCopying}
+                  setIsMoveModalOpen={setIsMoveModalOpen}
+                  setSelectedIds={setSelectedIds}
+                  handlePushToAirtable={handlePushToAirtable}
+                  setFolderToConfigureSync={setFolderToConfigureSync}
+                  setIsSyncLocationModalOpen={setIsSyncLocationModalOpen}
+                  setDeleteConfirmFolder={setDeleteConfirmFolder}
+                />
               ))}
               {getFoldersAtCurrentPath().length === 0 && (
                 <div className="col-span-full text-center p-12 text-slate-500 border-2 border-dashed border-slate-200 rounded-2xl bg-white">
@@ -3431,5 +3512,26 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
         </Dialog>
       )}
     </div>
+      
+      <DragOverlay>
+        {activeId ? (
+          <div className="bg-white border-2 border-blue-500 rounded-xl p-4 shadow-2xl opacity-90 scale-105 pointer-events-none">
+            {activeId.toString().includes('/') ? (
+              <div className="flex items-center gap-3">
+                <Folder className="w-6 h-6 text-blue-500 fill-blue-100" />
+                <span className="font-bold text-slate-700">{activeId}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <FileText className="w-6 h-6 text-blue-500" />
+                <span className="font-bold text-slate-700 truncate max-w-[200px]">
+                  {questions.find(q => q.id === activeId)?.question_hin || 'Question'}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }

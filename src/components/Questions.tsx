@@ -246,7 +246,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
         });
         
         if (!createRes.ok) {
-          const errorData = await createRes.json().catch(() => ({}));
+          const errorData = await safeJson(createRes);
           throw new Error(errorData.error || 'Failed to create new Airtable table');
         }
         finalAirtableTable = newTableName;
@@ -264,7 +264,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
       });
 
       if (!saveRes.ok) {
-        const errorData = await saveRes.json().catch(() => ({}));
+        const errorData = await safeJson(saveRes);
         throw new Error(errorData.error || 'Failed to save questions');
       }
       

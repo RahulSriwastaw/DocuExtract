@@ -65,6 +65,9 @@ export interface Question {
   solution?: string;
   Subject?: string;
   Chapter?: string;
+  Topic?: string;
+  Difficulty?: string;
+  Type?: string;
   Page?: string;
   Page_No?: string;
   Tags?: string | string[];

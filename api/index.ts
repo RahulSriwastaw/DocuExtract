@@ -724,50 +724,16 @@ app.get("/api/health", (req, res) => {
           const formatted = records.map(r => ({ id: r.id, ...(r as any).fields }));
 
           if (formatted.length > 0) {
-            const supabaseData = formatted.map(q => ({
-              record_id: q.record_id || q.id || '',
-              question_unique_id: q.question_unique_id || q.id || Math.random().toString(36).substring(7),
-              question_hin: q.question_hin || q.text || '',
-              question_eng: q.question_eng || '',
-              subject: q.subject || '',
-              sub_subject: q.sub_subject || '',
-              chapter: q.chapter || '',
-              sub_chapter: q.sub_chapter || '',
-              topic: q.topic || '',
-              sub_topic: q.sub_topic || '',
-              keywords: q.keywords || '',
-              difficulty: q.difficulty || '',
-              image: q.image || '',
-              option1_hin: q.option1_hin || q.options?.[0] || '',
-              option1_eng: q.option1_eng || '',
-              option2_hin: q.option2_hin || q.options?.[1] || '',
-              option2_eng: q.option2_eng || '',
-              option3_hin: q.option3_hin || q.options?.[2] || '',
-              option3_eng: q.option3_eng || '',
-              option4_hin: q.option4_hin || q.options?.[3] || '',
-              option4_eng: q.option4_eng || '',
-              option5_hin: q.option5_hin || q.options?.[4] || '',
-              option5_eng: q.option5_eng || '',
-              answer: q.answer || q.correctOption || '',
-              solution_hin: q.solution_hin || '',
-              solution_eng: q.solution_eng || '',
-              type: q.type || '',
-              video: q.video || '',
-              page_no: q.page_no || '',
-              collection: q.collection || '',
-              airtable_table_name: table.name,
-              section: q.section || '',
-              year: q.year || '',
-              date: q.date || '',
-              exam: q.exam || '',
-              previous_of: q.previous_of || '',
-              action: q.action || 'UPDATED',
-              current_status: q.status || q.current_status || 'Draft',
-              sync_code: q.sync_code || '',
-              error_report: q.error_report || '',
-              error_description: q.error_description || '',
-              updated_at: new Date().toISOString()
-            }));
+            const supabaseData = formatted.map(q => {
+              const mapped = mapQuestionToDb(q);
+              return {
+                ...mapped,
+                record_id: mapped.record_id || q.id || '',
+                question_unique_id: mapped.question_unique_id || q.id || Math.random().toString(36).substring(7),
+                airtable_table_name: table.name,
+                updated_at: new Date().toISOString()
+              };
+            });
 
             const chunkSize = 500;
             for (let i = 0; i < supabaseData.length; i += chunkSize) {
@@ -869,8 +835,8 @@ app.get("/api/health", (req, res) => {
               };
 
               if (q.sync_code) (fields as any).sync_code = q.sync_code;
-              if (q.error_report) (fields as any).error_report = q.error_report;
-              if (q.error_description) (fields as any).error_description = q.error_description;
+              if (q.error_report) (fields as any)['Error Report'] = q.error_report;
+              if (q.error_description) (fields as any)['Error Description'] = q.error_description;
               if (q.image) (fields as any).image = q.image;
               if (q.tags) (fields as any).tags = Array.isArray(q.tags) ? q.tags.join(', ') : q.tags;
 
@@ -1111,8 +1077,8 @@ app.get("/api/health", (req, res) => {
             { name: 'action', type: 'singleLineText' },
             { name: 'current_status', type: 'singleLineText' },
             { name: 'sync_code', type: 'singleLineText' },
-            { name: 'error_report', type: 'multilineText' },
-            { name: 'error_description', type: 'multilineText' }
+            { name: 'Error Report', type: 'multilineText' },
+            { name: 'Error Description', type: 'multilineText' }
           ]
         }),
       });
@@ -1159,7 +1125,8 @@ app.get("/api/health", (req, res) => {
     }
 
     try {
-      const { error } = await supabase
+      // Try to update by question_unique_id first, then by id (UUID)
+      const { error: error1, data: data1 } = await supabase
         .from('questions')
         .update({ 
           collection: targetFolder,
@@ -1167,10 +1134,26 @@ app.get("/api/health", (req, res) => {
           updated_at: new Date().toISOString(),
           action: 'MOVED'
         })
-        .in('question_unique_id', ids);
+        .in('question_unique_id', ids)
+        .select();
 
-      if (error) throw error;
-      res.json({ success: true });
+      const { error: error2, data: data2 } = await supabase
+        .from('questions')
+        .update({ 
+          collection: targetFolder,
+          airtable_table_name: targetTable || (targetFolder ? targetFolder.split('/')[0] : null),
+          updated_at: new Date().toISOString(),
+          action: 'MOVED'
+        })
+        .in('id', ids)
+        .select();
+
+      if (error1 && error2) throw error1;
+      
+      res.json({ 
+        success: true, 
+        updatedCount: (data1?.length || 0) + (data2?.length || 0) 
+      });
     } catch (error: any) {
       handleSupabaseError(error, res, "move questions");
     }
@@ -1183,22 +1166,35 @@ app.get("/api/health", (req, res) => {
     }
 
     try {
-      // 1. Fetch original questions
-      const { data: originals, error: fetchError } = await supabase
+      // 1. Fetch original questions (try both unique_id and id)
+      const { data: originals1, error: fetchError1 } = await supabase
         .from('questions')
         .select('*')
         .in('question_unique_id', ids);
 
-      if (fetchError) throw fetchError;
+      const { data: originals2, error: fetchError2 } = await supabase
+        .from('questions')
+        .select('*')
+        .in('id', ids);
+
+      if (fetchError1 && fetchError2) throw fetchError1;
+
+      const allOriginals = [...(originals1 || []), ...(originals2 || [])];
+      // Deduplicate by id
+      const uniqueOriginals = Array.from(new Map(allOriginals.map(item => [item.id, item])).values());
+
+      if (uniqueOriginals.length === 0) {
+        return res.status(404).json({ error: "No questions found to copy" });
+      }
 
       // 2. Create copies
-      const copies = originals.map(q => {
+      const copies = uniqueOriginals.map(q => {
         const { id, created_at, ...rest } = q;
         return {
           ...rest,
           collection: targetFolder,
           airtable_table_name: targetTable || (targetFolder ? targetFolder.split('/')[0] : null),
-          question_unique_id: `${q.question_unique_id}_copy_${Math.random().toString(36).substring(7)}`,
+          question_unique_id: `${q.question_unique_id || q.id}_copy_${Math.random().toString(36).substring(7)}`,
           updated_at: new Date().toISOString(),
           action: 'COPIED'
         };
@@ -1209,7 +1205,7 @@ app.get("/api/health", (req, res) => {
         .insert(copies);
 
       if (insertError) throw insertError;
-      res.json({ success: true });
+      res.json({ success: true, copiedCount: copies.length });
     } catch (error: any) {
       handleSupabaseError(error, res, "copy questions");
     }
@@ -1322,8 +1318,8 @@ app.get("/api/health", (req, res) => {
         };
 
         if (q.sync_code) fields.sync_code = q.sync_code;
-        if (q.error_report) fields.error_report = q.error_report;
-        if (q.error_description) fields.error_description = q.error_description;
+        if (q.error_report) fields['Error Report'] = q.error_report;
+        if (q.error_description) fields['Error Description'] = q.error_description;
         if (q.image) fields.image = q.image;
         if (q.tags) fields.tags = Array.isArray(q.tags) ? q.tags.join(', ') : q.tags;
 
@@ -1369,45 +1365,62 @@ app.get("/api/health", (req, res) => {
     }
 
     try {
-      const { error } = await supabase
-        .from('questions')
-        .update({
-          question_hin: question.question_hin || question.text || '',
-          question_eng: question.question_eng || '',
-          subject: question.subject || '',
-          chapter: question.chapter || '',
-          option1_hin: question.option1_hin || question.options?.[0] || '',
-          option1_eng: question.option1_eng || '',
-          option2_hin: question.option2_hin || question.options?.[1] || '',
-          option2_eng: question.option2_eng || '',
-          option3_hin: question.option3_hin || question.options?.[2] || '',
-          option3_eng: question.option3_eng || '',
-          option4_hin: question.option4_hin || question.options?.[3] || '',
-          option4_eng: question.option4_eng || '',
-          option5_hin: question.option5_hin || question.options?.[4] || '',
-          option5_eng: question.option5_eng || '',
-          answer: question.answer || question.correctOption || '',
-          solution_hin: question.solution_hin || '',
-          solution_eng: question.solution_eng || '',
-          type: question.type || '',
-          video: question.video || '',
-          page_no: question.page_no || '',
-          collection: question.collection || '',
-          airtable_table_name: question.airtable_table_name || '',
-          section: question.section || '',
-          year: question.year || '',
-          date: question.date || '',
-          exam: question.exam || '',
-          previous_of: question.previous_of || '',
-          action: 'UPDATED',
-          current_status: question.status || question.current_status || 'Draft',
-          image: question.image || '',
-          updated_at: new Date().toISOString()
-        })
-        .eq('question_unique_id', question.id);
+      const updateData = {
+        question_hin: question.question_hin || question.text || '',
+        question_eng: question.question_eng || '',
+        subject: question.subject || '',
+        chapter: question.chapter || '',
+        option1_hin: question.option1_hin || question.options?.[0] || '',
+        option1_eng: question.option1_eng || '',
+        option2_hin: question.option2_hin || question.options?.[1] || '',
+        option2_eng: question.option2_eng || '',
+        option3_hin: question.option3_hin || question.options?.[2] || '',
+        option3_eng: question.option3_eng || '',
+        option4_hin: question.option4_hin || question.options?.[3] || '',
+        option4_eng: question.option4_eng || '',
+        option5_hin: question.option5_hin || question.options?.[4] || '',
+        option5_eng: question.option5_eng || '',
+        answer: question.answer || question.correctOption || '',
+        solution_hin: question.solution_hin || '',
+        solution_eng: question.solution_eng || '',
+        type: question.type || '',
+        video: question.video || '',
+        page_no: question.page_no || '',
+        collection: question.collection || '',
+        airtable_table_name: question.airtable_table_name || '',
+        section: question.section || '',
+        year: question.year || '',
+        date: question.date || '',
+        exam: question.exam || '',
+        previous_of: question.previous_of || '',
+        action: 'UPDATED',
+        current_status: question.status || question.current_status || 'Draft',
+        image: question.image || '',
+        error_report: question.error_report || '',
+        error_description: question.error_description || '',
+        sync_code: question.sync_code || '',
+        topic: question.topic || '',
+        sub_topic: question.sub_topic || '',
+        sub_subject: question.sub_subject || '',
+        sub_chapter: question.sub_chapter || '',
+        keywords: question.keywords || '',
+        updated_at: new Date().toISOString()
+      };
 
-      if (error) throw error;
-      res.json({ success: true });
+      const { error: error1, data: data1 } = await supabase
+        .from('questions')
+        .update(updateData)
+        .eq('question_unique_id', question.id)
+        .select();
+
+      const { error: error2, data: data2 } = await supabase
+        .from('questions')
+        .update(updateData)
+        .eq('id', question.id)
+        .select();
+
+      if (error1 && error2) throw error1;
+      res.json({ success: true, updated: data1?.[0] || data2?.[0] });
     } catch (error: any) {
       console.error("Update error:", error);
       res.status(500).json({ error: error.message || "Failed to update question" });
@@ -1441,14 +1454,24 @@ app.get("/api/health", (req, res) => {
       if (data.topic !== undefined) updateData.topic = data.topic;
       if (data.sub_topic !== undefined) updateData.sub_topic = data.sub_topic;
       if (data.keywords !== undefined) updateData.keywords = data.keywords;
+      if (data.error_report !== undefined) updateData.error_report = data.error_report;
+      if (data.error_description !== undefined) updateData.error_description = data.error_description;
+      if (data.sync_code !== undefined) updateData.sync_code = data.sync_code;
 
-      const { error } = await supabase
+      const { error: error1, data: data1 } = await supabase
         .from('questions')
         .update(updateData)
-        .in('question_unique_id', ids);
+        .in('question_unique_id', ids)
+        .select();
 
-      if (error) throw error;
-      res.json({ success: true });
+      const { error: error2, data: data2 } = await supabase
+        .from('questions')
+        .update(updateData)
+        .in('id', ids)
+        .select();
+
+      if (error1 && error2) throw error1;
+      res.json({ success: true, updatedCount: (data1?.length || 0) + (data2?.length || 0) });
     } catch (error: any) {
       console.error("Bulk update error:", error);
       res.status(500).json({ error: error.message || "Failed to bulk update questions" });
@@ -1564,13 +1587,20 @@ app.get("/api/health", (req, res) => {
     if (!id) return res.status(400).json({ error: "ID is required" });
 
     try {
-      const { error } = await supabase
+      const { error: error1, data: data1 } = await supabase
         .from('questions')
         .delete()
-        .eq('question_unique_id', id);
+        .eq('question_unique_id', id)
+        .select();
 
-      if (error) throw error;
-      res.json({ success: true });
+      const { error: error2, data: data2 } = await supabase
+        .from('questions')
+        .delete()
+        .eq('id', id)
+        .select();
+
+      if (error1 && error2) throw error1;
+      res.json({ success: true, deletedCount: (data1?.length || 0) + (data2?.length || 0) });
     } catch (error: any) {
       console.error("Delete error:", error);
       res.status(500).json({ error: error.message || "Failed to delete question" });
@@ -1584,16 +1614,170 @@ app.get("/api/health", (req, res) => {
     }
 
     try {
-      const { error } = await supabase
+      const { error: error1, data: data1 } = await supabase
         .from('questions')
         .delete()
-        .in('question_unique_id', ids);
+        .in('question_unique_id', ids)
+        .select();
 
-      if (error) throw error;
-      res.json({ success: true });
+      const { error: error2, data: data2 } = await supabase
+        .from('questions')
+        .delete()
+        .in('id', ids)
+        .select();
+
+      if (error1 && error2) throw error1;
+      res.json({ success: true, deletedCount: (data1?.length || 0) + (data2?.length || 0) });
     } catch (error: any) {
       console.error("Bulk delete error:", error);
       res.status(500).json({ error: error.message || "Failed to bulk delete questions" });
+    }
+  });
+
+  // Helper to escape regex characters
+  const escapeRegExp = (string: string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+  };
+
+  app.post("/api/move-folder", async (req, res) => {
+    const { sourceFolder, targetFolder } = req.body;
+    console.log(`[API] move-folder called. source: ${sourceFolder}, target: ${targetFolder}`);
+    
+    if (!sourceFolder || targetFolder === undefined) {
+      return res.status(400).json({ error: "Source and target folders are required" });
+    }
+
+    try {
+      // Safely escape quotes for PostgREST
+      const safeSource = sourceFolder.replace(/"/g, '""');
+      
+      // Find all questions in the source folder
+      const { data: questions, error: fetchError } = await supabase
+        .from('questions')
+        .select('*')
+        .or(`collection.eq."${safeSource}",collection.like."${safeSource}/%",airtable_table_name.eq."${safeSource}"`);
+
+      if (fetchError) throw fetchError;
+
+      console.log(`[API] move-folder found ${questions?.length || 0} questions to move.`);
+
+      if (!questions || questions.length === 0) {
+        return res.json({ success: true, message: "Folder is empty" });
+      }
+
+      // Update their paths
+      const updates = questions.map(q => {
+        const oldCollection = q.collection || q.airtable_table_name || '';
+        // If it's the exact folder, new path is targetFolder/sourceFolderName
+        // If it's a subfolder, new path is targetFolder/sourceFolderName/subfolderName
+        const sourceFolderName = sourceFolder.split('/').pop();
+        
+        let newCollection;
+        const escapedSource = escapeRegExp(sourceFolder);
+        
+        if (targetFolder === '') {
+          // Moving to root
+          newCollection = oldCollection.replace(new RegExp(`^.*${escapedSource}`), sourceFolderName);
+        } else {
+          // Moving to another folder
+          newCollection = oldCollection.replace(new RegExp(`^${escapedSource}`), `${targetFolder}/${sourceFolderName}`);
+        }
+
+        return {
+          ...q,
+          collection: newCollection,
+          airtable_table_name: newCollection.split('/')[0],
+          updated_at: new Date().toISOString()
+        };
+      });
+
+      console.log(`[API] move-folder first update sample:`, updates[0]?.collection);
+
+      // Use 'id' for conflict resolution since we are updating existing records by their primary key
+      const { error: updateError } = await supabase
+        .from('questions')
+        .upsert(updates, { onConflict: 'id' });
+
+      if (updateError) {
+        console.error(`[API] move-folder upsert error:`, updateError);
+        throw updateError;
+      }
+
+      console.log(`[API] move-folder successfully updated ${updates.length} questions.`);
+      res.json({ success: true, updatedCount: updates.length });
+    } catch (error: any) {
+      console.error(`[API] move-folder caught error:`, error);
+      handleSupabaseError(error, res, "move folder");
+    }
+  });
+
+  app.post("/api/copy-folder", async (req, res) => {
+    const { sourceFolder, targetFolder } = req.body;
+    console.log(`[API] copy-folder called. source: ${sourceFolder}, target: ${targetFolder}`);
+    
+    if (!sourceFolder || targetFolder === undefined) {
+      return res.status(400).json({ error: "Source and target folders are required" });
+    }
+
+    try {
+      // Safely escape quotes for PostgREST
+      const safeSource = sourceFolder.replace(/"/g, '""');
+
+      // Find all questions in the source folder
+      const { data: questions, error: fetchError } = await supabase
+        .from('questions')
+        .select('*')
+        .or(`collection.eq."${safeSource}",collection.like."${safeSource}/%",airtable_table_name.eq."${safeSource}"`);
+
+      if (fetchError) throw fetchError;
+
+      console.log(`[API] copy-folder found ${questions?.length || 0} questions to copy.`);
+
+      if (!questions || questions.length === 0) {
+        return res.json({ success: true, message: "Folder is empty" });
+      }
+
+      // Create copies with new paths
+      const copies = questions.map(q => {
+        const { id, created_at, ...rest } = q;
+        const oldCollection = q.collection || q.airtable_table_name || '';
+        const sourceFolderName = sourceFolder.split('/').pop();
+        
+        let newCollection;
+        const escapedSource = escapeRegExp(sourceFolder);
+        
+        if (targetFolder === '') {
+          // Copying to root
+          newCollection = oldCollection.replace(new RegExp(`^.*${escapedSource}`), `${sourceFolderName}_copy`);
+        } else {
+          // Copying to another folder
+          newCollection = oldCollection.replace(new RegExp(`^${escapedSource}`), `${targetFolder}/${sourceFolderName}_copy`);
+        }
+
+        return {
+          ...rest,
+          collection: newCollection,
+          airtable_table_name: newCollection.split('/')[0],
+          question_unique_id: `${q.question_unique_id || q.id}_copy_${Math.random().toString(36).substring(7)}`,
+          updated_at: new Date().toISOString(),
+          action: 'COPIED'
+        };
+      });
+
+      const { error: insertError } = await supabase
+        .from('questions')
+        .insert(copies);
+
+      if (insertError) {
+        console.error(`[API] copy-folder insert error:`, insertError);
+        throw insertError;
+      }
+
+      console.log(`[API] copy-folder successfully copied ${copies.length} questions.`);
+      res.json({ success: true, copiedCount: copies.length });
+    } catch (error: any) {
+      console.error(`[API] copy-folder caught error:`, error);
+      handleSupabaseError(error, res, "copy folder");
     }
   });
 
@@ -1605,11 +1789,12 @@ app.get("/api/health", (req, res) => {
     }
 
     try {
+      const safeFolder = folderName.replace(/"/g, '""');
       // 1. Delete from Supabase
       const { error } = await supabase
         .from('questions')
         .delete()
-        .eq('airtable_table_name', folderName);
+        .or(`collection.eq."${safeFolder}",collection.like."${safeFolder}/%",airtable_table_name.eq."${safeFolder}"`);
 
       if (error) throw error;
 
