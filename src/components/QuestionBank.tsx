@@ -3041,10 +3041,10 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   <div className="flex-1 space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase">Date</label>
                     <Input 
+                      type="date"
                       className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('date')}
                       value={bulkEditData.date || ''}
-                      placeholder="e.g. 25 Oct 2023"
                       onChange={e => setBulkEditData(prev => ({ ...prev, date: e.target.value }))}
                     />
                   </div>
@@ -3065,13 +3065,17 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   />
                   <div className="flex-1 space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase">Shift</label>
-                    <Input 
+                    <select 
                       className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('shift')}
                       value={bulkEditData.shift || ''}
-                      placeholder="e.g. Shift 1, Morning"
                       onChange={e => setBulkEditData(prev => ({ ...prev, shift: e.target.value }))}
-                    />
+                    >
+                      <option value="">Select Shift...</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                    </select>
                   </div>
                 </div>
               </div>
