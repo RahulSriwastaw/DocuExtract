@@ -138,6 +138,7 @@ async function initDb(retries = 3) {
           section TEXT,
           year TEXT,
           date TEXT,
+          shift TEXT,
           exam TEXT,
           previous_of TEXT,
           action TEXT,
@@ -199,6 +200,7 @@ async function initDb(retries = 3) {
         ADD COLUMN IF NOT EXISTS section TEXT,
         ADD COLUMN IF NOT EXISTS year TEXT,
         ADD COLUMN IF NOT EXISTS date TEXT,
+        ADD COLUMN IF NOT EXISTS shift TEXT,
         ADD COLUMN IF NOT EXISTS exam TEXT,
         ADD COLUMN IF NOT EXISTS previous_of TEXT,
         ADD COLUMN IF NOT EXISTS action TEXT,
@@ -350,6 +352,9 @@ const mapQuestionToDb = (q: any) => {
   
   const date = getVal(['date', 'Date']);
   if (date !== undefined) mapped.date = date;
+  
+  const shift = getVal(['shift', 'Shift']);
+  if (shift !== undefined) mapped.shift = shift;
   
   const exam = getVal(['exam', 'Exam']);
   if (exam !== undefined) mapped.exam = exam;
@@ -827,6 +832,7 @@ app.get("/api/health", (req, res) => {
                 section: q.section || '',
                 year: q.year || '',
                 date: q.date || '',
+                shift: q.shift || '',
                 exam: q.exam || '',
                 previous_of: q.previous_of || '',
                 action: q.action || 'UPDATED',
@@ -1310,6 +1316,7 @@ app.get("/api/health", (req, res) => {
           section: q.section || '',
           year: q.year || '',
           date: q.date || '',
+          shift: q.shift || '',
           exam: q.exam || '',
           previous_of: q.previous_of || '',
           action: q.action || 'UPDATED',
@@ -1451,6 +1458,8 @@ app.get("/api/health", (req, res) => {
       if (data.type !== undefined) updateData.type = data.type;
       if (data.exam !== undefined) updateData.exam = data.exam;
       if (data.year !== undefined) updateData.year = data.year;
+      if (data.date !== undefined) updateData.date = data.date;
+      if (data.shift !== undefined) updateData.shift = data.shift;
       if (data.topic !== undefined) updateData.topic = data.topic;
       if (data.sub_topic !== undefined) updateData.sub_topic = data.sub_topic;
       if (data.keywords !== undefined) updateData.keywords = data.keywords;

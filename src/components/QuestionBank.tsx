@@ -3024,6 +3024,56 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     />
                   </div>
                 </div>
+
+                {/* Date */}
+                <div className="flex items-start gap-3">
+                  <input 
+                    type="checkbox" 
+                    className="mt-2"
+                    checked={fieldsToUpdate.has('date')}
+                    onChange={() => {
+                      const newSet = new Set(fieldsToUpdate);
+                      if (newSet.has('date')) newSet.delete('date');
+                      else newSet.add('date');
+                      setFieldsToUpdate(newSet);
+                    }}
+                  />
+                  <div className="flex-1 space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Date</label>
+                    <Input 
+                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      disabled={!fieldsToUpdate.has('date')}
+                      value={bulkEditData.date || ''}
+                      placeholder="e.g. 25 Oct 2023"
+                      onChange={e => setBulkEditData(prev => ({ ...prev, date: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Shift */}
+                <div className="flex items-start gap-3">
+                  <input 
+                    type="checkbox" 
+                    className="mt-2"
+                    checked={fieldsToUpdate.has('shift')}
+                    onChange={() => {
+                      const newSet = new Set(fieldsToUpdate);
+                      if (newSet.has('shift')) newSet.delete('shift');
+                      else newSet.add('shift');
+                      setFieldsToUpdate(newSet);
+                    }}
+                  />
+                  <div className="flex-1 space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Shift</label>
+                    <Input 
+                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      disabled={!fieldsToUpdate.has('shift')}
+                      value={bulkEditData.shift || ''}
+                      placeholder="e.g. Shift 1, Morning"
+                      onChange={e => setBulkEditData(prev => ({ ...prev, shift: e.target.value }))}
+                    />
+                  </div>
+                </div>
               </div>
               <div className="px-6 py-4 bg-slate-50 border-t flex flex-col xs:flex-row gap-3">
                 <Button variant="ghost" className="flex-1 font-bold text-slate-600 h-10" onClick={() => setIsBulkEditModalOpen(false)}>Cancel</Button>

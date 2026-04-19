@@ -42,6 +42,7 @@ export interface Question {
   section?: string;
   year?: string;
   date?: string;
+  shift?: string;
   exam?: string;
   previous_of?: string;
   action?: string;
