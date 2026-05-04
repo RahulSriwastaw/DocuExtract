@@ -88,11 +88,11 @@ export default function MockTestInterface({ questions, onClose }: Props) {
 
   if (step === 'instructions') {
     return (
-      <div className="fixed inset-0 bg-background z-50 p-4 flex items-center justify-center">
+      <div className="fixed inset-0 bg-background z-50 p-3 flex items-center justify-center">
         <Card className="w-full max-w-2xl">
-          <CardContent className="p-6 space-y-4">
+          <CardContent className="p-4 space-y-4">
             <h2 className="text-2xl font-bold">Test Instructions</h2>
-            <div className="h-64 overflow-y-auto border p-4 rounded bg-muted">
+            <div className="h-64 overflow-y-auto border p-3 rounded bg-muted">
               <ul className="list-disc pl-5 space-y-2">
                 <li>Total Questions: {questions.length}</li>
                 <li>Duration: {Math.floor(questions.length)} minutes</li>
@@ -157,11 +157,11 @@ export default function MockTestInterface({ questions, onClose }: Props) {
 
       return (
         <div className="fixed inset-0 bg-background z-50 flex flex-col">
-          <div className="p-2 border-b flex justify-between items-center bg-muted shrink-0 shadow-sm">
-            <div className="flex items-center gap-4">
+          <div className="p-2 border-b flex justify-between items-center bg-muted shrink-0 ">
+            <div className="flex items-center gap-3">
               <h2 className="font-bold hidden sm:block">Solution Review</h2>
               <select 
-                className="p-1 rounded border bg-white text-sm" 
+                className="p-1 rounded border bg-bg-card text-[13px]" 
                 value={language} 
                 onChange={(e) => setLanguage(e.target.value as 'eng' | 'hin')}
               >
@@ -174,10 +174,10 @@ export default function MockTestInterface({ questions, onClose }: Props) {
             </div>
           </div>
           <div className="flex-1 overflow-hidden flex flex-col sm:flex-row">
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            <div className="flex-1 overflow-y-auto p-3 space-y-6">
               <div>
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="font-semibold text-lg flex-1">Q{currentIndex + 1}: {getQuestionText(q)}</h3>
+                  <h3 className="font-semibold text-[15px] flex-1">Q{currentIndex + 1}: {getQuestionText(q)}</h3>
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -202,9 +202,9 @@ export default function MockTestInterface({ questions, onClose }: Props) {
                     return (
                       <div 
                         key={idx} 
-                        className={`flex items-center p-4 rounded-lg border transition-all ${
-                          isCorrect ? 'bg-green-500 text-white border-green-600 shadow-sm' : 
-                          isUserSelected ? 'bg-red-500 text-white border-red-600 shadow-sm' : 'bg-white border-gray-200'
+                        className={`flex items-center p-3 rounded-lg border transition-all ${
+                          isCorrect ? 'bg-green-500 text-white border-green-600 ' : 
+                          isUserSelected ? 'bg-red-500 text-white border-red-600 ' : 'bg-bg-card border-gray-200'
                         }`}
                       >
                         <span className="font-bold mr-3">{String.fromCharCode(65 + idx)}.</span>
@@ -217,7 +217,7 @@ export default function MockTestInterface({ questions, onClose }: Props) {
               </div>
 
               {showExplanation && (
-                <div className="p-6 bg-blue-50 border border-blue-200 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg  animate-in fade-in slide-in-from-top-2 duration-300">
                   <h4 className="font-bold text-blue-800 mb-3 flex items-center gap-2">
                     <HelpCircle className="w-5 h-5" /> Detailed Explanation:
                   </h4>
@@ -228,7 +228,7 @@ export default function MockTestInterface({ questions, onClose }: Props) {
               )}
             </div>
 
-            <div className="w-full sm:w-80 border-t sm:border-t-0 sm:border-l p-4 overflow-y-auto bg-muted/20 shrink-0">
+            <div className="w-full sm:w-80 border-t sm:border-t-0 sm:border-l p-3 overflow-y-auto bg-muted/20 shrink-0">
               <h4 className="font-semibold mb-4 px-2">Question Palette</h4>
               <div className="grid grid-cols-5 gap-2 px-2">
                 {questions.map((_, idx) => {
@@ -240,7 +240,7 @@ export default function MockTestInterface({ questions, onClose }: Props) {
                   const isCorrect = qAns?.selectedOption === qCorrectOptionText;
                   const isWrong = qAns?.selectedOption && !isCorrect;
                   
-                  let bgColor = "bg-white";
+                  let bgColor = "bg-bg-card";
                   if (isCorrect) bgColor = "bg-green-500 text-white border-green-600";
                   else if (isWrong) bgColor = "bg-red-500 text-white border-red-600";
                   else if (qAns) bgColor = "bg-gray-400 text-white border-gray-500";
@@ -258,11 +258,11 @@ export default function MockTestInterface({ questions, onClose }: Props) {
               </div>
             </div>
           </div>
-          <div className="p-4 border-t flex justify-between bg-background shrink-0 shadow-lg">
+          <div className="p-3 border-t flex justify-between bg-background shrink-0 card-hover">
             <Button variant="outline" disabled={currentIndex === 0} onClick={() => setCurrentIndex(prev => prev - 1)}>
               <ChevronLeft className="w-4 h-4 mr-2" /> Previous
             </Button>
-            <div className="text-sm font-medium self-center">
+            <div className="text-[13px] font-medium self-center">
               Question {currentIndex + 1} of {questions.length}
             </div>
             <Button variant="outline" disabled={currentIndex === questions.length - 1} onClick={() => setCurrentIndex(prev => prev + 1)}>
@@ -274,41 +274,41 @@ export default function MockTestInterface({ questions, onClose }: Props) {
     }
 
     return (
-      <div className="fixed inset-0 bg-background z-50 p-4 overflow-y-auto flex items-center justify-center">
+      <div className="fixed inset-0 bg-background z-50 p-3 overflow-y-auto flex items-center justify-center">
         <Card className="w-full max-w-3xl">
-          <CardContent className="p-6 space-y-8">
+          <CardContent className="p-4 space-y-8">
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-bold text-primary">Scorecard</h2>
               <p className="text-muted-foreground">Test completed successfully</p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 bg-blue-50 rounded-xl text-center border border-blue-100">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3 bg-blue-50 rounded-lg text-center border border-blue-100">
                 <div className="text-2xl font-bold text-blue-700">{totalQuestions}</div>
-                <div className="text-xs text-blue-600 uppercase font-semibold">Total</div>
+                <div className="text-xs text-primary uppercase font-semibold">Total</div>
               </div>
-              <div className="p-4 bg-purple-50 rounded-xl text-center border border-purple-100">
+              <div className="p-3 bg-purple-50 rounded-lg text-center border border-purple-100">
                 <div className="text-2xl font-bold text-purple-700">{attempted}</div>
                 <div className="text-xs text-purple-600 uppercase font-semibold">Attempted</div>
               </div>
-              <div className="p-4 bg-green-50 rounded-xl text-center border border-green-100">
+              <div className="p-3 bg-green-50 rounded-lg text-center border border-green-100">
                 <div className="text-2xl font-bold text-green-700">{correctCount}</div>
                 <div className="text-xs text-green-600 uppercase font-semibold">Correct</div>
               </div>
-              <div className="p-4 bg-red-50 rounded-xl text-center border border-red-100">
+              <div className="p-3 bg-red-50 rounded-lg text-center border border-red-100">
                 <div className="text-2xl font-bold text-red-700">{wrongCount}</div>
                 <div className="text-xs text-red-600 uppercase font-semibold">Wrong</div>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button className="flex-1 py-6 text-lg" onClick={() => {
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button className="flex-1 py-6 text-[15px]" onClick={() => {
                 setCurrentIndex(0);
                 setViewingSolutions(true);
               }}>
                 View Solutions & Explanations
               </Button>
-              <Button variant="outline" className="flex-1 py-6 text-lg" onClick={onClose}>
+              <Button variant="outline" className="flex-1 py-6 text-[15px]" onClick={onClose}>
                 Close & Exit
               </Button>
             </div>
@@ -324,14 +324,14 @@ export default function MockTestInterface({ questions, onClose }: Props) {
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
       <div className="p-2 border-b flex justify-between items-center bg-muted shrink-0">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => setShowPalette(!showPalette)}>
             <Menu className="w-5 h-5" />
           </Button>
-          <div className="font-mono text-lg flex items-center gap-2"><Timer className="w-5 h-5"/> {formatTime(timeRemaining)}</div>
+          <div className="font-mono text-[15px] flex items-center gap-2"><Timer className="w-5 h-5"/> {formatTime(timeRemaining)}</div>
         </div>
         <div className="flex items-center gap-2">
-          <select className="p-1 rounded border bg-white text-sm" value={language} onChange={(e) => setLanguage(e.target.value as 'eng' | 'hin')}>
+          <select className="p-1 rounded border bg-bg-card text-[13px]" value={language} onChange={(e) => setLanguage(e.target.value as 'eng' | 'hin')}>
             <option value="eng">English</option>
             <option value="hin">Hindi</option>
           </select>
@@ -340,14 +340,14 @@ export default function MockTestInterface({ questions, onClose }: Props) {
       </div>
       
       <div className="flex-1 overflow-hidden flex relative">
-        <div className="flex-1 overflow-y-auto p-4">
-          <h3 className="font-semibold mb-6 text-lg">Q{currentIndex + 1}: {getQuestionText(currentQuestion)}</h3>
+        <div className="flex-1 overflow-y-auto p-3">
+          <h3 className="font-semibold mb-6 text-[15px]">Q{currentIndex + 1}: {getQuestionText(currentQuestion)}</h3>
           <div className="grid grid-cols-1 gap-3">
             {availableOptions.map((optionText, idx) => (
               <Button 
                 key={idx} 
                 variant={answers[currentIndex]?.selectedOption === optionText ? "default" : "outline"}
-                className="justify-start h-auto py-4 px-4 text-left whitespace-normal"
+                className="justify-start h-auto py-3 px-4 text-left whitespace-normal"
                 onClick={() => handleAnswer(optionText)}
               >
                 <span className="font-bold mr-3 flex-shrink-0">{String.fromCharCode(65 + idx)}.</span>
@@ -359,11 +359,11 @@ export default function MockTestInterface({ questions, onClose }: Props) {
 
         {/* Question Palette Overlay/Sidebar */}
         <div className={`
-          absolute inset-y-0 right-0 w-80 bg-background border-l shadow-xl z-10 transition-transform duration-300 ease-in-out
+          absolute inset-y-0 right-0 w-80 bg-background border-l card-hover z-10 transition-transform duration-300 ease-in-out
           ${showPalette ? 'translate-x-0' : 'translate-x-full'}
           sm:relative sm:translate-x-0 sm:block ${showPalette ? 'sm:w-80' : 'sm:w-0 sm:border-0 sm:overflow-hidden'}
         `}>
-          <div className="p-4 h-full flex flex-col">
+          <div className="p-3 h-full flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h4 className="font-semibold">Question Palette</h4>
               <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => setShowPalette(false)}>
@@ -411,7 +411,7 @@ export default function MockTestInterface({ questions, onClose }: Props) {
         </div>
       </div>
 
-      <div className="p-4 border-t flex justify-between shrink-0 bg-background">
+      <div className="p-3 border-t flex justify-between shrink-0 bg-background">
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={clearResponse}>Clear</Button>
           <Button variant="outline" size="sm" onClick={markForReview}>Review</Button>

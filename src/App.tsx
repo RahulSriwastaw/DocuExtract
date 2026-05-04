@@ -169,12 +169,12 @@ export default function App() {
     <div className="flex h-screen bg-bg-page font-sans overflow-hidden text-text-body flex-col md:flex-row">
       {/* Mobile Header */}
       {activeTab !== 'edit-question' && (
-        <header className="md:hidden bg-bg-sidebar border-b border-border p-4 flex items-center justify-between z-20 shadow-sm">
+        <header className="md:hidden bg-bg-sidebar border-b border-border p-3 flex items-center justify-between z-20 ">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center ">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-lg font-bold tracking-tight text-text-heading">
+            <h1 className="text-[15px] font-bold tracking-tight text-text-heading">
               DocuExtract
             </h1>
           </div>
@@ -182,7 +182,7 @@ export default function App() {
             variant="ghost" 
             size="icon" 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="h-9 w-9 rounded-lg text-text-muted hover:text-text-body hover:bg-slate-100"
+            className="h-9 w-9 rounded-lg text-text-muted hover:text-text-body hover:bg-[#141414]"
           >
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>
@@ -214,17 +214,17 @@ export default function App() {
           className={`
             fixed inset-y-0 left-0 z-40 md:relative md:z-10
             ${isSidebarCollapsed ? 'md:w-16' : 'md:w-64'} 
-            w-64 border-r border-border bg-bg-sidebar flex flex-col shrink-0 shadow-xl md:shadow-none transition-all duration-300
+            w-64 border-r border-border bg-bg-sidebar flex flex-col shrink-0 card-hover md:shadow-none transition-all duration-300
           `}>
-          <div className={`p-4 border-b border-border flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
+          <div className={`p-3 border-b border-border flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
             <motion.div 
               className="flex items-center gap-3 overflow-hidden"
               animate={{ opacity: isSidebarCollapsed ? 0 : 1 }}
             >
-              <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm shrink-0">
+              <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center  shrink-0">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-text-heading truncate">
+              <h1 className="text-[20px] font-bold tracking-tight text-text-heading truncate">
                 DocuExtract
               </h1>
             </motion.div>
@@ -232,7 +232,7 @@ export default function App() {
               variant="ghost" 
               size="icon" 
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className={`h-8 w-8 rounded-lg text-text-muted hover:text-text-body hover:bg-slate-100 ${isSidebarCollapsed ? 'hidden md:flex' : ''}`}
+              className={`h-[38px] w-[38px] rounded-[6px] text-text-muted hover:text-text-body hover:bg-[#1A1A1A] ${isSidebarCollapsed ? 'hidden md:flex' : ''}`}
             >
               {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </Button>
@@ -242,7 +242,7 @@ export default function App() {
             <Button 
               variant="ghost"
               onClick={() => { setActiveTab('extract'); setIsMobileMenuOpen(false); }}
-              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'extract' ? 'bg-primary-light text-primary font-semibold' : 'text-text-body hover:bg-slate-50'}`}
+              className={`w-full h-[38px] text-[13px] font-normal ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-none transition-all ${activeTab === 'extract' ? 'border-l-[3px] border-primary text-primary bg-[#1A1A1A]' : 'border-l-[3px] border-transparent text-text-body hover:bg-[#1A1A1A]'}`}
               title="Dashboard & Extract"
             >
               <LayoutDashboard className="w-4 h-4 shrink-0" /> 
@@ -251,7 +251,7 @@ export default function App() {
             <Button 
               variant="ghost"
               onClick={() => { setActiveTab('question-bank'); setIsMobileMenuOpen(false); }}
-              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'question-bank' ? 'bg-primary-light text-primary font-semibold' : 'text-text-body hover:bg-slate-50'}`}
+              className={`w-full h-[38px] text-[13px] font-normal ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-none transition-all ${activeTab === 'question-bank' ? 'border-l-[3px] border-primary text-primary bg-[#1A1A1A]' : 'border-l-[3px] border-transparent text-text-body hover:bg-[#1A1A1A]'}`}
               title="Question Bank"
             >
               <Library className="w-4 h-4 shrink-0" /> 
@@ -260,7 +260,7 @@ export default function App() {
             <Button 
               variant="ghost"
               onClick={() => { setActiveTab('sets'); setIsMobileMenuOpen(false); }}
-              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'sets' || activeTab === 'create-set' ? 'bg-primary-light text-primary font-semibold' : 'text-text-body hover:bg-slate-50'}`}
+              className={`w-full h-[38px] text-[13px] font-normal ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-none transition-all ${activeTab === 'sets' || activeTab === 'create-set' ? 'border-l-[3px] border-primary text-primary bg-[#1A1A1A]' : 'border-l-[3px] border-transparent text-text-body hover:bg-[#1A1A1A]'}`}
               title="Question Sets"
             >
               <FolderOpen className="w-4 h-4 shrink-0" /> 
@@ -271,7 +271,7 @@ export default function App() {
             <Button 
               variant="ghost" 
               onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }}
-              className={`w-full ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-lg transition-all ${activeTab === 'settings' ? 'bg-primary-light text-primary font-semibold' : 'text-text-muted hover:text-text-body hover:bg-slate-50'}`}
+              className={`w-full h-[38px] text-[13px] font-normal ${isSidebarCollapsed ? 'md:justify-center md:px-0' : 'justify-start gap-3 px-3'} rounded-none transition-all ${activeTab === 'settings' ? 'border-l-[3px] border-primary text-primary bg-[#1A1A1A]' : 'border-l-[3px] border-transparent text-text-muted hover:text-text-body hover:bg-[#1A1A1A]'}`}
               title="Settings"
             >
               <Settings className="w-4 h-4 shrink-0" /> 
@@ -307,7 +307,7 @@ export default function App() {
                 {activeTab === 'extract' && (
                   extractedQuestions.length > 0 ? (
                     <div className="p-8 max-w-7xl mx-auto">
-                      <button onClick={() => { setExtractedQuestions([]); setCurrentDocumentId(null); }} className="mb-6 text-sm font-semibold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
+                      <button onClick={() => { setExtractedQuestions([]); setCurrentDocumentId(null); }} className="mb-6 text-[13px] font-semibold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
                         &larr; Back to Dashboard
                       </button>
                       <Questions questions={extractedQuestions} onEdit={handleEdit} onQuestionsChange={handleQuestionsChange} />

@@ -165,14 +165,14 @@ export default function QuestionEditPage({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 font-sans text-slate-900">
+    <div className="min-h-screen flex flex-col bg-[#111111] font-sans text-text-heading">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between shadow-sm gap-3">
+      <header className="sticky top-0 z-10 bg-bg-card border-b border-border px-4 sm:px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between  gap-3">
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full hover:bg-slate-100 shrink-0">
+          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full hover:bg-[#141414] shrink-0">
             <ChevronLeft className="w-5 h-5" />
           </Button>
-          <h2 className="text-base sm:text-lg font-semibold text-slate-800 truncate">Edit Question <span className="text-slate-400 font-normal">#{index + 1}</span></h2>
+          <h2 className="text-base sm:text-[15px] font-semibold text-text-heading truncate">Edit Question <span className="text-[#555555] font-normal">#{index + 1}</span></h2>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           <div className="flex items-center gap-2">
@@ -180,7 +180,7 @@ export default function QuestionEditPage({
             <Button variant="outline" size="sm" onClick={onNext} disabled={index >= total - 1} className="rounded-full h-8 px-3 text-xs">Next</Button>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-4 sm:px-6 h-8 sm:h-9 font-semibold shadow-md shadow-indigo-200 text-xs sm:text-sm">
+            <Button size="sm" onClick={handleSave} className="bg-primary hover:bg-primary-hover text-white rounded-full px-4 sm:px-4 h-8 sm:h-9 font-semibold card-hover shadow-indigo-200 text-xs sm:text-[13px]">
               <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Save
             </Button>
             <Button 
@@ -200,29 +200,29 @@ export default function QuestionEditPage({
       </header>
 
       {/* Main Workspace */}
-      <main className="flex-1 p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto w-full">
+      <main className="flex-1 p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 max-w-7xl mx-auto w-full">
         
         {/* Left Panel - Content */}
         <div className="lg:col-span-8 space-y-6">
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <section className="bg-bg-card rounded-lg border border-border p-4 ">
             <div className="flex items-center justify-between mb-4">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Question Content</Label>
+              <Label className="text-xs font-bold text-text-muted uppercase tracking-wider">Question Content</Label>
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs text-slate-500">Question (English)</Label>
+                <Label className="text-xs text-text-muted">Question (English)</Label>
                 <Textarea 
                   placeholder="Enter question in English..." 
-                  className="w-full min-h-[120px] resize-y border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl text-base p-4"
+                  className="w-full min-h-[120px] resize-y border-border focus:border-indigo-500 focus:ring-indigo-500 rounded-lg text-base p-3"
                   value={editingQuestion.question_eng || ''} 
                   onChange={e => setEditingQuestion(prev => prev ? {...prev, question_eng: e.target.value} : null)} 
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-slate-500">Question (Hindi)</Label>
+                <Label className="text-xs text-text-muted">Question (Hindi)</Label>
                 <Textarea 
                   placeholder="Enter question in Hindi..." 
-                  className="w-full min-h-[120px] resize-y border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl text-base p-4"
+                  className="w-full min-h-[120px] resize-y border-border focus:border-indigo-500 focus:ring-indigo-500 rounded-lg text-base p-3"
                   value={editingQuestion.question_hin || ''} 
                   onChange={e => setEditingQuestion(prev => prev ? {...prev, question_hin: e.target.value} : null)} 
                 />
@@ -230,14 +230,14 @@ export default function QuestionEditPage({
             </div>
           </section>
 
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <section className="bg-bg-card rounded-lg border border-border p-4 ">
             <div className="flex items-center justify-between mb-4">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Question Image</Label>
+              <Label className="text-xs font-bold text-text-muted uppercase tracking-wider">Question Image</Label>
             </div>
             <div className="space-y-4">
               {editingQuestion.image ? (
                 <div className="relative inline-block">
-                  <img src={editingQuestion.image} alt="Question" className="max-h-64 rounded-lg border border-slate-200" />
+                  <img src={editingQuestion.image} alt="Question" className="max-h-64 rounded-lg border border-border" />
                   <Button 
                     variant="destructive" 
                     size="icon" 
@@ -249,11 +249,11 @@ export default function QuestionEditPage({
                 </div>
               ) : (
                 <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-border border-dashed rounded-lg cursor-pointer bg-[#111111] hover:bg-[#141414] transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <ImageIcon className="w-8 h-8 mb-2 text-slate-400" />
-                      <p className="text-sm text-slate-500 font-semibold">Click to upload image</p>
-                      <p className="text-xs text-slate-400">SVG, PNG, JPG or GIF</p>
+                      <ImageIcon className="w-8 h-8 mb-2 text-[#555555]" />
+                      <p className="text-[13px] text-text-muted font-semibold">Click to upload image</p>
+                      <p className="text-xs text-[#555555]">SVG, PNG, JPG or GIF</p>
                     </div>
                     <input 
                       type="file" 
@@ -276,25 +276,25 @@ export default function QuestionEditPage({
             </div>
           </section>
           
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <section className="bg-bg-card rounded-lg border border-border p-4 ">
             <div className="flex items-center justify-between mb-4">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Solution</Label>
+              <Label className="text-xs font-bold text-text-muted uppercase tracking-wider">Solution</Label>
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs text-slate-500">Solution (English)</Label>
+                <Label className="text-xs text-text-muted">Solution (English)</Label>
                 <Textarea 
                   placeholder="Enter solution in English..." 
-                  className="w-full min-h-[100px] resize-y border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl text-base p-4"
+                  className="w-full min-h-[100px] resize-y border-border focus:border-indigo-500 focus:ring-indigo-500 rounded-lg text-base p-3"
                   value={editingQuestion.solution_eng || ''} 
                   onChange={e => setEditingQuestion(prev => prev ? {...prev, solution_eng: e.target.value} : null)} 
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-slate-500">Solution (Hindi)</Label>
+                <Label className="text-xs text-text-muted">Solution (Hindi)</Label>
                 <Textarea 
                   placeholder="Enter solution in Hindi..." 
-                  className="w-full min-h-[100px] resize-y border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl text-base p-4"
+                  className="w-full min-h-[100px] resize-y border-border focus:border-indigo-500 focus:ring-indigo-500 rounded-lg text-base p-3"
                   value={editingQuestion.solution_hin || ''} 
                   onChange={e => setEditingQuestion(prev => prev ? {...prev, solution_hin: e.target.value} : null)} 
                 />
@@ -302,9 +302,9 @@ export default function QuestionEditPage({
             </div>
           </section>
           
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <section className="bg-bg-card rounded-lg border border-border p-4 ">
             <div className="flex items-center justify-between mb-4">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Options</Label>
+              <Label className="text-xs font-bold text-text-muted uppercase tracking-wider">Options</Label>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -319,15 +319,15 @@ export default function QuestionEditPage({
                 const label = String.fromCharCode(65 + i);
                 const isCorrect = editingQuestion.correctOption === label;
                 return (
-                  <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border-2 transition-all ${isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
+                  <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border-2 transition-all ${isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-[#111111] border-transparent hover:border-border'}`}>
                     <button
                       onClick={() => setEditingQuestion(prev => prev ? {...prev, correctOption: label} : null)}
-                      className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-xs font-mono font-bold mt-1 ${isCorrect ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'}`}
+                      className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-xs font-mono font-bold mt-1 ${isCorrect ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-text-muted'}`}
                     >
                       {label}
                     </button>
                     <Textarea 
-                      className="border-0 bg-transparent focus-visible:ring-0 text-sm font-medium p-1 resize-y min-h-[60px] w-full" 
+                      className="border-0 bg-transparent focus-visible:ring-0 text-[13px] font-medium p-1 resize-y min-h-[60px] w-full" 
                       value={opt} 
                       placeholder={`Option ${label}`}
                       onChange={e => {
@@ -341,7 +341,7 @@ export default function QuestionEditPage({
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 shrink-0 text-slate-400 hover:text-red-500 mt-1"
+                      className="h-8 w-8 shrink-0 text-[#555555] hover:text-red-500 mt-1"
                       onClick={() => setEditingQuestion(prev => prev ? {...prev, options: prev.options.filter((_, idx) => idx !== i)} : null)}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -355,12 +355,12 @@ export default function QuestionEditPage({
         
         {/* Right Panel - Properties */}
         <aside className="lg:col-span-4 space-y-6">
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 block">Properties</Label>
+          <section className="bg-bg-card rounded-lg border border-border p-4 ">
+            <Label className="text-xs font-bold text-text-muted uppercase tracking-wider mb-4 block">Properties</Label>
             <div className="space-y-4">
               {properties.map(p => (
                 <div key={p.key} className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-slate-600">{p.label}</Label>
+                  <Label className="text-[11px] font-semibold text-text-body">{p.label}</Label>
                   <Input 
                     value={(editingQuestion as any)[p.key] || ''} 
                     onChange={e => setEditingQuestion(prev => prev ? {...prev, [p.key]: e.target.value} : null)} 
@@ -370,15 +370,15 @@ export default function QuestionEditPage({
             </div>
           </section>
           
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 block">Metadata</Label>
+          <section className="bg-bg-card rounded-lg border border-border p-4 ">
+            <Label className="text-xs font-bold text-text-muted uppercase tracking-wider mb-4 block">Metadata</Label>
             <div className="space-y-4">
               {metadata.map(p => (
                 <div key={p.key} className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-slate-600">{p.label}</Label>
+                  <Label className="text-[11px] font-semibold text-text-body">{p.label}</Label>
                   {p.key === 'current_status' ? (
                     <select
-                      className="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-1 text-[13px]  transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
                       value={(editingQuestion as any)[p.key] || 'Draft'}
                       onChange={e => setEditingQuestion(prev => prev ? {...prev, [p.key]: e.target.value} : null)}
                     >
@@ -398,15 +398,15 @@ export default function QuestionEditPage({
             </div>
           </section>
           
-          <section className="bg-indigo-900 rounded-2xl p-6 text-white shadow-lg shadow-indigo-200">
+          <section className="bg-indigo-900 rounded-lg p-4 text-white card-hover shadow-indigo-200">
             <div className="flex items-center gap-2 mb-4 text-indigo-200">
               <Sparkles className="w-4 h-4" />
               <Label className="text-xs font-bold uppercase tracking-wider">AI Assistant</Label>
             </div>
-            <p className="text-sm text-indigo-100 mb-4">Use AI to generate variations, solutions, or translations.</p>
+            <p className="text-[13px] text-indigo-100 mb-4">Use AI to generate variations, solutions, or translations.</p>
             
             <div className="space-y-3 mb-4">
-              <select className="w-full bg-indigo-800 border border-indigo-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white outline-none" value={aiEditType} onChange={e => {
+              <select className="w-full bg-indigo-800 border border-indigo-700 rounded-lg px-4 py-2.5 text-[13px] font-medium text-white outline-none" value={aiEditType} onChange={e => {
                 setAiEditType(e.target.value);
                 setAiEditAction('');
               }}>
@@ -418,7 +418,7 @@ export default function QuestionEditPage({
               </select>
 
               {aiEditType === 'Solution Add / Change' && (
-                <select className="w-full bg-indigo-800 border border-indigo-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white outline-none" value={aiEditAction} onChange={e => setAiEditAction(e.target.value)}>
+                <select className="w-full bg-indigo-800 border border-indigo-700 rounded-lg px-4 py-2.5 text-[13px] font-medium text-white outline-none" value={aiEditAction} onChange={e => setAiEditAction(e.target.value)}>
                   <option value="">Select action...</option>
                   <option value="Add solution where missing">Add solution where missing</option>
                   <option value="Make solutions more detailed">Make solutions more detailed</option>
@@ -427,7 +427,7 @@ export default function QuestionEditPage({
               )}
 
               {aiEditType === 'Classify & Tag' && (
-                <select className="w-full bg-indigo-800 border border-indigo-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white outline-none" value={aiEditAction} onChange={e => setAiEditAction(e.target.value)}>
+                <select className="w-full bg-indigo-800 border border-indigo-700 rounded-lg px-4 py-2.5 text-[13px] font-medium text-white outline-none" value={aiEditAction} onChange={e => setAiEditAction(e.target.value)}>
                   <option value="">Select action...</option>
                   <option value="Fill all missing classification fields">Fill all missing fields (Subject, Sub Subject, Chapter, Sub Chapter, Topic, Sub Topic, Keywords, Difficulty)</option>
                   <option value="Generate keywords only">Generate Keywords only</option>
@@ -436,7 +436,7 @@ export default function QuestionEditPage({
               )}
 
               {aiEditType === 'Language Variation' && (
-                <select className="w-full bg-indigo-800 border border-indigo-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white outline-none" value={aiLanguage} onChange={e => setAiLanguage(e.target.value)}>
+                <select className="w-full bg-indigo-800 border border-indigo-700 rounded-lg px-4 py-2.5 text-[13px] font-medium text-white outline-none" value={aiLanguage} onChange={e => setAiLanguage(e.target.value)}>
                   <option value="Hindi">Hindi</option>
                   <option value="Bengali">Bengali</option>
                   <option value="Telugu">Telugu</option>
@@ -449,11 +449,11 @@ export default function QuestionEditPage({
               )}
 
               {aiEditType === 'Write your own prompt' && (
-                <textarea className="w-full bg-indigo-800 border border-indigo-700 rounded-xl px-4 py-2.5 text-sm font-medium text-white outline-none h-24" value={aiCustomPrompt} onChange={e => setAiCustomPrompt(e.target.value)} placeholder="Describe what you want AI to do..." />
+                <textarea className="w-full bg-indigo-800 border border-indigo-700 rounded-lg px-4 py-2.5 text-[13px] font-medium text-white outline-none h-24" value={aiCustomPrompt} onChange={e => setAiCustomPrompt(e.target.value)} placeholder="Describe what you want AI to do..." />
               )}
             </div>
 
-            <Button className="w-full bg-white text-indigo-900 hover:bg-indigo-50 rounded-xl h-10 font-bold" onClick={handleApplyAIEdit} disabled={isAIProcessing}>
+            <Button className="w-full bg-bg-card text-indigo-900 hover:bg-indigo-50 rounded-lg h-10 font-bold" onClick={handleApplyAIEdit} disabled={isAIProcessing}>
               {isAIProcessing ? 'Processing...' : 'Apply AI Edit'}
             </Button>
           </section>

@@ -155,20 +155,20 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
   return (
     <div className="p-2 md:p-3 max-w-[1600px] mx-auto space-y-2 h-full flex flex-col">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 shrink-0 bg-white p-2 px-3 rounded-lg border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 shrink-0 bg-bg-card p-2 px-3 rounded-lg border border-border ">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-slate-100 rounded-full w-8 h-8">
-            <ArrowLeft className="w-4 h-4 text-slate-600" />
+          <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-[#141414] rounded-full w-8 h-8">
+            <ArrowLeft className="w-4 h-4 text-text-body" />
           </Button>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
+          <h2 className="text-[15px] font-bold tracking-tight text-text-heading flex items-center gap-2">
             Create Set
           </h2>
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-1 bg-[#111111] p-1 rounded-lg border border-border">
             <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
-              <SelectTrigger className="w-[140px] bg-white border-slate-200 shadow-sm h-8 text-xs">
+              <SelectTrigger className="w-[140px] bg-bg-card border-border  h-8 text-xs">
                 <SelectValue placeholder="Select Folder" />
               </SelectTrigger>
               <SelectContent>
@@ -176,20 +176,20 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
                 {folders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="icon" className="h-8 w-8 bg-white border-slate-200 shadow-sm" onClick={() => setIsFolderModalOpen(true)} title="Create New Folder">
-              <FolderPlus className="w-3.5 h-3.5 text-slate-600" />
+            <Button variant="outline" size="icon" className="h-8 w-8 bg-bg-card border-border " onClick={() => setIsFolderModalOpen(true)} title="Create New Folder">
+              <FolderPlus className="w-3.5 h-3.5 text-text-body" />
             </Button>
           </div>
           <Input 
             placeholder="Enter Set Name..." 
             value={cloudSetName} 
             onChange={e => setCloudSetName(e.target.value)} 
-            className="w-[180px] bg-white border-slate-200 shadow-sm h-8 text-sm"
+            className="w-[180px] bg-bg-card border-border  h-8 text-[13px]"
           />
           <Button 
             onClick={handleCreateSet} 
             disabled={!cloudSetName.trim() || selectedCloudIds.length === 0} 
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm h-8 px-4 rounded-lg text-sm transition-all"
+            className="bg-primary hover:bg-primary-hover text-white  h-8 px-4 rounded-lg text-[13px] transition-all"
           >
             <Save className="w-3.5 h-3.5 mr-2" /> 
             Save Set {selectedCloudIds.length > 0 && <span className="ml-1 bg-blue-500 px-1.5 py-0.5 rounded text-[10px]">{selectedCloudIds.length}</span>}
@@ -198,16 +198,16 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex flex-col lg:flex-row gap-4 flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row gap-3 flex-1 overflow-hidden">
         
         {/* Left Column: All Questions & Filters */}
-        <div className="flex flex-col gap-0 flex-1 overflow-hidden bg-white border border-slate-200 rounded-lg shadow-sm">
+        <div className="flex flex-col gap-0 flex-1 overflow-hidden bg-bg-card border border-border rounded-lg ">
           {/* Toolbar */}
-          <div className="flex flex-wrap gap-2 items-center shrink-0 p-2 border-b border-slate-100 bg-slate-50/50">
+          <div className="flex flex-wrap gap-2 items-center shrink-0 p-2 border-b border-border bg-[#111111]/50">
             <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-slate-400" />
+              <Database className="w-4 h-4 text-[#555555]" />
               <Select value={selectedCloudTable} onValueChange={(val) => fetchCloudRecords(val)}>
-                <SelectTrigger className="w-[160px] bg-white shadow-sm border-slate-200 h-8 text-xs font-medium">
+                <SelectTrigger className="w-[160px] bg-bg-card  border-border h-8 text-xs font-medium">
                   <SelectValue placeholder="Select Table..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -217,12 +217,12 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
               <Button 
                 variant="outline" 
                 size="icon" 
-                className="h-8 w-8 bg-white border-slate-200 shadow-sm" 
+                className="h-8 w-8 bg-bg-card border-border " 
                 onClick={handleSync} 
                 disabled={isLoadingCloud}
                 title="Sync from Airtable"
               >
-                <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${isLoadingCloud ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-3.5 h-3.5 text-text-body ${isLoadingCloud ? 'animate-spin' : ''}`} />
               </Button>
             </div>
 
@@ -232,9 +232,9 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
             {Object.keys(filterableFields).slice(0, 4).map(field => (
               <div key={field} className="flex items-center gap-2">
                 <Select value={cloudFilters[field] || 'all'} onValueChange={val => setCloudFilters({...cloudFilters, [field]: val})}>
-                  <SelectTrigger className="w-[130px] bg-white shadow-sm border-slate-200 h-8 text-xs">
+                  <SelectTrigger className="w-[130px] bg-bg-card  border-border h-8 text-xs">
                     <div className="flex items-center gap-1.5 truncate">
-                      <Filter className="w-3 h-3 text-slate-400 shrink-0" />
+                      <Filter className="w-3 h-3 text-[#555555] shrink-0" />
                       <span className="truncate">{cloudFilters[field] && cloudFilters[field] !== 'all' ? cloudFilters[field] : field.replace(/_/g, ' ')}</span>
                     </div>
                   </SelectTrigger>
@@ -248,12 +248,12 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
 
             <div className="flex-1 min-w-[150px] ml-auto">
               <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#555555]" />
                 <Input 
                   value={cloudSearch} 
                   onChange={e => setCloudSearch(e.target.value)} 
                   placeholder="Search questions..." 
-                  className="pl-8 bg-white shadow-sm border-slate-200 h-8 text-xs"
+                  className="pl-8 bg-bg-card  border-border h-8 text-xs"
                 />
               </div>
             </div>
@@ -262,32 +262,32 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
           {/* Data Table */}
           <div className="flex-1 overflow-auto relative">
             {isLoadingCloud ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm z-10">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-600 mb-3" />
-                <p className="text-slate-500 text-sm font-medium">Loading records...</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-card/80 backdrop-blur-sm z-10">
+                <Loader2 className="w-6 h-6 animate-spin text-primary mb-3" />
+                <p className="text-text-muted text-[13px] font-medium">Loading records...</p>
               </div>
             ) : cloudRecords.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-3 p-6 text-center">
-                <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 mb-1">
+              <div className="flex flex-col items-center justify-center h-full text-[#555555] space-y-3 p-4 text-center">
+                <div className="w-12 h-12 bg-[#111111] rounded-full flex items-center justify-center border border-border mb-1">
                   <Database className="w-6 h-6 text-slate-300" />
                 </div>
-                <p className="text-base font-medium text-slate-600">{selectedCloudTable ? 'No records found.' : 'Select a table to load questions.'}</p>
+                <p className="text-base font-medium text-text-body">{selectedCloudTable ? 'No records found.' : 'Select a table to load questions.'}</p>
                 <p className="text-xs max-w-sm">Choose a table from the dropdown menu above to view and select questions.</p>
               </div>
             ) : (
               <table className="w-full text-xs text-left border-collapse">
-                <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm ring-1 ring-slate-200">
+                <thead className="bg-[#111111] sticky top-0 z-10  ring-1 ring-slate-200">
                   <tr>
-                    <th className="py-1.5 px-2 w-8 text-center border-b border-slate-200">
+                    <th className="py-1.5 px-2 w-8 text-center border-b border-border">
                       <Checkbox 
                         checked={selectedCloudIds.length === filteredCloudRecords.length && filteredCloudRecords.length > 0} 
                         onCheckedChange={toggleCloudSelectAll} 
-                        className="w-3.5 h-3.5 border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                        className="w-3.5 h-3.5 border-border data-[state=checked]:bg-primary data-[state=checked]:border-blue-600"
                       />
                     </th>
-                    <th className="py-1.5 px-2 font-semibold text-slate-700 border-b border-slate-200">Question</th>
+                    <th className="py-1.5 px-2 font-semibold text-text-heading border-b border-border">Question</th>
                     {Object.keys(filterableFields).slice(0, 4).map(f => (
-                      <th key={f} className="py-1.5 px-2 font-semibold text-slate-700 capitalize whitespace-nowrap border-b border-slate-200">{f.replace(/_/g, ' ')}</th>
+                      <th key={f} className="py-1.5 px-2 font-semibold text-text-heading capitalize whitespace-nowrap border-b border-border">{f.replace(/_/g, ' ')}</th>
                     ))}
                   </tr>
                 </thead>
@@ -295,23 +295,23 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
                   {filteredCloudRecords.map(r => (
                     <tr 
                       key={r.id} 
-                      className={`transition-colors cursor-pointer ${selectedCloudIds.includes(r.id) ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`} 
+                      className={`transition-colors cursor-pointer ${selectedCloudIds.includes(r.id) ? 'bg-blue-50/50' : 'hover:bg-[#1a1a1a]'}`} 
                       onClick={() => toggleCloudSelect(r.id)}
                     >
                       <td className="py-1.5 px-2 text-center" onClick={e => e.stopPropagation()}>
                         <Checkbox 
                           checked={selectedCloudIds.includes(r.id)} 
                           onCheckedChange={() => toggleCloudSelect(r.id)} 
-                          className="w-3.5 h-3.5 border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                          className="w-3.5 h-3.5 border-border data-[state=checked]:bg-primary data-[state=checked]:border-blue-600"
                         />
                       </td>
                       <td className="py-1.5 px-2 max-w-xl">
-                        <div className="line-clamp-3 text-slate-800 font-medium leading-snug" title={r.question_hin || r.question_eng || r.text}>
-                          {r.question_hin || r.question_eng || r.text || <span className="text-slate-400 italic font-normal">No text content</span>}
+                        <div className="line-clamp-3 text-text-heading font-medium leading-snug" title={r.question_hin || r.question_eng || r.text}>
+                          {r.question_hin || r.question_eng || r.text || <span className="text-[#555555] italic font-normal">No text content</span>}
                         </div>
                       </td>
                       {Object.keys(filterableFields).slice(0, 4).map(f => (
-                        <td key={f} className="py-1.5 px-2 whitespace-nowrap text-slate-500">{r[f] || '-'}</td>
+                        <td key={f} className="py-1.5 px-2 whitespace-nowrap text-text-muted">{r[f] || '-'}</td>
                       ))}
                     </tr>
                   ))}
@@ -322,14 +322,14 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Right Column: Selected Questions */}
-        <div className="w-full lg:w-[260px] xl:w-[300px] flex flex-col gap-0 overflow-hidden bg-slate-50 border border-slate-200 rounded-lg shadow-sm shrink-0">
-          <div className="p-2 px-3 border-b border-slate-200 bg-white flex items-center justify-between">
-            <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+        <div className="w-full lg:w-[260px] xl:w-[300px] flex flex-col gap-0 overflow-hidden bg-[#111111] border border-border rounded-lg  shrink-0">
+          <div className="p-2 px-3 border-b border-border bg-bg-card flex items-center justify-between">
+            <h3 className="font-semibold text-text-heading text-[13px] flex items-center gap-2">
               Selected
               <span className="bg-blue-100 text-blue-700 py-0.5 px-2 rounded-full text-[10px] font-bold">{selectedCloudIds.length}</span>
             </h3>
             {selectedCloudIds.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => setSelectedCloudIds([])} className="h-7 px-2 text-[10px] text-slate-500 hover:text-red-600 hover:bg-red-50">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedCloudIds([])} className="h-7 px-2 text-[10px] text-text-muted hover:text-red-600 hover:bg-red-50">
                 Clear All
               </Button>
             )}
@@ -337,22 +337,22 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
           
           <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
             {selectedCloudIds.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2">
-                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center border border-slate-200 shadow-sm">
+              <div className="h-full flex flex-col items-center justify-center text-center text-[#555555] space-y-2">
+                <div className="w-8 h-8 bg-bg-card rounded-full flex items-center justify-center border border-border ">
                   <CheckCircle2 className="w-4 h-4 text-slate-300" />
                 </div>
                 <p className="text-[11px] px-2">Select questions from the table to add them to your set.</p>
               </div>
             ) : (
               cloudRecords.filter(r => selectedCloudIds.includes(r.id)).map((r, index) => (
-                <div key={r.id} className="p-2 bg-white border border-slate-200 rounded-md shadow-sm hover:border-blue-300 transition-colors group relative pr-6">
-                  <div className="text-[9px] font-bold text-blue-600 mb-0.5">Q{index + 1}</div>
-                  <div className="text-[11px] text-slate-700 line-clamp-2 font-medium leading-snug">
+                <div key={r.id} className="p-2 bg-bg-card border border-border rounded-md  hover:border-blue-300 transition-colors group relative pr-6">
+                  <div className="text-[9px] font-bold text-primary mb-0.5">Q{index + 1}</div>
+                  <div className="text-[11px] text-text-heading line-clamp-2 font-medium leading-snug">
                     {r.question_hin || r.question_eng || r.text || 'No text content'}
                   </div>
                   <button 
                     onClick={() => toggleCloudSelect(r.id)}
-                    className="absolute top-2 right-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-1 shadow-sm border border-slate-100"
+                    className="absolute top-2 right-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-bg-card rounded-full p-1  border border-border"
                     title="Remove question"
                   >
                     <X className="w-3 h-3" />
@@ -366,26 +366,26 @@ export default function CreateSet({ onBack }: { onBack: () => void }) {
 
       {/* Create Folder Modal */}
       <Dialog open={isFolderModalOpen} onOpenChange={setIsFolderModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden border-0 shadow-2xl">
-          <DialogHeader className="px-6 py-4 border-b bg-slate-50/50">
-            <DialogTitle className="text-lg font-semibold text-slate-800">Create New Folder</DialogTitle>
+        <DialogContent className="sm:max-w-md rounded-lg p-0 overflow-hidden border-0 card-hover">
+          <DialogHeader className="px-4 py-3 border-b bg-[#111111]/50">
+            <DialogTitle className="text-[15px] font-semibold text-text-heading">Create New Folder</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 p-6">
+          <div className="space-y-4 p-4">
             <div className="space-y-2">
-              <Label className="text-slate-700 font-medium">Folder Name</Label>
+              <Label className="text-text-heading font-medium">Folder Name</Label>
               <Input 
                 value={newFolderName} 
                 onChange={e => setNewFolderName(e.target.value)} 
                 placeholder="e.g., Physics 2024" 
                 onKeyDown={e => e.key === 'Enter' && handleCreateFolder()} 
-                className="border-slate-200 focus-visible:ring-blue-500 rounded-xl shadow-sm h-11"
+                className="border-border focus-visible:ring-blue-500 rounded-lg  h-11"
                 autoFocus
               />
             </div>
           </div>
-          <DialogFooter className="px-6 py-4 border-t bg-slate-50/50">
-            <Button variant="ghost" onClick={() => setIsFolderModalOpen(false)} className="text-slate-500">Cancel</Button>
-            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg px-6">Create Folder</Button>
+          <DialogFooter className="px-4 py-3 border-t bg-[#111111]/50">
+            <Button variant="ghost" onClick={() => setIsFolderModalOpen(false)} className="text-text-muted">Cancel</Button>
+            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()} className="bg-primary hover:bg-primary-hover text-white  rounded-lg px-4">Create Folder</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -419,7 +419,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
   return (
     <div className="space-y-4">
       {/* Top Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center bg-bg-page p-2 sm:p-3 rounded-xl border border-border">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center bg-bg-page p-2 sm:p-3 rounded-lg border border-border">
         <div className="flex items-center justify-between sm:justify-start gap-3">
           <div className="flex items-center gap-2">
             <Checkbox 
@@ -464,7 +464,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
         <div className="flex flex-1 gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <Input placeholder="Search questions..." className="pl-9 h-9 text-sm bg-bg-card border-border" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input placeholder="Search questions..." className="pl-9 h-9 text-[13px] bg-bg-card border-border" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[110px] h-9 text-xs font-bold bg-bg-card border-border">
@@ -610,28 +610,28 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
 
       {/* Delete Confirmation Modal */}
       <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
-        <DialogContent className="sm:max-w-[400px] bg-white border-none shadow-2xl rounded-3xl overflow-hidden p-0">
-          <div className="p-6 text-center">
+        <DialogContent className="sm:max-w-[400px] bg-bg-card border-none card-hover rounded-lg overflow-hidden p-0">
+          <div className="p-4 text-center">
             <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Trash2 className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Question?</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">
+            <h3 className="text-[15px] font-bold text-text-heading mb-2">Delete Question?</h3>
+            <p className="text-[13px] text-text-muted leading-relaxed">
               Are you sure you want to delete this question? This action cannot be undone.
             </p>
           </div>
-          <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex sm:justify-between items-center gap-3">
+          <DialogFooter className="px-4 py-3 bg-[#111111] border-t border-border flex sm:justify-between items-center gap-3">
             <Button 
               variant="ghost" 
               onClick={() => setDeleteConfirmId(null)}
-              className="font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl px-6"
+              className="font-bold text-text-muted hover:text-text-heading hover:bg-[#141414] rounded-lg px-4"
             >
               Cancel
             </Button>
             <Button 
               variant="destructive"
               onClick={executeDelete}
-              className="font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl px-8 shadow-lg shadow-red-200 h-11"
+              className="font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg px-5 card-hover shadow-red-200 h-11"
             >
               Delete
             </Button>
@@ -641,19 +641,19 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
 
       {/* Cloud DB Save Modal */}
       <Dialog open={isAirtableModalOpen} onOpenChange={setIsAirtableModalOpen}>
-        <DialogContent className="sm:max-w-[480px] bg-white border-none shadow-2xl rounded-3xl overflow-hidden p-0">
-          <DialogHeader className="px-6 pt-6 pb-4 bg-slate-50/50 border-b border-slate-100">
-            <DialogTitle className="text-xl font-bold text-slate-900">Save Questions</DialogTitle>
+        <DialogContent className="sm:max-w-[480px] bg-bg-card border-none card-hover rounded-lg overflow-hidden p-0">
+          <DialogHeader className="px-4 pt-6 pb-4 bg-[#111111]/50 border-b border-border">
+            <DialogTitle className="text-xl font-bold text-text-heading">Save Questions</DialogTitle>
           </DialogHeader>
-          <div className="p-6 space-y-6">
+          <div className="p-4 space-y-6">
             <div className="space-y-3">
-              <Label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Save Destination</Label>
+              <Label className="text-xs font-bold text-text-body uppercase tracking-wider">Save Destination</Label>
               <div className="grid grid-cols-2 gap-3">
                 <div 
-                  className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                  className={`flex items-center space-x-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${
                     saveDestinations.includes('server') 
-                      ? 'border-primary bg-primary-light/40 shadow-sm' 
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'border-primary bg-primary-light/40 ' 
+                      : 'border-border bg-bg-card hover:border-border'
                   }`}
                   onClick={() => {
                     if (saveDestinations.includes('server')) setSaveDestinations(prev => prev.filter(d => d !== 'server'));
@@ -668,15 +668,15 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       else setSaveDestinations(prev => prev.filter(d => d !== 'server'));
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                   />
-                  <Label htmlFor="dest-server" className="cursor-pointer font-bold text-slate-800">Own Server</Label>
+                  <Label htmlFor="dest-server" className="cursor-pointer font-bold text-text-heading">Own Server</Label>
                 </div>
                 <div 
-                  className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                  className={`flex items-center space-x-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${
                     saveDestinations.includes('airtable') 
-                      ? 'border-primary bg-primary-light/40 shadow-sm' 
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'border-primary bg-primary-light/40 ' 
+                      : 'border-border bg-bg-card hover:border-border'
                   }`}
                   onClick={() => {
                     if (saveDestinations.includes('airtable')) setSaveDestinations(prev => prev.filter(d => d !== 'airtable'));
@@ -691,15 +691,15 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       else setSaveDestinations(prev => prev.filter(d => d !== 'airtable'));
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                   />
-                  <Label htmlFor="dest-airtable" className="cursor-pointer font-bold text-slate-800">Airtable DB</Label>
+                  <Label htmlFor="dest-airtable" className="cursor-pointer font-bold text-text-heading">Airtable DB</Label>
                 </div>
               </div>
             </div>
 
             {serverError && (
-              <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-700 text-xs shadow-sm">
+              <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-700 text-xs ">
                 <p className="font-bold mb-1.5 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
                   Database Connection Issue
@@ -717,7 +717,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                   </a>
                   <button 
                     onClick={() => window.location.reload()}
-                    className="inline-flex items-center px-3 py-1.5 bg-white hover:bg-slate-50 border border-red-200 text-red-800 rounded-lg transition-colors font-bold shadow-sm text-[10px]"
+                    className="inline-flex items-center px-3 py-1.5 bg-bg-card hover:bg-[#1a1a1a] border border-red-200 text-red-800 rounded-lg transition-colors font-bold  text-[10px]"
                   >
                     Retry Connection
                     <RefreshCw className="w-3 h-3 ml-1.5" />
@@ -727,17 +727,17 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
             )}
 
             {isLoadingTables ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-5">
                 <RefreshCw className="w-6 h-6 animate-spin text-primary/40" />
               </div>
             ) : (
               <div className="space-y-5">
                 {saveDestinations.includes('server') && (
-                  <div className="space-y-4 p-5 rounded-2xl border border-slate-200 bg-slate-50 shadow-inner">
-                    <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Server Configuration</Label>
+                  <div className="space-y-4 p-5 rounded-lg border border-border bg-[#111111] shadow-inner">
+                    <Label className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Server Configuration</Label>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label className="text-sm font-bold text-slate-700">Select Folder</Label>
+                        <Label className="text-[13px] font-bold text-text-heading">Select Folder</Label>
                         <Select value={isCreatingNewFolder ? 'new' : serverFolder} onValueChange={(val) => {
                           if (val === 'new') {
                             setIsCreatingNewFolder(true);
@@ -747,16 +747,16 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                             setServerFolder(val);
                           }
                         }}>
-                          <SelectTrigger className="bg-white border-slate-300 rounded-xl h-12 shadow-sm focus:ring-2 focus:ring-primary/20">
+                          <SelectTrigger className="bg-bg-card border-border rounded-lg h-12  focus:ring-2 focus:ring-primary/20">
                             <SelectValue placeholder="Choose a folder..." />
                           </SelectTrigger>
-                          <SelectContent className="bg-white border-slate-200 shadow-2xl rounded-xl z-[100]">
+                          <SelectContent className="bg-bg-card border-border card-hover rounded-lg z-[100]">
                             {serverFolders.map(f => (
-                              <SelectItem key={f.id} value={f.name} className="py-3 px-4 cursor-pointer focus:bg-slate-50 font-medium text-slate-700">
+                              <SelectItem key={f.id} value={f.name} className="py-3 px-4 cursor-pointer focus:bg-[#111111] font-medium text-text-heading">
                                 {f.name}
                               </SelectItem>
                             ))}
-                            <SelectItem value="new" className="font-bold text-primary py-3 px-4 cursor-pointer focus:bg-primary-light/10 border-t border-slate-100 mt-1">
+                            <SelectItem value="new" className="font-bold text-primary py-3 px-4 cursor-pointer focus:bg-primary-light/10 border-t border-border mt-1">
                               + Create New Folder
                             </SelectItem>
                           </SelectContent>
@@ -764,12 +764,12 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       </div>
                       {isCreatingNewFolder && (
                         <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                          <Label className="text-sm font-bold text-slate-700">New Folder Name</Label>
+                          <Label className="text-[13px] font-bold text-text-heading">New Folder Name</Label>
                           <Input 
                             placeholder="e.g., Physics 2024" 
                             value={newServerFolder} 
                             onChange={(e) => setNewServerFolder(e.target.value)}
-                            className="bg-white border-slate-300 rounded-xl h-12 shadow-sm focus:ring-2 focus:ring-primary/20"
+                            className="bg-bg-card border-border rounded-lg h-12  focus:ring-2 focus:ring-primary/20"
                           />
                         </div>
                       )}
@@ -778,11 +778,11 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                 )}
 
                 {saveDestinations.includes('airtable') && (
-                  <div className="space-y-4 p-5 rounded-2xl border border-slate-200 bg-slate-50 shadow-inner">
-                    <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Airtable Configuration</Label>
+                  <div className="space-y-4 p-5 rounded-lg border border-border bg-[#111111] shadow-inner">
+                    <Label className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Airtable Configuration</Label>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label className="text-sm font-bold text-slate-700">Select Table</Label>
+                        <Label className="text-[13px] font-bold text-text-heading">Select Table</Label>
                         <Select value={isCreatingNewTable ? 'new' : airtableTableName} onValueChange={(val) => {
                           if (val === 'new') {
                             setIsCreatingNewTable(true);
@@ -792,16 +792,16 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                             setAirtableTableName(val);
                           }
                         }}>
-                          <SelectTrigger className="bg-white border-slate-300 rounded-xl h-12 shadow-sm focus:ring-2 focus:ring-primary/20">
+                          <SelectTrigger className="bg-bg-card border-border rounded-lg h-12  focus:ring-2 focus:ring-primary/20">
                             <SelectValue placeholder="Choose a table..." />
                           </SelectTrigger>
-                          <SelectContent className="bg-white border-slate-200 shadow-2xl rounded-xl z-[100]">
+                          <SelectContent className="bg-bg-card border-border card-hover rounded-lg z-[100]">
                             {airtableTables.map(t => (
-                              <SelectItem key={t.id} value={t.name} className="py-3 px-4 cursor-pointer focus:bg-slate-50 font-medium text-slate-700">
+                              <SelectItem key={t.id} value={t.name} className="py-3 px-4 cursor-pointer focus:bg-[#111111] font-medium text-text-heading">
                                 {t.name}
                               </SelectItem>
                             ))}
-                            <SelectItem value="new" className="font-bold text-primary py-3 px-4 cursor-pointer focus:bg-primary-light/10 border-t border-slate-100 mt-1">
+                            <SelectItem value="new" className="font-bold text-primary py-3 px-4 cursor-pointer focus:bg-primary-light/10 border-t border-border mt-1">
                               + Create New Table
                             </SelectItem>
                           </SelectContent>
@@ -809,12 +809,12 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       </div>
                       {isCreatingNewTable && (
                         <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                          <Label className="text-sm font-bold text-slate-700">New Table Name</Label>
+                          <Label className="text-[13px] font-bold text-text-heading">New Table Name</Label>
                           <Input 
                             placeholder="e.g., Exam Prep 2024" 
                             value={newTableName} 
                             onChange={(e) => setNewTableName(e.target.value)}
-                            className="bg-white border-slate-300 rounded-xl h-12 shadow-sm focus:ring-2 focus:ring-primary/20"
+                            className="bg-bg-card border-border rounded-lg h-12  focus:ring-2 focus:ring-primary/20"
                           />
                         </div>
                       )}
@@ -824,19 +824,19 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
               </div>
             )}
           </div>
-          <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex sm:justify-between items-center gap-3">
+          <DialogFooter className="px-4 py-3 bg-[#111111] border-t border-border flex sm:justify-between items-center gap-3">
             <Button 
               variant="ghost" 
               onClick={() => setIsAirtableModalOpen(false)} 
               disabled={isSaving}
-              className="font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl px-6"
+              className="font-bold text-text-muted hover:text-text-heading hover:bg-[#141414] rounded-lg px-4"
             >
               Cancel
             </Button>
             <Button 
               onClick={handleSaveQuestions} 
               disabled={isSaving || saveDestinations.length === 0}
-              className="font-bold bg-primary hover:bg-primary-hover text-white rounded-xl px-8 shadow-lg shadow-primary/20 h-11 min-w-[140px]"
+              className="font-bold bg-primary hover:bg-primary-hover text-white rounded-lg px-5 card-hover shadow-primary/20 h-11 min-w-[140px]"
             >
               {isSaving ? (
                 <span className="flex items-center gap-2">
@@ -851,14 +851,14 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
 
       {/* Questions Display */}
       {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filteredQuestions.map((q, idx) => {
             const isExpanded = expandedIds.includes(q.id);
             return (
               <motion.div 
                 layout
                 key={q.id} 
-                className={`bg-bg-card border border-border rounded-[12px] p-5 shadow-sm hover:shadow-md transition-all flex flex-col relative group ${isExpanded ? 'ring-2 ring-primary/20' : ''}`}
+                className={`bg-bg-card border border-border rounded-[12px] p-5  hover:card-hover transition-all flex flex-col relative group ${isExpanded ? 'ring-2 ring-primary/20' : ''}`}
               >
                 {/* Top Row: Checkbox, Index, Status, ID */}
                 <div className="flex items-center justify-between mb-3">
@@ -877,7 +877,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-7 w-7 p-0 rounded-full hover:bg-slate-100 text-primary"
+                      className="h-7 w-7 p-0 rounded-full hover:bg-[#141414] text-primary"
                       onClick={() => toggleExpand(q.id)}
                     >
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -891,12 +891,12 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                     {Array.from({ length: Math.min(filteredQuestions.length, 20) }).map((_, i) => (
                       <div 
                         key={i} 
-                        className={`w-2 h-2 rounded-full shrink-0 ${i <= idx ? 'bg-success' : 'bg-slate-100'}`}
+                        className={`w-2 h-2 rounded-full shrink-0 ${i <= idx ? 'bg-success' : 'bg-[#141414]'}`}
                       />
                     ))}
                     {filteredQuestions.length > 20 && <div className="text-[8px] text-slate-300 self-center">...</div>}
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 shrink-0">
+                  <span className="text-[10px] font-bold text-[#555555] shrink-0">
                     {idx + 1}/{filteredQuestions.length}
                   </span>
                 </div>
@@ -904,17 +904,17 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5 mb-4">
                   {q.subject && (
-                    <span className="px-2 py-1 bg-slate-50 text-slate-500 rounded-lg border border-slate-100 text-[10px] font-bold uppercase tracking-tight">
+                    <span className="px-2 py-1 bg-[#111111] text-text-muted rounded-lg border border-border text-[10px] font-bold uppercase tracking-tight">
                       {q.subject}
                     </span>
                   )}
                   {q.chapter && (
-                    <span className="px-2 py-1 bg-slate-50 text-slate-500 rounded-lg border border-slate-100 text-[10px] font-bold uppercase tracking-tight">
+                    <span className="px-2 py-1 bg-[#111111] text-text-muted rounded-lg border border-border text-[10px] font-bold uppercase tracking-tight">
                       {q.chapter}
                     </span>
                   )}
                   {q.topic && (
-                    <span className="px-2 py-1 bg-slate-50 text-slate-500 rounded-lg border border-slate-100 text-[10px] font-bold uppercase tracking-tight">
+                    <span className="px-2 py-1 bg-[#111111] text-text-muted rounded-lg border border-border text-[10px] font-bold uppercase tracking-tight">
                       {q.topic}
                     </span>
                   )}
@@ -946,7 +946,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
 
                 {/* Question Text */}
                 <div className="mb-4 flex-1 cursor-pointer" onClick={() => toggleExpand(q.id)}>
-                  <p className={`text-sm text-text-body leading-relaxed font-medium ${isExpanded ? '' : 'line-clamp-3'}`}>
+                  <p className={`text-[13px] text-text-body leading-relaxed font-medium ${isExpanded ? '' : 'line-clamp-3'}`}>
                     {q.text || q.question_hin || q.question_eng || q.Question || q.Name || q.question || 'No text'}
                   </p>
                   {!isExpanded && (q.text || q.question_hin || q.question_eng || '').length > 100 && (
@@ -963,11 +963,11 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       className="overflow-hidden"
                     >
                       {/* Options */}
-                      <div className="mb-4 space-y-2 pt-2 border-t border-slate-100">
+                      <div className="mb-4 space-y-2 pt-2 border-t border-border">
                         <span className="text-[10px] font-bold text-text-label uppercase tracking-wider block mb-1">Options:</span>
                         <div className="space-y-1.5">
                           {(q.options || []).map((opt, i) => (
-                            <div key={i} className={`text-[12px] flex items-start gap-2 p-2 rounded-lg border ${opt === q.correctOption ? 'bg-success/5 border-success/20 text-success font-bold' : 'bg-slate-50/50 border-slate-100 text-text-body'}`}>
+                            <div key={i} className={`text-[12px] flex items-start gap-2 p-2 rounded-lg border ${opt === q.correctOption ? 'bg-success/5 border-success/20 text-success font-bold' : 'bg-[#111111]/50 border-border text-text-body'}`}>
                               <span className="text-[10px] font-bold text-text-label mt-0.5">
                                 {String.fromCharCode(65 + i)}.
                               </span>
@@ -979,7 +979,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
 
                       {/* Solution */}
                       {(q.solution_hin || q.solution_eng) && (
-                        <div className="mb-4 p-3 bg-primary-light/20 rounded-xl border border-primary-light/30">
+                        <div className="mb-4 p-3 bg-primary-light/20 rounded-lg border border-primary-light/30">
                           <span className="text-[10px] font-bold text-primary uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
                             <Eye className="w-3 h-3" />
                             Solution / Explanation
@@ -1017,7 +1017,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                     onClick={() => handleEditClick(q)} 
                     variant="outline" 
                     size="sm" 
-                    className="h-8 border-border bg-white text-text-body hover:bg-slate-50 gap-1.5 text-[11px] font-semibold rounded-[8px]"
+                    className="h-8 border-border bg-bg-card text-text-body hover:bg-[#1a1a1a] gap-1.5 text-[11px] font-semibold rounded-[8px]"
                   >
                     <Edit className="w-3.5 h-3.5" />
                     Edit
@@ -1026,7 +1026,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                     onClick={() => handleDelete(q.id)} 
                     variant="outline" 
                     size="sm" 
-                    className="h-8 border-border bg-white text-danger hover:bg-red-50 gap-1.5 text-[11px] font-semibold rounded-[8px]"
+                    className="h-8 border-border bg-bg-card text-danger hover:bg-red-50 gap-1.5 text-[11px] font-semibold rounded-[8px]"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     Delete
@@ -1035,11 +1035,11 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
 
                 {/* Footer Badges */}
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-text-muted rounded-full border border-border text-[9px] font-bold">
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-[#111111] text-text-muted rounded-full border border-border text-[9px] font-bold">
                     <BookOpen className="w-2.5 h-2.5" />
                     Question Bank
                   </div>
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-text-muted rounded-full border border-border text-[9px] font-bold">
+                  <div className="flex items-center gap-1 px-2 py-0.5 bg-[#111111] text-text-muted rounded-full border border-border text-[9px] font-bold">
                     <Layout className="w-2.5 h-2.5" />
                     1 Test
                   </div>
@@ -1056,9 +1056,9 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
               <motion.div 
                 layout
                 key={q.id} 
-                className={`bg-bg-card border border-border rounded-[12px] p-4 shadow-sm hover:shadow-md transition-all flex flex-col group ${isExpanded ? 'ring-2 ring-primary/20' : ''}`}
+                className={`bg-bg-card border border-border rounded-[12px] p-3  hover:card-hover transition-all flex flex-col group ${isExpanded ? 'ring-2 ring-primary/20' : ''}`}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className="flex items-center gap-3 shrink-0">
                     <Checkbox checked={selectedIds.includes(q.id)} onCheckedChange={() => toggleSelect(q.id)} />
                     <div className="w-8 h-8 rounded-full bg-primary-light text-primary flex items-center justify-center font-bold text-xs">
@@ -1075,18 +1075,18 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       <span className="text-[10px] text-text-label">•</span>
                       <span className="text-[10px] font-bold text-primary uppercase tracking-tight">Page {q.page_no || 1}</span>
                     </div>
-                    <p className={`text-sm text-text-body font-medium ${isExpanded ? '' : 'truncate'}`}>
+                    <p className={`text-[13px] text-text-body font-medium ${isExpanded ? '' : 'truncate'}`}>
                       {q.text}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="hidden md:flex gap-2">
-                      <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-text-muted rounded-full border border-border text-[9px] font-bold">
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-[#111111] text-text-muted rounded-full border border-border text-[9px] font-bold">
                         <BookOpen className="w-2.5 h-2.5" />
                         Bank
                       </div>
-                      <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 text-text-muted rounded-full border border-border text-[9px] font-bold">
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-[#111111] text-text-muted rounded-full border border-border text-[9px] font-bold">
                         <Layout className="w-2.5 h-2.5" />
                         1 Test
                       </div>
@@ -1095,7 +1095,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-8 w-8 p-0 rounded-full hover:bg-slate-100"
+                        className="h-8 w-8 p-0 rounded-full hover:bg-[#141414]"
                         onClick={() => toggleExpand(q.id)}
                       >
                         {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -1104,7 +1104,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                         onClick={() => handleEditClick(q)} 
                         variant="outline" 
                         size="sm" 
-                        className="h-8 w-8 p-0 border-border bg-white text-text-body hover:bg-slate-50 rounded-[8px]"
+                        className="h-8 w-8 p-0 border-border bg-bg-card text-text-body hover:bg-[#1a1a1a] rounded-[8px]"
                         title="Edit"
                       >
                         <Edit className="w-3.5 h-3.5" />
@@ -1113,7 +1113,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                         onClick={() => handleDelete(q.id)} 
                         variant="outline" 
                         size="sm" 
-                        className="h-8 w-8 p-0 border-border bg-white text-danger hover:bg-red-50 rounded-[8px]"
+                        className="h-8 w-8 p-0 border-border bg-bg-card text-danger hover:bg-red-50 rounded-[8px]"
                         title="Delete"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1131,11 +1131,11 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
                       className="overflow-hidden ml-11 mt-4"
                     >
                       {/* Options */}
-                      <div className="mb-4 space-y-2 pt-2 border-t border-slate-100">
+                      <div className="mb-4 space-y-2 pt-2 border-t border-border">
                         <span className="text-[10px] font-bold text-text-label uppercase tracking-wider block mb-1">Options:</span>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {(q.options || []).map((opt, i) => (
-                            <div key={i} className={`text-[12px] flex items-start gap-2 p-2 rounded-lg border ${opt === q.correctOption ? 'bg-success/5 border-success/20 text-success font-bold' : 'bg-slate-50/50 border-slate-100 text-text-body'}`}>
+                            <div key={i} className={`text-[12px] flex items-start gap-2 p-2 rounded-lg border ${opt === q.correctOption ? 'bg-success/5 border-success/20 text-success font-bold' : 'bg-[#111111]/50 border-border text-text-body'}`}>
                               <span className="text-[10px] font-bold text-text-label mt-0.5">
                                 {String.fromCharCode(65 + i)}.
                               </span>
@@ -1147,7 +1147,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
 
                       {/* Solution */}
                       {(q.solution_hin || q.solution_eng) && (
-                        <div className="mb-4 p-3 bg-primary-light/20 rounded-xl border border-primary-light/30">
+                        <div className="mb-4 p-3 bg-primary-light/20 rounded-lg border border-primary-light/30">
                           <span className="text-[10px] font-bold text-primary uppercase tracking-wider block mb-1.5 flex items-center gap-1.5">
                             <Eye className="w-3 h-3" />
                             Solution / Explanation
@@ -1167,7 +1167,7 @@ export default function Questions({ questions: initialQuestions, onEdit, onQuest
       )}
 
       {filteredQuestions.length === 0 && (
-        <div className="text-center py-12 text-slate-500 bg-white border border-dashed rounded-xl">
+        <div className="text-center py-12 text-text-muted bg-bg-card border border-dashed rounded-lg">
           No questions found matching your filters.
         </div>
       )}

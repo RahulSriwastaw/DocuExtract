@@ -67,7 +67,7 @@ export default function AirtableTables() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Cloud Databases</h2>
         <div className="flex gap-2">
@@ -85,15 +85,15 @@ export default function AirtableTables() {
       {testResults && (
         <Card className={`border-2 ${testResults.metaApi?.success && testResults.recordsApi?.success ? 'border-emerald-100 bg-emerald-50/30' : 'border-amber-100 bg-amber-50/30'}`}>
           <CardHeader className="py-3">
-            <CardTitle className="text-sm font-bold flex items-center justify-between">
+            <CardTitle className="text-[13px] font-bold flex items-center justify-between">
               Airtable Connection Test Results
               <Button variant="ghost" size="sm" onClick={() => setTestResults(null)} className="h-6 w-6 p-0">×</Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="py-2 space-y-2">
-            <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="space-y-1">
-                <p className="font-bold text-slate-500 uppercase">Configuration</p>
+                <p className="font-bold text-text-muted uppercase">Configuration</p>
                 <div className="flex items-center gap-2">
                   <span className={testResults.apiKeyConfigured ? 'text-emerald-600' : 'text-red-600'}>●</span>
                   API Key: {testResults.apiKeyConfigured ? `Configured (${testResults.apiKeyPrefix})` : 'Missing'}
@@ -104,7 +104,7 @@ export default function AirtableTables() {
                 </div>
               </div>
               <div className="space-y-1">
-                <p className="font-bold text-slate-500 uppercase">API Status</p>
+                <p className="font-bold text-text-muted uppercase">API Status</p>
                 <div className="flex items-center gap-2">
                   <span className={testResults.metaApi?.success ? 'text-emerald-600' : 'text-red-600'}>●</span>
                   Meta API: {testResults.metaApi?.success ? `Success (${testResults.metaApi.tableCount} tables)` : `Failed (${testResults.metaApi?.error || 'Unknown'})`}
@@ -126,7 +126,7 @@ export default function AirtableTables() {
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm flex flex-col gap-2">
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-[13px] flex flex-col gap-2">
           <div className="font-bold flex items-center gap-2">
             <RefreshCw className="w-4 h-4" />
             Airtable Connection Error
@@ -160,18 +160,18 @@ export default function AirtableTables() {
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {tables.map(table => (
-            <Card key={table.id} className="hover:shadow-md transition-shadow">
+            <Card key={table.id} className="hover:card-hover transition-shadow">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-lg">
+                <CardTitle className="flex items-center gap-2 text-[15px]">
                   <Database className="w-5 h-5 text-blue-500" />
                   {table.name}
                 </CardTitle>
                 <CardDescription className="text-xs">ID: {table.id}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col gap-2 text-sm mt-2">
+                <div className="flex flex-col gap-2 text-[13px] mt-2">
                   <div className="flex justify-between items-center bg-muted/50 p-2 rounded">
                     <span className="text-muted-foreground">Total Questions</span>
                     <span className="font-semibold text-base">

@@ -841,8 +841,8 @@ app.get("/api/health", (req, res) => {
               };
 
               if (q.sync_code) (fields as any).sync_code = q.sync_code;
-              if (q.error_report) (fields as any)['Error Report'] = q.error_report;
-              if (q.error_description) (fields as any)['Error Description'] = q.error_description;
+              if (q.error_report) (fields as any)['error_report'] = q.error_report;
+              if (q.error_description) (fields as any)['error_description'] = q.error_description;
               if (q.image) (fields as any).image = q.image;
               if (q.tags) (fields as any).tags = Array.isArray(q.tags) ? q.tags.join(', ') : q.tags;
 
@@ -1083,8 +1083,8 @@ app.get("/api/health", (req, res) => {
             { name: 'action', type: 'singleLineText' },
             { name: 'current_status', type: 'singleLineText' },
             { name: 'sync_code', type: 'singleLineText' },
-            { name: 'Error Report', type: 'multilineText' },
-            { name: 'Error Description', type: 'multilineText' }
+            { name: 'error_report', type: 'multilineText' },
+            { name: 'error_description', type: 'multilineText' }
           ]
         }),
       });
@@ -1325,8 +1325,8 @@ app.get("/api/health", (req, res) => {
         };
 
         if (q.sync_code) fields.sync_code = q.sync_code;
-        if (q.error_report) fields['Error Report'] = q.error_report;
-        if (q.error_description) fields['Error Description'] = q.error_description;
+        if (q.error_report) fields['error_report'] = q.error_report;
+        if (q.error_description) fields['error_description'] = q.error_description;
         if (q.image) fields.image = q.image;
         if (q.tags) fields.tags = Array.isArray(q.tags) ? q.tags.join(', ') : q.tags;
 

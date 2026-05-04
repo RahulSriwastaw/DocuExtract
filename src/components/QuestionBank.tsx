@@ -40,7 +40,7 @@ const DraggableQuestionCard = ({ q, idx, isExpanded, selectedIds, toggleSelectio
       layout
       {...attributes}
       {...listeners}
-      className={`bg-white border rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex flex-col relative group ${selectedIds.has(q.id) ? 'border-blue-400 ring-1 ring-blue-400/20' : 'border-slate-200'} ${isExpanded ? 'ring-2 ring-blue-400/20' : ''}`}
+      className={`bg-bg-card border rounded-lg p-3  hover:card-hover transition-all flex flex-col relative group ${selectedIds.has(q.id) ? 'border-primary ring-1 ring-primary/20' : 'border-border'} ${isExpanded ? 'ring-2 ring-primary/20' : ''}`}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
@@ -49,18 +49,18 @@ const DraggableQuestionCard = ({ q, idx, isExpanded, selectedIds, toggleSelectio
               type="checkbox" 
               checked={selectedIds.has(q.id)}
               onChange={() => toggleSelection(q.id)}
-              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
             />
           </div>
           {/* Drag Handle (Visual only now) */}
-          <div className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-100 rounded text-slate-400">
+          <div className="cursor-grab active:cursor-grabbing p-1 hover:bg-[#141414] rounded text-[#555555]">
             <Layout className="w-3.5 h-3.5" />
           </div>
-          <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[9px]">
+          <div className="w-5 h-5 rounded-full bg-[#111111] text-primary flex items-center justify-center font-bold text-[9px]">
             {idx + 1}
           </div>
           <div className={`w-1.5 h-1.5 rounded-full ${q.current_status === 'Published' || q.status === 'Published' || q.current_status === 'Saved' ? 'bg-green-500' : q.current_status === 'Editing' ? 'bg-yellow-500' : 'bg-slate-300'}`}></div>
-          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+          <span className="text-[8px] font-bold text-[#555555] uppercase tracking-tighter">
             {q.current_status || q.status || 'Draft'}
           </span>
         </div>
@@ -69,7 +69,7 @@ const DraggableQuestionCard = ({ q, idx, isExpanded, selectedIds, toggleSelectio
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-6 w-6 p-0 rounded-full hover:bg-slate-100 text-blue-600"
+            className="h-6 w-6 p-0 rounded-full hover:bg-[#141414] text-primary"
             onClick={() => toggleExpand(q.id)}
           >
             {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -86,24 +86,24 @@ const DraggableQuestionCard = ({ q, idx, isExpanded, selectedIds, toggleSelectio
             className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${field.filled ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]' : 'bg-slate-200'}`}
           />
         ))}
-        <span className="text-[7px] font-bold text-slate-400 ml-1 whitespace-nowrap">
+        <span className="text-[7px] font-bold text-[#555555] ml-1 whitespace-nowrap">
           {getFieldCompletionStatus(q).filter((f: any) => f.filled).length}/{getFieldCompletionStatus(q).length}
         </span>
       </div>
 
       <div className="flex flex-wrap gap-1 mb-2">
         {(q.subject || q.Subject) && (
-          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+          <span className="px-1.5 py-0.5 bg-[#111111] text-text-muted rounded text-[8px] font-bold uppercase">
             {q.subject || q.Subject}
           </span>
         )}
         {(q.chapter || q.Chapter) && (
-          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+          <span className="px-1.5 py-0.5 bg-[#111111] text-text-muted rounded text-[8px] font-bold uppercase">
             {q.chapter || q.Chapter}
           </span>
         )}
         {(q.topic || q.Topic) && (
-          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+          <span className="px-1.5 py-0.5 bg-[#111111] text-text-muted rounded text-[8px] font-bold uppercase">
             {q.topic || q.Topic}
           </span>
         )}
@@ -116,26 +116,26 @@ const DraggableQuestionCard = ({ q, idx, isExpanded, selectedIds, toggleSelectio
             {q.difficulty || q.Difficulty}
           </span>
         )}
-        <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[8px] font-bold uppercase">
+        <span className="px-1.5 py-0.5 bg-[#111111] text-text-muted rounded text-[8px] font-bold uppercase">
           {q.type || q.Type || 'MCQ'}
         </span>
         {(q.page_no || q.Page_No || q.Page) && (
-          <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase">
+          <span className="px-1.5 py-0.5 bg-blue-50 text-primary rounded text-[8px] font-bold uppercase">
             P. {q.page_no || q.Page_No || q.Page}
           </span>
         )}
       </div>
 
       <div className="flex-1 min-h-0">
-        <p className={`text-[11px] font-bold text-slate-800 leading-relaxed ${isExpanded ? '' : 'line-clamp-3'}`}>
+        <p className={`text-[11px] font-bold text-text-heading leading-relaxed ${isExpanded ? '' : 'line-clamp-3'}`}>
           {q.question_hin || q.text || q.Question || q.Name || q.question}
         </p>
         {isExpanded && (
-          <div className="mt-3 space-y-3 pt-3 border-t border-slate-100">
+          <div className="mt-3 space-y-3 pt-3 border-t border-border">
             {q.question_eng && (
               <div>
-                <span className="text-[8px] font-bold text-slate-400 uppercase mb-1 block">English</span>
-                <p className="text-[11px] text-slate-600 leading-relaxed">{q.question_eng}</p>
+                <span className="text-[8px] font-bold text-[#555555] uppercase mb-1 block">English</span>
+                <p className="text-[11px] text-text-body leading-relaxed">{q.question_eng}</p>
               </div>
             )}
             <div className="grid grid-cols-1 gap-1.5">
@@ -145,9 +145,9 @@ const DraggableQuestionCard = ({ q, idx, isExpanded, selectedIds, toggleSelectio
                 if (!optHin && !optEng) return null;
                 const isCorrect = q.answer === String.fromCharCode(64 + i) || q.answer === String(i) || q.correctOption === String(i);
                 return (
-                  <div key={i} className={`p-2 rounded-lg border text-[10px] ${isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                  <div key={i} className={`p-2 rounded-lg border text-[10px] ${isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-[#111111] border-border text-text-body'}`}>
                     <span className="font-bold mr-2">{String.fromCharCode(64 + i)}.</span>
-                    {optHin} {optEng && <span className="text-slate-400 ml-1">({optEng})</span>}
+                    {optHin} {optEng && <span className="text-[#555555] ml-1">({optEng})</span>}
                   </div>
                 );
               })}
@@ -157,7 +157,7 @@ const DraggableQuestionCard = ({ q, idx, isExpanded, selectedIds, toggleSelectio
                 <span className="text-[8px] font-bold text-blue-400 uppercase mb-1 block">Solution</span>
                 <p className="text-[10px] text-blue-800 leading-relaxed">
                   {q.solution_hin}
-                  {q.solution_eng && <span className="block mt-1 text-blue-600 italic">{q.solution_eng}</span>}
+                  {q.solution_eng && <span className="block mt-1 text-primary italic">{q.solution_eng}</span>}
                 </p>
               </div>
             )}
@@ -165,12 +165,12 @@ const DraggableQuestionCard = ({ q, idx, isExpanded, selectedIds, toggleSelectio
         )}
       </div>
 
-      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+      <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
         <div className="flex items-center gap-1">
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-7 w-7 p-0 rounded-lg hover:bg-blue-50 text-blue-600"
+            className="h-7 w-7 p-0 rounded-lg hover:bg-blue-50 text-primary"
             onClick={() => { setEditingQuestion(q); setEditingIndex(idx); setIsEditPageOpen(true); }}
           >
             <Edit className="w-3.5 h-3.5" />
@@ -191,7 +191,7 @@ const DraggableQuestionCard = ({ q, idx, isExpanded, selectedIds, toggleSelectio
             </div>
           )}
           {q.image && (
-            <div className="h-5 w-5 rounded bg-blue-100 text-blue-600 flex items-center justify-center">
+            <div className="h-5 w-5 rounded bg-blue-100 text-primary flex items-center justify-center">
               <Layout className="w-3 h-3" />
             </div>
           )}
@@ -216,9 +216,9 @@ const DroppableSidebarFolder = ({ folder, openFolder, currentPath }: { key?: any
     <div 
       ref={setNodeRef}
       onClick={() => openFolder(folder.fullPath)}
-      className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all ${isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'} ${isOver ? 'bg-blue-100 ring-2 ring-blue-500' : ''}`}
+      className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all ${isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-[#1a1a1a] text-text-body'} ${isOver ? 'bg-blue-100 ring-2 ring-blue-500' : ''}`}
     >
-      <Folder className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-500 fill-blue-200' : 'text-slate-400'}`} />
+      <Folder className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-500 fill-blue-200' : 'text-[#555555]'}`} />
       <span className={`text-xs truncate ${isActive ? 'font-bold' : 'font-medium'}`}>{folder.name}</span>
       {isOver && <div className="ml-auto w-2 h-2 rounded-full bg-blue-500 animate-pulse" />}
     </div>
@@ -243,7 +243,7 @@ const SortableFolderCard = ({ folder, openFolder, renamingFolder, setRenamingFol
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <Card 
-        className={`group cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 border-slate-200 rounded-2xl overflow-hidden bg-white ${isOver ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/30' : ''}`}
+        className={`group cursor-pointer hover:card-hover hover:border-primary transition-all duration-300 border-border rounded-lg overflow-hidden bg-bg-card ${isOver ? 'ring-2 ring-primary border-primary bg-[#111111]' : ''}`}
         onClick={() => openFolder(folder.fullPath)}
       >
         <CardContent className="p-5 flex flex-col items-center text-center relative">
@@ -252,7 +252,7 @@ const SortableFolderCard = ({ folder, openFolder, renamingFolder, setRenamingFol
             <div className="absolute top-3 right-3 transition-opacity" onClick={(e) => e.stopPropagation()}>
               <DropdownMenu>
                 <DropdownMenuTrigger>
-                  <div className="h-8 w-8 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-full cursor-pointer hover:bg-slate-100">
+                  <div className="h-8 w-8 flex items-center justify-center text-[#555555] hover:text-text-body rounded-full cursor-pointer hover:bg-[#141414]">
                     <MoreVertical className="w-4 h-4" />
                   </div>
                 </DropdownMenuTrigger>
@@ -284,7 +284,7 @@ const SortableFolderCard = ({ folder, openFolder, renamingFolder, setRenamingFol
             </div>
           )}
 
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform mb-4 ${folder.isTable ? 'bg-blue-50' : 'bg-amber-50'}`}>
+          <div className={`w-16 h-16 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform mb-4 ${folder.isTable ? 'bg-blue-50' : 'bg-amber-50'}`}>
             {folder.isTable ? (
               <Folder className="w-8 h-8 text-blue-500 fill-blue-100" />
             ) : (
@@ -292,7 +292,7 @@ const SortableFolderCard = ({ folder, openFolder, renamingFolder, setRenamingFol
             )}
           </div>
           <div className="w-full">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+            <p className="text-[10px] font-bold text-[#555555] uppercase tracking-wider mb-1">
               {folder.isTable ? 'Folder' : 'Question File'}
             </p>
             {renamingFolder === folder.fullPath ? (
@@ -315,7 +315,7 @@ const SortableFolderCard = ({ folder, openFolder, renamingFolder, setRenamingFol
                 </Button>
               </div>
             ) : (
-              <h3 className="text-sm font-bold text-slate-900 truncate" title={folder.name}>{folder.name}</h3>
+              <h3 className="text-[13px] font-bold text-text-heading truncate" title={folder.name}>{folder.name}</h3>
             )}
           </div>
         </CardContent>
@@ -1563,9 +1563,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
           <div className="flex-1 flex overflow-hidden">
             {/* Sidebar */}
             {isSidebarOpen && (
-              <div className="w-64 border-r bg-slate-50/50 flex flex-col shrink-0 overflow-hidden hidden md:flex">
-                <div className="p-4 border-b bg-white flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Folders</h3>
+              <div className="w-64 border-r bg-[#111111]/50 flex flex-col shrink-0 overflow-hidden hidden md:flex">
+                <div className="p-3 border-b bg-bg-card flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-[#555555] uppercase tracking-wider">Folders</h3>
                   <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)} className="h-6 w-6">
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
@@ -1588,18 +1588,18 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
               </div>
             )}
 
-            <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
+            <div className="flex-1 flex flex-col overflow-hidden bg-bg-card relative">
               {!isSidebarOpen && (
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   onClick={() => setIsSidebarOpen(true)} 
-                  className="absolute left-0 top-1/2 -translate-y-1/2 z-50 h-8 w-8 bg-white shadow-md border rounded-r-xl hidden md:flex"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-50 h-8 w-8 bg-bg-card card-hover border rounded-r-xl hidden md:flex"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               )}
-              <div className="p-2 sm:p-4 max-w-7xl mx-auto flex flex-col h-full w-full overflow-hidden">
+              <div className="p-2 sm:p-3 max-w-7xl mx-auto flex flex-col h-full w-full overflow-hidden">
                 {/* Bulk Action Bar */}
           <AnimatePresence>
             {selectedIds.size > 0 && (
@@ -1609,9 +1609,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden shrink-0"
               >
-                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-2 mb-3 flex flex-col xs:flex-row items-start xs:items-center gap-2">
+                <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-2 mb-3 flex flex-col xs:flex-row items-start xs:items-center gap-2">
                   <div className="flex items-center gap-2 px-3 border-b xs:border-b-0 xs:border-r border-blue-100 w-full xs:w-auto pb-2 xs:pb-0">
-                    <span className="text-sm font-bold text-blue-700 whitespace-nowrap">{selectedIds.size} selected</span>
+                    <span className="text-[13px] font-bold text-blue-700 whitespace-nowrap">{selectedIds.size} selected</span>
                   </div>
                   
                   <div className="flex flex-wrap gap-1.5 w-full">
@@ -1619,7 +1619,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       variant="outline" 
                       size="sm" 
                       onClick={() => setIsBulkTagModalOpen(true)}
-                      className="h-7 px-2 text-[10px] font-bold text-indigo-600 border-indigo-100 bg-white hover:bg-indigo-50 gap-1"
+                      className="h-7 px-2 text-[10px] font-bold text-primary border-indigo-100 bg-bg-card hover:bg-indigo-50 gap-1"
                     >
                       <Tag className="w-3 h-3" />
                       Tag
@@ -1629,7 +1629,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       variant="outline" 
                       size="sm" 
                       onClick={() => setIsBulkAIEditModalOpen(true)}
-                      className="h-7 px-2 text-[10px] font-bold text-purple-600 border-purple-100 bg-white hover:bg-purple-50 gap-1"
+                      className="h-7 px-2 text-[10px] font-bold text-purple-600 border-purple-100 bg-bg-card hover:bg-purple-50 gap-1"
                     >
                       <Sparkles className="w-3 h-3" />
                       AI Edit
@@ -1639,7 +1639,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       variant="outline" 
                       size="sm" 
                       onClick={() => setIsBulkAIVariationModalOpen(true)}
-                      className="h-7 px-2 text-[10px] font-bold text-teal-600 border-teal-100 bg-white hover:bg-teal-50 gap-1"
+                      className="h-7 px-2 text-[10px] font-bold text-teal-600 border-teal-100 bg-bg-card hover:bg-teal-50 gap-1"
                     >
                       <Sparkles className="w-3 h-3" />
                       AI Var
@@ -1653,7 +1653,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                         setFieldsToUpdate(new Set());
                         setIsBulkEditModalOpen(true);
                       }}
-                      className="h-7 px-2 text-[10px] font-bold text-pink-600 border-pink-100 bg-white hover:bg-pink-50 gap-1"
+                      className="h-7 px-2 text-[10px] font-bold text-pink-600 border-pink-100 bg-bg-card hover:bg-pink-50 gap-1"
                     >
                       <Edit className="w-3 h-3" />
                       Edit
@@ -1663,7 +1663,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       variant="outline" 
                       size="sm" 
                       onClick={() => { setIsCopying(false); setIsMoveModalOpen(true); }}
-                      className="h-7 px-2 text-[10px] font-bold text-blue-600 border-blue-100 bg-white hover:bg-blue-50 gap-1"
+                      className="h-7 px-2 text-[10px] font-bold text-primary border-blue-100 bg-bg-card hover:bg-blue-50 gap-1"
                     >
                       <Move className="w-3 h-3" />
                       Move
@@ -1673,7 +1673,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       variant="outline" 
                       size="sm" 
                       onClick={() => { setIsCopying(true); setIsMoveModalOpen(true); }}
-                      className="h-7 px-2 text-[10px] font-bold text-emerald-600 border-emerald-100 bg-white hover:bg-emerald-50 gap-1"
+                      className="h-7 px-2 text-[10px] font-bold text-emerald-600 border-emerald-100 bg-bg-card hover:bg-emerald-50 gap-1"
                     >
                       <Copy className="w-3 h-3" />
                       Copy
@@ -1683,7 +1683,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       variant="outline" 
                       size="sm" 
                       onClick={() => setIsSetModalOpen(true)}
-                      className="h-7 px-2 text-[10px] font-bold text-purple-600 border-purple-100 bg-white hover:bg-purple-50 gap-1"
+                      className="h-7 px-2 text-[10px] font-bold text-purple-600 border-purple-100 bg-bg-card hover:bg-purple-50 gap-1"
                     >
                       <FolderPlus className="w-3 h-3" />
                       To Set
@@ -1693,7 +1693,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       variant="outline" 
                       size="sm" 
                       onClick={handleBulkDelete}
-                      className="h-7 px-2 text-[10px] font-bold text-red-600 border-red-100 bg-white hover:bg-red-50 gap-1"
+                      className="h-7 px-2 text-[10px] font-bold text-red-600 border-red-100 bg-bg-card hover:bg-red-50 gap-1"
                     >
                       <Trash2 className="w-3 h-3" />
                       Delete
@@ -1703,7 +1703,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       variant="ghost" 
                       size="sm" 
                       onClick={clearSelection}
-                      className="h-7 px-2 text-[10px] font-bold text-slate-400 hover:text-slate-600 gap-1 ml-auto"
+                      className="h-7 px-2 text-[10px] font-bold text-[#555555] hover:text-text-body gap-1 ml-auto"
                     >
                       <X className="w-3 h-3" />
                       Clear
@@ -1717,17 +1717,17 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2 border-b pb-2 shrink-0">
             <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setSelectedFolder(null)} className="text-slate-500 hover:text-slate-900 h-8 px-2 shrink-0">
+                <Button variant="ghost" size="sm" onClick={() => setSelectedFolder(null)} className="text-text-muted hover:text-text-heading h-8 px-2 shrink-0">
                   <ArrowLeft className="w-4 h-4 mr-1" /> <span className="hidden xs:inline">Back</span>
                 </Button>
-                <h2 className="text-base sm:text-lg font-bold flex items-center gap-2 truncate">
+                <h2 className="text-base sm:text-[15px] font-bold flex items-center gap-2 truncate">
                   <Folder className="w-5 h-5 text-blue-500 fill-blue-100 shrink-0" />
                   <span className="truncate">{selectedFolder}</span>
                 </h2>
               </div>
               
               <div className="flex items-center gap-2 sm:hidden">
-                <div className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                <div className="text-[10px] font-bold text-text-muted bg-[#141414] px-2 py-0.5 rounded-full">
                   {filteredQuestions.length} Qs
                 </div>
               </div>
@@ -1744,13 +1744,13 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   Select <ChevronDown className="w-3.5 h-3.5" />
                 </Button>
                 {isSelectDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border rounded-xl shadow-xl z-50 p-1">
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-bg-card border rounded-lg card-hover z-50 p-1">
                     <button 
                       onClick={() => {
                         selectAll(false);
                         setIsSelectDropdownOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 rounded-lg"
+                      className="w-full text-left px-3 py-2 text-[11px] font-bold text-text-body hover:bg-[#1a1a1a] rounded-lg"
                     >
                       Select current view ({Math.min(displayCount, filteredQuestions.length)})
                     </button>
@@ -1759,7 +1759,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                         selectAll(true);
                         setIsSelectDropdownOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 rounded-lg"
+                      className="w-full text-left px-3 py-2 text-[11px] font-bold text-text-body hover:bg-[#1a1a1a] rounded-lg"
                     >
                       Select all questions ({filteredQuestions.length})
                     </button>
@@ -1779,10 +1779,10 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
               </Button>
 
               <div className="ml-auto flex items-center gap-2">
-                <div className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full hidden sm:block">
+                <div className="text-[10px] font-bold text-text-muted bg-[#141414] px-2 py-0.5 rounded-full hidden sm:block">
                   {filteredQuestions.length} Qs
                 </div>
-                <div className="flex gap-1 border-l pl-2 border-slate-200">
+                <div className="flex gap-1 border-l pl-2 border-border">
                   <Button 
                     variant={viewMode === 'grid' ? 'secondary' : 'ghost'} 
                     size="sm" 
@@ -1811,7 +1811,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
             <div className="grid grid-cols-2 xs:grid-cols-3 sm:flex sm:flex-wrap items-center gap-2">
               <Input 
                 placeholder="Search questions..." 
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-slate-700 outline-none w-full sm:w-48"
+                className="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-text-heading outline-none w-full sm:w-48"
                 value={questionSearch}
                 onChange={e => setQuestionSearch(e.target.value)}
               />
@@ -1820,14 +1820,14 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 variant={filterErrors ? "destructive" : "outline"}
                 size="sm"
                 onClick={() => setFilterErrors(!filterErrors)}
-                className={`h-8 text-[10px] font-bold rounded-lg ${filterErrors ? 'bg-red-600 hover:bg-red-700 text-white' : 'text-slate-600'}`}
+                className={`h-8 text-[10px] font-bold rounded-lg ${filterErrors ? 'bg-red-600 hover:bg-red-700 text-white' : 'text-text-body'}`}
               >
                 <AlertCircle className="w-3 h-3 mr-1" />
                 {filterErrors ? 'Showing Errors' : 'Show Errors'}
               </Button>
 
               <select
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-slate-700 outline-none w-full sm:w-auto"
+                className="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-text-heading outline-none w-full sm:w-auto"
                 value={filterSubject}
                 onChange={e => setFilterSubject(e.target.value)}
               >
@@ -1836,7 +1836,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
               </select>
               
               <select
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-slate-700 outline-none w-full sm:w-auto"
+                className="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-text-heading outline-none w-full sm:w-auto"
                 value={filterDifficulty}
                 onChange={e => setFilterDifficulty(e.target.value)}
               >
@@ -1845,7 +1845,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
               </select>
 
               <select
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-slate-700 outline-none w-full sm:w-auto"
+                className="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-text-heading outline-none w-full sm:w-auto"
                 value={filterType}
                 onChange={e => setFilterType(e.target.value)}
               >
@@ -1854,7 +1854,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
               </select>
 
               <select
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-slate-700 outline-none w-full sm:w-auto"
+                className="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-text-heading outline-none w-full sm:w-auto"
                 value={filterStatus}
                 onChange={e => setFilterStatus(e.target.value)}
               >
@@ -1863,7 +1863,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
               </select>
 
               <select
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-slate-700 outline-none w-full sm:w-auto"
+                className="bg-bg-card border border-border rounded-lg px-2 py-1.5 text-[10px] sm:text-xs font-bold text-text-heading outline-none w-full sm:w-auto"
                 value={filterExam}
                 onChange={e => setFilterExam(e.target.value)}
               >
@@ -1874,8 +1874,8 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
 
             {/* Active Filters Display */}
             {(filterSubject || filterDifficulty || filterType || filterStatus || filterExam || filterErrors) && (
-              <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Active Filters:</span>
+              <div className="flex flex-wrap items-center gap-2 bg-[#111111] p-2 rounded-lg border border-border">
+                <span className="text-[10px] font-bold text-[#555555] uppercase mr-1">Active Filters:</span>
                 
                 {filterErrors && (
                   <span className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 rounded-md text-[10px] font-bold border border-red-100">
@@ -1925,7 +1925,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     setFilterExam('');
                     setFilterErrors(false);
                   }}
-                  className="h-6 text-[10px] font-bold text-slate-500 hover:text-slate-900 ml-auto"
+                  className="h-6 text-[10px] font-bold text-text-muted hover:text-text-heading ml-auto"
                 >
                   Clear All
                 </Button>
@@ -1940,7 +1940,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
           ) : (
             <div className="flex-1 overflow-y-auto pb-8">
               {viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {filteredQuestions.slice(0, displayCount).map((q, idx) => (
                     <DraggableQuestionCard 
                       key={q.id || idx}
@@ -1979,7 +1979,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 </div>
               )}
               {filteredQuestions.length === 0 && (
-                <div className="col-span-full text-center py-12 text-slate-500 border-2 border-dashed rounded-xl bg-white">
+                <div className="col-span-full text-center py-12 text-text-muted border-2 border-dashed rounded-lg bg-bg-card">
                   No questions found matching the current filters.
                 </div>
               )}
@@ -1996,18 +1996,18 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
         </div>
       </div>
       ) : (
-        <div className="p-4 sm:p-8 max-w-7xl mx-auto h-full flex flex-col overflow-y-auto">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+        <div className="p-3 sm:p-8 max-w-7xl mx-auto h-full flex flex-col overflow-y-auto">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-6">
               <div className="w-full lg:w-auto">
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-1 sm:mb-2">Question Bank</h2>
-                <p className="text-sm sm:text-base text-slate-500">Browse all your questions organized by folders.</p>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-heading mb-1 sm:mb-2">Question Bank</h2>
+                <p className="text-[13px] sm:text-base text-text-muted">Browse all your questions organized by folders.</p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
                 <div className="relative flex-1 lg:w-72">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#555555]" />
                   <Input 
                     placeholder="Search folders..." 
-                    className="pl-9 bg-white shadow-sm h-10"
+                    className="pl-9 bg-bg-card  h-10"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                   />
@@ -2017,7 +2017,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     variant="outline" 
                     size="sm" 
                     onClick={() => setIsCreateFolderModalOpen(true)}
-                    className="flex-1 sm:flex-none h-10 gap-2 text-slate-600 border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold px-4"
+                    className="flex-1 sm:flex-none h-10 gap-2 text-text-body border-border bg-bg-card hover:bg-[#1a1a1a] text-xs font-bold px-4"
                   >
                     <FolderPlus className="w-4 h-4" />
                     New Folder
@@ -2027,7 +2027,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     size="sm" 
                     onClick={handleSyncAllAirtable}
                     disabled={isSyncingAll}
-                    className="flex-1 sm:flex-none h-10 gap-2 text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-50 text-xs font-bold px-4"
+                    className="flex-1 sm:flex-none h-10 gap-2 text-primary border-blue-200 bg-blue-50/50 hover:bg-blue-50 text-xs font-bold px-4"
                   >
                     {isSyncingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                     Sync Airtable
@@ -2037,10 +2037,10 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
             </div>
 
             {/* Breadcrumbs */}
-            <div className="flex items-center gap-2 mb-6 text-sm text-slate-500 overflow-x-auto whitespace-nowrap pb-2 no-scrollbar">
+            <div className="flex items-center gap-2 mb-6 text-[13px] text-text-muted overflow-x-auto whitespace-nowrap pb-2 no-scrollbar">
               <button 
                 onClick={() => { setCurrentPath([]); setSelectedFolder(null); }}
-                className={`hover:text-blue-600 transition-colors ${currentPath.length === 0 ? 'font-bold text-slate-900' : ''}`}
+                className={`hover:text-primary transition-colors ${currentPath.length === 0 ? 'font-bold text-text-heading' : ''}`}
               >
                 Root
               </button>
@@ -2052,7 +2052,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       const newPath = currentPath.slice(0, idx + 1);
                       openFolder(newPath.join('/'));
                     }}
-                    className={`hover:text-blue-600 transition-colors ${idx === currentPath.length - 1 ? 'font-bold text-slate-900' : ''}`}
+                    className={`hover:text-primary transition-colors ${idx === currentPath.length - 1 ? 'font-bold text-text-heading' : ''}`}
                   >
                     {part}
                   </button>
@@ -2061,8 +2061,8 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
             </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-start gap-3 shadow-sm">
-              <div className="mt-0.5 text-lg">⚠️</div>
+            <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-[13px] flex items-start gap-3 ">
+              <div className="mt-0.5 text-[15px]">⚠️</div>
               <div className="flex-1">
                 <p className="font-bold mb-1">Database Connection Issue</p>
                 <p className="mb-2 leading-relaxed">{error}</p>
@@ -2078,7 +2078,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   </a>
                   <button 
                     onClick={() => window.location.reload()}
-                    className="inline-flex items-center px-3 py-1.5 bg-white hover:bg-slate-50 border border-red-200 text-red-800 rounded-md transition-colors font-medium shadow-xs text-xs"
+                    className="inline-flex items-center px-3 py-1.5 bg-bg-card hover:bg-[#1a1a1a] border border-red-200 text-red-800 rounded-md transition-colors font-medium shadow-xs text-xs"
                   >
                     Retry Connection
                     <RefreshCw className="w-3 h-3 ml-1.5" />
@@ -2093,7 +2093,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
               <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
             </div>
           ) : (
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {getFoldersAtCurrentPath()
                 .filter(f => (f.name || '').toLowerCase().includes((search || '').toLowerCase()))
                 .map(folder => (
@@ -2117,10 +2117,10 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 />
               ))}
               {getFoldersAtCurrentPath().length === 0 && (
-                <div className="col-span-full text-center p-12 text-slate-500 border-2 border-dashed border-slate-200 rounded-2xl bg-white">
+                <div className="col-span-full text-center p-12 text-text-muted border-2 border-dashed border-border rounded-lg bg-bg-card">
                   <Folder className="w-12 h-12 text-slate-200 mx-auto mb-3" />
                   <p className="font-medium">No folders found in this path.</p>
-                  <Button variant="link" className="text-blue-600 font-bold mt-2" onClick={() => setIsCreateFolderModalOpen(true)}>Create your first folder</Button>
+                  <Button variant="link" className="text-primary font-bold mt-2" onClick={() => setIsCreateFolderModalOpen(true)}>Create your first folder</Button>
                 </div>
               )}
             </div>
@@ -2131,22 +2131,22 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Create Folder Modal */}
       <AnimatePresence>
         {isCreateFolderModalOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-sm overflow-hidden"
             >
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Create New Folder</h3>
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h3 className="text-[13px] font-bold text-text-heading">Create New Folder</h3>
                 <Button variant="ghost" size="icon" onClick={() => setIsCreateFolderModalOpen(false)} className="h-8 w-8">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Folder Name</label>
+                  <label className="text-[10px] font-bold text-[#555555] uppercase">Folder Name</label>
                   <Input 
                     placeholder="e.g., Physics 2024" 
                     value={newSubfolderName} 
@@ -2157,10 +2157,10 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   />
                 </div>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex gap-3">
+              <div className="px-4 py-3 bg-[#111111] border-t flex gap-3">
                 <Button 
                   variant="ghost" 
-                  className="flex-1 font-bold text-slate-600" 
+                  className="flex-1 font-bold text-text-body" 
                   onClick={() => setIsCreateFolderModalOpen(false)}
                 >
                   Cancel
@@ -2181,27 +2181,27 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {deleteConfirmFolder && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-sm overflow-hidden"
             >
-              <div className="p-6 text-center">
+              <div className="p-4 text-center">
                 <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Trash2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Folder?</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  Are you sure you want to delete <span className="font-bold text-slate-700">"{deleteConfirmFolder}"</span>? 
+                <h3 className="text-[15px] font-bold text-text-heading mb-2">Delete Folder?</h3>
+                <p className="text-[13px] text-text-muted leading-relaxed">
+                  Are you sure you want to delete <span className="font-bold text-text-heading">"{deleteConfirmFolder}"</span>? 
                   This will remove all questions in this folder. This action cannot be undone.
                 </p>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex gap-3">
+              <div className="px-4 py-3 bg-[#111111] border-t flex gap-3">
                 <Button 
                   variant="ghost" 
-                  className="flex-1 font-bold text-slate-600" 
+                  className="flex-1 font-bold text-text-body" 
                   onClick={() => setDeleteConfirmFolder(null)}
                 >
                   Cancel
@@ -2222,26 +2222,26 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Question Delete Confirmation Modal */}
       <AnimatePresence>
         {deleteConfirmQuestion && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-sm overflow-hidden"
             >
-              <div className="p-6 text-center">
+              <div className="p-4 text-center">
                 <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Trash2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Question?</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">
+                <h3 className="text-[15px] font-bold text-text-heading mb-2">Delete Question?</h3>
+                <p className="text-[13px] text-text-muted leading-relaxed">
                   Are you sure you want to delete this question? This action cannot be undone.
                 </p>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex gap-3">
+              <div className="px-4 py-3 bg-[#111111] border-t flex gap-3">
                 <Button 
                   variant="ghost" 
-                  className="flex-1 font-bold text-slate-600" 
+                  className="flex-1 font-bold text-text-body" 
                   onClick={() => setDeleteConfirmQuestion(null)}
                 >
                   Cancel
@@ -2262,27 +2262,27 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Bulk Delete Confirmation Modal */}
       <AnimatePresence>
         {deleteConfirmBulk && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-sm overflow-hidden"
             >
-              <div className="p-6 text-center">
+              <div className="p-4 text-center">
                 <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Trash2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Delete {selectedIds.size} Questions?</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  Are you sure you want to delete <span className="font-bold text-slate-700">{selectedIds.size}</span> selected questions? 
+                <h3 className="text-[15px] font-bold text-text-heading mb-2">Delete {selectedIds.size} Questions?</h3>
+                <p className="text-[13px] text-text-muted leading-relaxed">
+                  Are you sure you want to delete <span className="font-bold text-text-heading">{selectedIds.size}</span> selected questions? 
                   This action cannot be undone.
                 </p>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex gap-3">
+              <div className="px-4 py-3 bg-[#111111] border-t flex gap-3">
                 <Button 
                   variant="ghost" 
-                  className="flex-1 font-bold text-slate-600" 
+                  className="flex-1 font-bold text-text-body" 
                   onClick={() => setDeleteConfirmBulk(false)}
                 >
                   Cancel
@@ -2303,33 +2303,33 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Sync Confirmation Modal */}
       <AnimatePresence>
         {syncConfirmSupabase && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-md overflow-hidden"
             >
-              <div className="p-6 text-center">
-                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="p-4 text-center">
+                <div className="w-16 h-16 bg-blue-50 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
                   <RefreshCw className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Sync to Airtable?</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">
+                <h3 className="text-[15px] font-bold text-text-heading mb-2">Sync to Airtable?</h3>
+                <p className="text-[13px] text-text-muted leading-relaxed">
                   Are you sure you want to sync all Supabase data to Airtable? 
                   This will update existing records and create new ones for any unsynced questions.
                 </p>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex gap-3">
+              <div className="px-4 py-3 bg-[#111111] border-t flex gap-3">
                 <Button 
                   variant="ghost" 
-                  className="flex-1 font-bold text-slate-600" 
+                  className="flex-1 font-bold text-text-body" 
                   onClick={() => setSyncConfirmSupabase(false)}
                 >
                   Cancel
                 </Button>
                 <Button 
-                  className="flex-1 font-bold bg-blue-600 hover:bg-blue-700 text-white" 
+                  className="flex-1 font-bold bg-primary hover:bg-primary-hover text-white" 
                   onClick={executeSyncAllSupabase}
                 >
                   Start Sync
@@ -2343,21 +2343,21 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Error Message Modal */}
       <AnimatePresence>
         {errorMessage && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-sm overflow-hidden"
             >
-              <div className="p-6 text-center">
+              <div className="p-4 text-center">
                 <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <AlertCircle className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Error</h3>
-                <p className="text-sm text-slate-500">{errorMessage}</p>
+                <h3 className="text-[15px] font-bold text-text-heading mb-2">Error</h3>
+                <p className="text-[13px] text-text-muted">{errorMessage}</p>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t">
+              <div className="px-4 py-3 bg-[#111111] border-t">
                 <Button 
                   className="w-full font-bold bg-slate-900 text-white" 
                   onClick={() => setErrorMessage(null)}
@@ -2373,28 +2373,28 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Bulk AI Edit Modal */}
       <AnimatePresence>
         {isBulkAIEditModalOpen && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 sm:p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 50, opacity: 0 }}
-              className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-5xl h-full sm:h-[90vh] flex flex-col overflow-hidden"
+              className="bg-bg-card rounded-none sm:rounded-lg card-hover w-full max-w-5xl h-full sm:h-[90vh] flex flex-col overflow-hidden"
             >
-              <div className="px-4 sm:px-6 py-4 border-b flex items-center justify-between bg-white shrink-0">
+              <div className="px-4 sm:px-4 py-3 border-b flex items-center justify-between bg-bg-card shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl hidden sm:flex items-center justify-center">
+                  <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-lg hidden sm:flex items-center justify-center">
                     <Sparkles className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900">Bulk AI Edit</h3>
-                    <p className="text-[10px] sm:text-xs text-slate-500">Processing {selectedIds.size} selected questions</p>
+                    <h3 className="text-base sm:text-[15px] font-bold text-text-heading">Bulk AI Edit</h3>
+                    <p className="text-[10px] sm:text-xs text-text-muted">Processing {selectedIds.size} selected questions</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
                   {bulkAIProgress === 100 && !isBulkAIProcessing ? (
                     <Button 
                       size="sm"
-                      className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5" 
+                      className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4  shadow-emerald-200 flex items-center justify-center gap-1.5" 
                       onClick={() => setIsBulkAIEditModalOpen(false)}
                     >
                       <Check className="w-4 h-4" />
@@ -2404,7 +2404,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   ) : (
                     <Button 
                       size="sm"
-                      className="font-bold bg-purple-600 hover:bg-purple-700 text-white h-9 px-4 shadow-sm shadow-purple-200 flex items-center justify-center gap-1.5" 
+                      className="font-bold bg-primary hover:bg-primary-hover text-white h-9 px-4  shadow-purple-200 flex items-center justify-center gap-1.5" 
                       onClick={handleBulkAIEdit} 
                       disabled={isBulkAIProcessing}
                     >
@@ -2430,14 +2430,14 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
 
               <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden min-h-0">
                 {/* Configuration Panel */}
-                <div className="w-full md:w-80 border-b md:border-b-0 md:border-r bg-slate-50/50 p-4 sm:p-6 space-y-6 shrink-0 md:overflow-y-auto">
+                <div className="w-full md:w-80 border-b md:border-b-0 md:border-r bg-[#111111]/50 p-3 sm:p-4 space-y-6 shrink-0 md:overflow-y-auto">
                   <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">AI Configuration</h4>
+                    <h4 className="text-xs font-bold text-[#555555] uppercase tracking-wider">AI Configuration</h4>
                     
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">AI Provider</label>
+                      <label className="text-[10px] font-bold text-text-muted uppercase">AI Provider</label>
                       <select 
-                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                        className="w-full border rounded-lg p-2.5 text-[13px] bg-bg-card  focus:ring-2 focus:ring-purple-500 outline-none" 
                         value={aiProvider} 
                         onChange={e => {
                           const provider = e.target.value as AIProvider;
@@ -2454,9 +2454,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Model</label>
+                      <label className="text-[10px] font-bold text-text-muted uppercase">Model</label>
                       <select 
-                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                        className="w-full border rounded-lg p-2.5 text-[13px] bg-bg-card  focus:ring-2 focus:ring-purple-500 outline-none" 
                         value={aiModel} 
                         onChange={e => setAiModel(e.target.value)}
                         disabled={isBulkAIProcessing}
@@ -2469,12 +2469,12 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   </div>
 
                   <div className="space-y-4 pt-4 border-t">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Edit Settings</h4>
+                    <h4 className="text-xs font-bold text-[#555555] uppercase tracking-wider">Edit Settings</h4>
                     
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Edit Type *</label>
+                      <label className="text-[10px] font-bold text-text-muted uppercase">Edit Type *</label>
                       <select 
-                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                        className="w-full border rounded-lg p-2.5 text-[13px] bg-bg-card  focus:ring-2 focus:ring-purple-500 outline-none" 
                         value={aiEditType} 
                         onChange={e => {
                           setAiEditType(e.target.value);
@@ -2491,9 +2491,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
 
                     {aiEditType === 'Solution Add / Change' && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Action</label>
+                        <label className="text-[10px] font-bold text-text-muted uppercase">Action</label>
                         <select 
-                          className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                          className="w-full border rounded-lg p-2.5 text-[13px] bg-bg-card  focus:ring-2 focus:ring-purple-500 outline-none" 
                           value={aiEditAction} 
                           onChange={e => setAiEditAction(e.target.value)}
                           disabled={isBulkAIProcessing}
@@ -2508,9 +2508,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
 
                     {aiEditType === 'Classify & Tag' && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Action</label>
+                        <label className="text-[10px] font-bold text-text-muted uppercase">Action</label>
                         <select 
-                          className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                          className="w-full border rounded-lg p-2.5 text-[13px] bg-bg-card  focus:ring-2 focus:ring-purple-500 outline-none" 
                           value={aiEditAction} 
                           onChange={e => setAiEditAction(e.target.value)}
                           disabled={isBulkAIProcessing}
@@ -2525,9 +2525,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
 
                     {aiEditType === 'Translate' && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Target Language</label>
+                        <label className="text-[10px] font-bold text-text-muted uppercase">Target Language</label>
                         <select 
-                          className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none" 
+                          className="w-full border rounded-lg p-2.5 text-[13px] bg-bg-card  focus:ring-2 focus:ring-purple-500 outline-none" 
                           value={aiLanguage} 
                           onChange={e => setAiLanguage(e.target.value)}
                           disabled={isBulkAIProcessing}
@@ -2546,9 +2546,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
 
                     {aiEditType === 'Write your own prompt' && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Custom Prompt</label>
+                        <label className="text-[10px] font-bold text-text-muted uppercase">Custom Prompt</label>
                         <textarea 
-                          className="w-full border rounded-lg p-2.5 h-32 text-sm bg-white shadow-sm focus:ring-2 focus:ring-purple-500 outline-none resize-none" 
+                          className="w-full border rounded-lg p-2.5 h-32 text-[13px] bg-bg-card  focus:ring-2 focus:ring-purple-500 outline-none resize-none" 
                           value={aiCustomPrompt} 
                           onChange={e => setAiCustomPrompt(e.target.value)} 
                           placeholder="Describe what you want AI to do..."
@@ -2559,7 +2559,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   </div>
 
                   {!isBulkAIProcessing && (
-                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-2">
+                    <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg space-y-2">
                       <div className="flex items-center gap-2 text-amber-800 font-bold text-xs">
                         <AlertCircle className="w-4 h-4" />
                         <span>Warning</span>
@@ -2572,19 +2572,19 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 </div>
 
                 {/* Execution & Logs Panel */}
-                <div className="flex-1 flex flex-col bg-white min-h-[400px] md:min-h-0 md:overflow-hidden">
+                <div className="flex-1 flex flex-col bg-bg-card min-h-[400px] md:min-h-0 md:overflow-hidden">
                   {/* Progress Header */}
-                  <div className="p-6 border-b shrink-0">
+                  <div className="p-4 border-b shrink-0">
                     <div className="flex items-center justify-between mb-4">
                       <div className="space-y-1">
-                        <h4 className="text-sm font-bold text-slate-900">Execution Status</h4>
-                        <p className="text-xs text-slate-500">{bulkAIStatus || (isBulkAIProcessing ? 'Processing...' : 'Ready to start')}</p>
+                        <h4 className="text-[13px] font-bold text-text-heading">Execution Status</h4>
+                        <p className="text-xs text-text-muted">{bulkAIStatus || (isBulkAIProcessing ? 'Processing...' : 'Ready to start')}</p>
                       </div>
                       <div className="text-right">
                         <span className="text-2xl font-black text-purple-600">{Math.round(bulkAIProgress)}%</span>
                       </div>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
+                    <div className="w-full bg-[#141414] rounded-full h-3 overflow-hidden shadow-inner">
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${bulkAIProgress}%` }}
@@ -2595,16 +2595,16 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
 
                     {/* Logs Area */}
                     <div className="flex-1 overflow-hidden flex flex-col">
-                      <div className="px-6 py-3 bg-slate-50 border-b flex items-center justify-between shrink-0">
-                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Real-time Activity Logs</h4>
+                      <div className="px-4 py-3 bg-[#111111] border-b flex items-center justify-between shrink-0">
+                        <h4 className="text-[10px] font-bold text-[#555555] uppercase tracking-wider">Real-time Activity Logs</h4>
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${isBulkAIProcessing ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></div>
-                          <span className="text-[10px] font-medium text-slate-500">{isBulkAIProcessing ? 'Live' : 'Idle'}</span>
+                          <span className="text-[10px] font-medium text-text-muted">{isBulkAIProcessing ? 'Live' : 'Idle'}</span>
                         </div>
                       </div>
-                      <div className="flex-1 overflow-y-auto p-6 space-y-2 font-mono text-xs bg-slate-900 text-slate-300 selection:bg-purple-500/30">
+                      <div className="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-xs bg-slate-900 text-slate-300 selection:bg-purple-500/30">
                         {bulkAILogs.length === 0 ? (
-                          <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-2">
+                          <div className="h-full flex flex-col items-center justify-center text-text-body space-y-2">
                             <Loader2 className="w-8 h-8 animate-spin opacity-20" />
                             <p>Waiting for execution to start...</p>
                           </div>
@@ -2612,7 +2612,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                           <div className="space-y-2">
                             {bulkAILogs.map((log) => (
                               <div key={log.id} className="flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                                <span className="text-slate-600 shrink-0">[{log.timestamp.toLocaleTimeString()}]</span>
+                                <span className="text-text-body shrink-0">[{log.timestamp.toLocaleTimeString()}]</span>
                                 <span className={`
                                   ${log.type === 'success' ? 'text-emerald-400' : ''}
                                   ${log.type === 'error' ? 'text-red-400 font-bold' : ''}
@@ -2625,7 +2625,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                             ))}
                             
                             {failedQuestions.length > 0 && !isBulkAIProcessing && (
-                              <div className="mt-6 p-4 bg-red-950/50 border border-red-900/50 rounded-xl font-sans">
+                              <div className="mt-6 p-3 bg-red-950/50 border border-red-900/50 rounded-lg font-sans">
                                 <div className="flex items-center justify-between mb-3">
                                   <h5 className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-2">
                                     <AlertCircle className="w-4 h-4" />
@@ -2642,7 +2642,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                                 </div>
                                 <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                                   {failedQuestions.map(q => (
-                                    <div key={q.id} className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-red-900/20 shadow-sm">
+                                    <div key={q.id} className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-red-900/20 ">
                                       <span className="text-[10px] font-medium text-slate-300 truncate flex-1 mr-2">
                                         {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || q['Question Text'] || q.question_text || 'No text'}
                                       </span>
@@ -2666,8 +2666,8 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 </div>
               </div>
 
-              <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-t flex items-center justify-between shrink-0">
-                <div className="text-[10px] sm:text-xs text-slate-500 font-medium">
+              <div className="px-4 sm:px-4 py-3 sm:py-3 bg-[#111111] border-t flex items-center justify-between shrink-0">
+                <div className="text-[10px] sm:text-xs text-text-muted font-medium">
                   {isBulkAIProcessing ? (
                     <span className="flex items-center gap-2">
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -2680,7 +2680,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="font-bold text-slate-600 h-8 px-4 hidden sm:flex" 
+                  className="font-bold text-text-body h-8 px-4 hidden sm:flex" 
                   onClick={() => setIsBulkAIEditModalOpen(false)} 
                   disabled={isBulkAIProcessing}
                 >
@@ -2695,56 +2695,56 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Move/Copy Modal */}
       <AnimatePresence>
         {isMoveModalOpen && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-md overflow-hidden"
             >
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h3 className="text-[13px] font-bold text-text-heading">
                   {isCopying ? 'Copy' : 'Move'} {selectedIds.size} Questions
                 </h3>
                 <Button variant="ghost" size="icon" onClick={() => setIsMoveModalOpen(false)} className="h-8 w-8">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 space-y-4">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Select Target Folder</label>
-                  <div className="max-h-72 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1 bg-slate-50/30">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Select Target Folder</label>
+                  <div className="max-h-72 overflow-y-auto border border-border rounded-lg p-2 space-y-1 bg-[#111111]/30">
                     <button 
                       onClick={() => setTargetFolderForMove('Root')}
-                      className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-3 ${targetFolderForMove === 'Root' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'hover:bg-white hover:shadow-sm text-slate-700'}`}
+                      className={`w-full text-left px-4 py-3 rounded-lg text-[13px] font-bold transition-all flex items-center gap-3 ${targetFolderForMove === 'Root' ? 'bg-primary text-white card-hover shadow-primary/20' : 'hover:bg-bg-card hover: text-text-heading'}`}
                     >
-                      <Database className={`w-4 h-4 ${targetFolderForMove === 'Root' ? 'text-white' : 'text-slate-400'}`} />
+                      <Database className={`w-4 h-4 ${targetFolderForMove === 'Root' ? 'text-white' : 'text-[#555555]'}`} />
                       Root (Airtable Tables)
                     </button>
-                    <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                    <div className="h-px bg-[#141414] my-1 mx-2"></div>
                     {tables.map(folder => (
                       <button 
                         key={folder.id || folder.fullPath}
                         onClick={() => setTargetFolderForMove(folder.fullPath || folder.name)}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-3 ${targetFolderForMove === (folder.fullPath || folder.name) ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'hover:bg-white hover:shadow-sm text-slate-700'}`}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-[13px] font-bold transition-all flex items-center gap-3 ${targetFolderForMove === (folder.fullPath || folder.name) ? 'bg-primary text-white card-hover shadow-primary/20' : 'hover:bg-bg-card hover: text-text-heading'}`}
                       >
-                        <Folder className={`w-4 h-4 ${targetFolderForMove === (folder.fullPath || folder.name) ? 'text-white' : 'text-slate-400'}`} />
+                        <Folder className={`w-4 h-4 ${targetFolderForMove === (folder.fullPath || folder.name) ? 'text-white' : 'text-[#555555]'}`} />
                         <span className="truncate">{folder.fullPath || folder.name}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex flex-col xs:flex-row gap-3">
+              <div className="px-4 py-3 bg-[#111111] border-t flex flex-col xs:flex-row gap-3">
                 <Button 
                   variant="ghost" 
-                  className="flex-1 font-bold text-slate-600 h-10" 
+                  className="flex-1 font-bold text-text-body h-10" 
                   onClick={() => setIsMoveModalOpen(false)}
                 >
                   Cancel
                 </Button>
                 <Button 
-                  className={`flex-1 font-bold text-white h-10 ${isCopying ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                  className={`flex-1 font-bold text-white h-10 ${isCopying ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-primary hover:bg-primary-hover'}`}
                   onClick={() => handleBulkMove(isCopying)}
                   disabled={!targetFolderForMove}
                 >
@@ -2759,24 +2759,24 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Add to Set Modal */}
       <AnimatePresence>
         {isSetModalOpen && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-md overflow-hidden"
             >
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Add to Question Set</h3>
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h3 className="text-[13px] font-bold text-text-heading">Add to Question Set</h3>
                 <Button variant="ghost" size="icon" onClick={() => setIsSetModalOpen(false)} className="h-8 w-8">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Select Set</label>
+                  <label className="text-[10px] font-bold text-[#555555] uppercase">Select Set</label>
                   <select 
-                    className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none"
+                    className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none"
                     value={selectedSetId}
                     onChange={(e) => setSelectedSetId(e.target.value)}
                   >
@@ -2790,7 +2790,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 
                 {selectedSetId === 'new' && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">New Set Name</label>
+                    <label className="text-[10px] font-bold text-[#555555] uppercase">New Set Name</label>
                     <Input 
                       value={newSetName}
                       onChange={(e) => setNewSetName(e.target.value)}
@@ -2800,16 +2800,16 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   </div>
                 )}
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex flex-col xs:flex-row gap-3">
+              <div className="px-4 py-3 bg-[#111111] border-t flex flex-col xs:flex-row gap-3">
                 <Button 
                   variant="ghost" 
-                  className="flex-1 font-bold text-slate-600 h-10" 
+                  className="flex-1 font-bold text-text-body h-10" 
                   onClick={() => setIsSetModalOpen(false)}
                 >
                   Cancel
                 </Button>
                 <Button 
-                  className="flex-1 font-bold text-white bg-purple-600 hover:bg-purple-700 h-10"
+                  className="flex-1 font-bold text-white bg-primary hover:bg-primary-hover h-10"
                   onClick={handleAddToSet}
                   disabled={!selectedSetId || (selectedSetId === 'new' && !newSetName.trim())}
                 >
@@ -2822,21 +2822,21 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       </AnimatePresence>
       <AnimatePresence>
         {isBulkEditModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-md overflow-hidden"
             >
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Bulk Edit ({selectedIds.size} questions)</h3>
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h3 className="text-[13px] font-bold text-text-heading">Bulk Edit ({selectedIds.size} questions)</h3>
                 <Button variant="ghost" size="icon" onClick={() => setIsBulkEditModalOpen(false)} className="h-8 w-8">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-                <p className="text-xs text-slate-500 mb-4">Select the fields you want to update for the {selectedIds.size} selected questions.</p>
+              <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                <p className="text-xs text-text-muted mb-4">Select the fields you want to update for the {selectedIds.size} selected questions.</p>
                 
                 {/* Subject */}
                 <div className="flex items-start gap-3">
@@ -2852,9 +2852,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     }}
                   />
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Subject</label>
+                    <label className="text-[10px] font-bold text-[#555555] uppercase">Subject</label>
                     <select 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('subject')}
                       value={bulkEditData.subject || ''}
                       onChange={e => setBulkEditData(prev => ({ ...prev, subject: e.target.value }))}
@@ -2882,9 +2882,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     }}
                   />
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Chapter</label>
+                    <label className="text-[10px] font-bold text-[#555555] uppercase">Chapter</label>
                     <Input 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('chapter')}
                       value={bulkEditData.chapter || ''}
                       placeholder="Enter chapter name"
@@ -2907,9 +2907,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     }}
                   />
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Question Type</label>
+                    <label className="text-[10px] font-bold text-[#555555] uppercase">Question Type</label>
                     <Input 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('type')}
                       value={bulkEditData.type || ''}
                       placeholder="e.g. MCQ, Subjective"
@@ -2932,9 +2932,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     }}
                   />
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Difficulty</label>
+                    <label className="text-[10px] font-bold text-[#555555] uppercase">Difficulty</label>
                     <select 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('difficulty')}
                       value={bulkEditData.difficulty || ''}
                       onChange={e => setBulkEditData(prev => ({ ...prev, difficulty: e.target.value as any }))}
@@ -2961,9 +2961,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     }}
                   />
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Status</label>
+                    <label className="text-[10px] font-bold text-[#555555] uppercase">Status</label>
                     <select 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('status')}
                       value={bulkEditData.status || ''}
                       onChange={e => setBulkEditData(prev => ({ ...prev, status: e.target.value as any }))}
@@ -2989,9 +2989,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     }}
                   />
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Exam</label>
+                    <label className="text-[10px] font-bold text-[#555555] uppercase">Exam</label>
                     <Input 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('exam')}
                       value={bulkEditData.exam || ''}
                       placeholder="e.g. SSC CGL, UPSC"
@@ -3014,9 +3014,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     }}
                   />
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Year</label>
+                    <label className="text-[10px] font-bold text-[#555555] uppercase">Year</label>
                     <Input 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('year')}
                       value={bulkEditData.year || ''}
                       placeholder="e.g. 2023"
@@ -3039,10 +3039,10 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     }}
                   />
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Date</label>
+                    <label className="text-[10px] font-bold text-[#555555] uppercase">Date</label>
                     <Input 
                       type="date"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('date')}
                       value={bulkEditData.date || ''}
                       onChange={e => setBulkEditData(prev => ({ ...prev, date: e.target.value }))}
@@ -3064,9 +3064,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     }}
                   />
                   <div className="flex-1 space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Shift</label>
+                    <label className="text-[10px] font-bold text-[#555555] uppercase">Shift</label>
                     <select 
-                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none disabled:opacity-50"
+                      className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none disabled:opacity-50"
                       disabled={!fieldsToUpdate.has('shift')}
                       value={bulkEditData.shift || ''}
                       onChange={e => setBulkEditData(prev => ({ ...prev, shift: e.target.value }))}
@@ -3079,8 +3079,8 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   </div>
                 </div>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex flex-col xs:flex-row gap-3">
-                <Button variant="ghost" className="flex-1 font-bold text-slate-600 h-10" onClick={() => setIsBulkEditModalOpen(false)}>Cancel</Button>
+              <div className="px-4 py-3 bg-[#111111] border-t flex flex-col xs:flex-row gap-3">
+                <Button variant="ghost" className="flex-1 font-bold text-text-body h-10" onClick={() => setIsBulkEditModalOpen(false)}>Cancel</Button>
                 <Button 
                   disabled={fieldsToUpdate.size === 0}
                   onClick={() => {
@@ -3094,7 +3094,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                       setIsBulkEditModalOpen(false);
                     }
                   }} 
-                  className="flex-1 font-bold bg-blue-600 hover:bg-blue-700 text-white h-10"
+                  className="flex-1 font-bold bg-primary hover:bg-primary-hover text-white h-10"
                 >
                   Update All
                 </Button>
@@ -3107,24 +3107,24 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Sync Confirmation Modal */}
       <AnimatePresence>
         {syncConfirmTable && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-md overflow-hidden"
             >
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Confirm Sync</h3>
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h3 className="text-[13px] font-bold text-text-heading">Confirm Sync</h3>
               </div>
-              <div className="p-6">
-                <p className="text-sm text-slate-600">
+              <div className="p-4">
+                <p className="text-[13px] text-text-body">
                   Are you sure you want to push all Supabase questions for "{syncConfirmTable}" to Airtable? This will create new records in Airtable.
                 </p>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+              <div className="px-4 py-3 bg-[#111111] border-t flex justify-end gap-3">
                 <Button variant="ghost" size="sm" onClick={() => setSyncConfirmTable(null)} className="text-[11px] font-bold">Cancel</Button>
-                <Button size="sm" onClick={confirmPushToAirtable} className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold px-6">Confirm Sync</Button>
+                <Button size="sm" onClick={confirmPushToAirtable} className="bg-primary hover:bg-primary-hover text-white text-[11px] font-bold px-4">Confirm Sync</Button>
               </div>
             </motion.div>
           </div>
@@ -3134,33 +3134,33 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Bulk Tag Modal */}
       <AnimatePresence>
         {isBulkTagModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-md overflow-hidden"
             >
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Bulk Tag ({selectedIds.size} questions)</h3>
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h3 className="text-[13px] font-bold text-text-heading">Bulk Tag ({selectedIds.size} questions)</h3>
                 <Button variant="ghost" size="icon" onClick={() => setIsBulkTagModalOpen(false)} className="h-8 w-8">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Add Tags</label>
-                  <p className="text-xs text-slate-500 mb-2">Enter tags separated by commas. These will be added to the selected questions.</p>
+                  <label className="text-[10px] font-bold text-[#555555] uppercase">Add Tags</label>
+                  <p className="text-xs text-text-muted mb-2">Enter tags separated by commas. These will be added to the selected questions.</p>
                   <Input 
                     placeholder="e.g. important, review, math" 
                     value={bulkTag}
                     onChange={e => setBulkTag(e.target.value)}
-                    className="bg-slate-50 border-slate-200 text-sm"
+                    className="bg-[#111111] border-border text-[13px]"
                   />
                   {bulkTag.trim() && (
                     <div className="flex flex-wrap gap-2 mt-3">
                       {bulkTag.split(',').map(t => t.trim()).filter(Boolean).map((tag, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-md text-xs font-bold border border-indigo-100">
+                        <span key={idx} className="px-2 py-1 bg-indigo-50 text-primary rounded-md text-xs font-bold border border-indigo-100">
                           {tag}
                         </span>
                       ))}
@@ -3168,9 +3168,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   )}
                 </div>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex flex-col xs:flex-row gap-3">
-                <Button variant="ghost" className="flex-1 font-bold text-slate-600 h-10" onClick={() => setIsBulkTagModalOpen(false)}>Cancel</Button>
-                <Button className="flex-1 font-bold bg-indigo-600 hover:bg-indigo-700 text-white h-10" onClick={handleApplyBulkTags}>Apply Tags</Button>
+              <div className="px-4 py-3 bg-[#111111] border-t flex flex-col xs:flex-row gap-3">
+                <Button variant="ghost" className="flex-1 font-bold text-text-body h-10" onClick={() => setIsBulkTagModalOpen(false)}>Cancel</Button>
+                <Button className="flex-1 font-bold bg-primary hover:bg-primary-hover text-white h-10" onClick={handleApplyBulkTags}>Apply Tags</Button>
               </div>
             </motion.div>
           </div>
@@ -3180,32 +3180,32 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Copy to Test Modal */}
       <AnimatePresence>
         {isCopyToTestModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-md overflow-hidden"
             >
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Copy to Test ({selectedIds.size} questions)</h3>
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h3 className="text-[13px] font-bold text-text-heading">Copy to Test ({selectedIds.size} questions)</h3>
                 <Button variant="ghost" size="icon" onClick={() => setIsCopyToTestModalOpen(false)} className="h-8 w-8">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Test Name</label>
+                  <label className="text-[10px] font-bold text-[#555555] uppercase">Test Name</label>
                   <Input 
                     placeholder="Enter test name..." 
                     value={testName}
                     onChange={e => setTestName(e.target.value)}
-                    className="bg-slate-50 border-slate-100 text-xs font-bold"
+                    className="bg-[#111111] border-border text-xs font-bold"
                   />
                 </div>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex flex-col xs:flex-row gap-3">
-                <Button variant="ghost" className="flex-1 font-bold text-slate-600 h-10" onClick={() => setIsCopyToTestModalOpen(false)}>Cancel</Button>
+              <div className="px-4 py-3 bg-[#111111] border-t flex flex-col xs:flex-row gap-3">
+                <Button variant="ghost" className="flex-1 font-bold text-text-body h-10" onClick={() => setIsCopyToTestModalOpen(false)}>Cancel</Button>
                 <Button className="flex-1 font-bold bg-orange-600 hover:bg-orange-700 text-white h-10" onClick={() => {
                   handleBulkUpdate({ test_name: testName } as any);
                   setIsCopyToTestModalOpen(false);
@@ -3219,28 +3219,28 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Bulk AI Variation Modal */}
       <AnimatePresence>
         {isBulkAIVariationModalOpen && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 sm:p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 50, opacity: 0 }}
-              className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-5xl h-full sm:h-[90vh] flex flex-col overflow-hidden"
+              className="bg-bg-card rounded-none sm:rounded-lg card-hover w-full max-w-5xl h-full sm:h-[90vh] flex flex-col overflow-hidden"
             >
-              <div className="px-4 sm:px-6 py-4 border-b flex items-center justify-between bg-white shrink-0">
+              <div className="px-4 sm:px-4 py-3 border-b flex items-center justify-between bg-bg-card shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-teal-100 text-teal-600 rounded-xl hidden sm:flex items-center justify-center">
+                  <div className="w-10 h-10 bg-teal-100 text-teal-600 rounded-lg hidden sm:flex items-center justify-center">
                     <Copy className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900">Bulk AI Variations</h3>
-                    <p className="text-[10px] sm:text-xs text-slate-500">Generating variations for {selectedIds.size} questions</p>
+                    <h3 className="text-base sm:text-[15px] font-bold text-text-heading">Bulk AI Variations</h3>
+                    <p className="text-[10px] sm:text-xs text-text-muted">Generating variations for {selectedIds.size} questions</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
                   {bulkAIProgress === 100 && !isBulkAIProcessing ? (
                     <Button 
                       size="sm"
-                      className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5" 
+                      className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4  shadow-emerald-200 flex items-center justify-center gap-1.5" 
                       onClick={() => setIsBulkAIVariationModalOpen(false)}
                     >
                       <Check className="w-4 h-4" />
@@ -3250,7 +3250,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   ) : (
                     <Button 
                       size="sm"
-                      className="font-bold bg-teal-600 hover:bg-teal-700 text-white h-9 px-4 shadow-sm shadow-teal-200 flex items-center justify-center gap-1.5" 
+                      className="font-bold bg-teal-600 hover:bg-teal-700 text-white h-9 px-4  shadow-teal-200 flex items-center justify-center gap-1.5" 
                       onClick={handleBulkAIVariations} 
                       disabled={isBulkAIProcessing}
                     >
@@ -3276,14 +3276,14 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
 
               <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden min-h-0">
                 {/* Configuration Panel */}
-                <div className="w-full md:w-80 border-b md:border-b-0 md:border-r bg-slate-50/50 p-4 sm:p-6 space-y-6 shrink-0 md:overflow-y-auto">
+                <div className="w-full md:w-80 border-b md:border-b-0 md:border-r bg-[#111111]/50 p-3 sm:p-4 space-y-6 shrink-0 md:overflow-y-auto">
                   <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">AI Configuration</h4>
+                    <h4 className="text-xs font-bold text-[#555555] uppercase tracking-wider">AI Configuration</h4>
                     
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">AI Provider</label>
+                      <label className="text-[10px] font-bold text-text-muted uppercase">AI Provider</label>
                       <select 
-                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-teal-500 outline-none" 
+                        className="w-full border rounded-lg p-2.5 text-[13px] bg-bg-card  focus:ring-2 focus:ring-teal-500 outline-none" 
                         value={aiProvider} 
                         onChange={e => {
                           const provider = e.target.value as AIProvider;
@@ -3300,9 +3300,9 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Model</label>
+                      <label className="text-[10px] font-bold text-text-muted uppercase">Model</label>
                       <select 
-                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-teal-500 outline-none" 
+                        className="w-full border rounded-lg p-2.5 text-[13px] bg-bg-card  focus:ring-2 focus:ring-teal-500 outline-none" 
                         value={aiModel} 
                         onChange={e => setAiModel(e.target.value)}
                         disabled={isBulkAIProcessing}
@@ -3315,12 +3315,12 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   </div>
 
                   <div className="space-y-4 pt-4 border-t">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Variation Settings</h4>
+                    <h4 className="text-xs font-bold text-[#555555] uppercase tracking-wider">Variation Settings</h4>
                     
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Variation Type</label>
+                      <label className="text-[10px] font-bold text-text-muted uppercase">Variation Type</label>
                       <select 
-                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-teal-500 outline-none" 
+                        className="w-full border rounded-lg p-2.5 text-[13px] bg-bg-card  focus:ring-2 focus:ring-teal-500 outline-none" 
                         value={aiEditType} 
                         onChange={e => setAiEditType(e.target.value)}
                         disabled={isBulkAIProcessing}
@@ -3332,10 +3332,10 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Number of Variations per Question</label>
+                      <label className="text-[10px] font-bold text-text-muted uppercase">Number of Variations per Question</label>
                       <Input 
                         type="number"
-                        className="w-full border rounded-lg p-2.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-teal-500 outline-none" 
+                        className="w-full border rounded-lg p-2.5 text-[13px] bg-bg-card  focus:ring-2 focus:ring-teal-500 outline-none" 
                         value={aiCustomPrompt} 
                         onChange={e => setAiCustomPrompt(e.target.value)} 
                         placeholder="e.g. 1"
@@ -3345,7 +3345,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   </div>
 
                   {!isBulkAIProcessing && (
-                    <div className="bg-teal-50 border border-teal-200 p-4 rounded-xl space-y-2">
+                    <div className="bg-teal-50 border border-teal-200 p-3 rounded-lg space-y-2">
                       <div className="flex items-center gap-2 text-teal-800 font-bold text-xs">
                         <AlertCircle className="w-4 h-4" />
                         <span>Info</span>
@@ -3358,19 +3358,19 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 </div>
 
                 {/* Execution & Logs Panel */}
-                <div className="flex-1 flex flex-col bg-white min-h-[400px] md:min-h-0 md:overflow-hidden">
+                <div className="flex-1 flex flex-col bg-bg-card min-h-[400px] md:min-h-0 md:overflow-hidden">
                   {/* Progress Header */}
-                  <div className="p-6 border-b shrink-0">
+                  <div className="p-4 border-b shrink-0">
                     <div className="flex items-center justify-between mb-4">
                       <div className="space-y-1">
-                        <h4 className="text-sm font-bold text-slate-900">Execution Status</h4>
-                        <p className="text-xs text-slate-500">{bulkAIStatus || (isBulkAIProcessing ? 'Processing...' : 'Ready to start')}</p>
+                        <h4 className="text-[13px] font-bold text-text-heading">Execution Status</h4>
+                        <p className="text-xs text-text-muted">{bulkAIStatus || (isBulkAIProcessing ? 'Processing...' : 'Ready to start')}</p>
                       </div>
                       <div className="text-right">
                         <span className="text-2xl font-black text-teal-600">{Math.round(bulkAIProgress)}%</span>
                       </div>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
+                    <div className="w-full bg-[#141414] rounded-full h-3 overflow-hidden shadow-inner">
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${bulkAIProgress}%` }}
@@ -3381,16 +3381,16 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
 
                     {/* Logs Area */}
                     <div className="flex-1 overflow-hidden flex flex-col">
-                      <div className="px-6 py-3 bg-slate-50 border-b flex items-center justify-between shrink-0">
-                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Real-time Activity Logs</h4>
+                      <div className="px-4 py-3 bg-[#111111] border-b flex items-center justify-between shrink-0">
+                        <h4 className="text-[10px] font-bold text-[#555555] uppercase tracking-wider">Real-time Activity Logs</h4>
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${isBulkAIProcessing ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></div>
-                          <span className="text-[10px] font-medium text-slate-500">{isBulkAIProcessing ? 'Live' : 'Idle'}</span>
+                          <span className="text-[10px] font-medium text-text-muted">{isBulkAIProcessing ? 'Live' : 'Idle'}</span>
                         </div>
                       </div>
-                      <div className="flex-1 overflow-y-auto p-6 space-y-2 font-mono text-xs bg-slate-900 text-slate-300 selection:bg-teal-500/30">
+                      <div className="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-xs bg-slate-900 text-slate-300 selection:bg-teal-500/30">
                         {bulkAILogs.length === 0 ? (
-                          <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-2">
+                          <div className="h-full flex flex-col items-center justify-center text-text-body space-y-2">
                             <Loader2 className="w-8 h-8 animate-spin opacity-20" />
                             <p>Waiting for execution to start...</p>
                           </div>
@@ -3398,7 +3398,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                           <div className="space-y-2">
                             {bulkAILogs.map((log) => (
                               <div key={log.id} className="flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                                <span className="text-slate-600 shrink-0">[{log.timestamp.toLocaleTimeString()}]</span>
+                                <span className="text-text-body shrink-0">[{log.timestamp.toLocaleTimeString()}]</span>
                                 <span className={`
                                   ${log.type === 'success' ? 'text-emerald-400' : ''}
                                   ${log.type === 'error' ? 'text-red-400 font-bold' : ''}
@@ -3411,7 +3411,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                             ))}
                             
                             {failedQuestions.length > 0 && !isBulkAIProcessing && (
-                              <div className="mt-6 p-4 bg-red-950/50 border border-red-900/50 rounded-xl font-sans">
+                              <div className="mt-6 p-3 bg-red-950/50 border border-red-900/50 rounded-lg font-sans">
                                 <div className="flex items-center justify-between mb-3">
                                   <h5 className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-2">
                                     <AlertCircle className="w-4 h-4" />
@@ -3428,7 +3428,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                                 </div>
                                 <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                                   {failedQuestions.map(q => (
-                                    <div key={q.id} className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-red-900/20 shadow-sm">
+                                    <div key={q.id} className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-red-900/20 ">
                                       <span className="text-[10px] font-medium text-slate-300 truncate flex-1 mr-2">
                                         {q.question_hin || q.question_eng || q.text || q.Question || q.Name || q.question || q['Question Text'] || q.question_text || 'No text'}
                                       </span>
@@ -3452,8 +3452,8 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 </div>
               </div>
 
-              <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-t flex items-center justify-between shrink-0">
-                <div className="text-[10px] sm:text-xs text-slate-500 font-medium">
+              <div className="px-4 sm:px-4 py-3 sm:py-3 bg-[#111111] border-t flex items-center justify-between shrink-0">
+                <div className="text-[10px] sm:text-xs text-text-muted font-medium">
                   {isBulkAIProcessing ? (
                     <span className="flex items-center gap-2">
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -3466,7 +3466,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="font-bold text-slate-600 h-8 px-4 hidden sm:flex" 
+                  className="font-bold text-text-body h-8 px-4 hidden sm:flex" 
                   onClick={() => setIsBulkAIVariationModalOpen(false)} 
                   disabled={isBulkAIProcessing}
                 >
@@ -3481,24 +3481,24 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       {/* Move to Folder Modal */}
       <AnimatePresence>
         {isMoveToFolderModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-bg-card rounded-lg card-hover w-full max-w-md overflow-hidden"
             >
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900">Add to Question Bank ({selectedIds.size} questions)</h3>
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <h3 className="text-[13px] font-bold text-text-heading">Add to Question Bank ({selectedIds.size} questions)</h3>
                 <Button variant="ghost" size="icon" onClick={() => setIsMoveToFolderModalOpen(false)} className="h-8 w-8">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Select Target Folder</label>
+                  <label className="text-[10px] font-bold text-[#555555] uppercase">Select Target Folder</label>
                   <select 
-                    className="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none"
+                    className="w-full bg-[#111111] border border-border rounded-lg px-3 py-2 text-xs font-bold text-text-heading outline-none"
                     onChange={e => {
                       if (e.target.value) {
                         handleBulkUpdate({ airtable_table_name: e.target.value } as any);
@@ -3513,7 +3513,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   </select>
                 </div>
               </div>
-              <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+              <div className="px-4 py-3 bg-[#111111] border-t flex justify-end gap-3">
                 <Button variant="ghost" size="sm" onClick={() => setIsMoveToFolderModalOpen(false)} className="text-[11px] font-bold">Cancel</Button>
               </div>
             </motion.div>
@@ -3522,15 +3522,15 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       </AnimatePresence>
       {isSyncLocationModalOpen && (
         <Dialog open={isSyncLocationModalOpen} onOpenChange={setIsSyncLocationModalOpen}>
-          <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden border-0 shadow-2xl">
-            <DialogHeader className="px-6 py-4 border-b bg-slate-50/50">
-              <DialogTitle className="text-lg font-semibold text-slate-800">Set Sync Location</DialogTitle>
+          <DialogContent className="sm:max-w-md rounded-lg p-0 overflow-hidden border-0 card-hover">
+            <DialogHeader className="px-4 py-3 border-b bg-[#111111]/50">
+              <DialogTitle className="text-[15px] font-semibold text-text-heading">Set Sync Location</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 p-6">
+            <div className="space-y-4 p-4">
               <div className="space-y-2">
-                <Label className="text-slate-700 font-medium">Select Airtable Table</Label>
+                <Label className="text-text-heading font-medium">Select Airtable Table</Label>
                 <Select value={selectedSyncTable} onValueChange={setSelectedSyncTable}>
-                  <SelectTrigger className="w-full bg-white border-slate-200 shadow-sm h-11">
+                  <SelectTrigger className="w-full bg-bg-card border-border  h-11">
                     <SelectValue placeholder="Select Table" />
                   </SelectTrigger>
                   <SelectContent>
@@ -3539,8 +3539,8 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                 </Select>
               </div>
             </div>
-            <DialogFooter className="px-6 py-4 border-t bg-slate-50/50">
-              <Button variant="ghost" onClick={() => setIsSyncLocationModalOpen(false)} className="text-slate-500">Cancel</Button>
+            <DialogFooter className="px-4 py-3 border-t bg-[#111111]/50">
+              <Button variant="ghost" onClick={() => setIsSyncLocationModalOpen(false)} className="text-text-muted">Cancel</Button>
               <Button onClick={async () => {
                 if (!folderToConfigureSync || !selectedSyncTable) return;
                 try {
@@ -3560,7 +3560,7 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
                   console.error(e);
                   alert('An error occurred.');
                 }
-              }} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg px-6">Save</Button>
+              }} className="bg-primary hover:bg-primary-hover text-white  rounded-lg px-4">Save</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -3569,16 +3569,16 @@ Ensure the output is strictly a JSON array. Do not include any other text.\n\nQu
       
       <DragOverlay>
         {activeId ? (
-          <div className="bg-white border-2 border-blue-500 rounded-xl p-4 shadow-2xl opacity-90 scale-105 pointer-events-none">
+          <div className="bg-bg-card border-2 border-blue-500 rounded-lg p-3 card-hover opacity-90 scale-105 pointer-events-none">
             {activeId.toString().includes('/') ? (
               <div className="flex items-center gap-3">
                 <Folder className="w-6 h-6 text-blue-500 fill-blue-100" />
-                <span className="font-bold text-slate-700">{activeId}</span>
+                <span className="font-bold text-text-heading">{activeId}</span>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <FileText className="w-6 h-6 text-blue-500" />
-                <span className="font-bold text-slate-700 truncate max-w-[200px]">
+                <span className="font-bold text-text-heading truncate max-w-[200px]">
                   {questions.find(q => q.id === activeId)?.question_hin || 'Question'}
                 </span>
               </div>

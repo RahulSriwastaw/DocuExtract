@@ -238,19 +238,19 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
   const displayedSets = sets.filter(s => (s.folderId || null) === currentFolderId);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="p-4 space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             Question Sets
           </h2>
-          <p className="text-muted-foreground text-sm">Organize and bundle your extracted questions.</p>
+          <p className="text-muted-foreground text-[13px]">Organize and bundle your extracted questions.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setIsFolderModalOpen(true)}>
             <FolderPlus className="w-4 h-4 mr-2" /> New Folder
           </Button>
-          <Button onClick={onCreateSetClick} className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button onClick={onCreateSetClick} className="bg-primary hover:bg-primary-hover text-white">
             <Database className="w-4 h-4 mr-2" /> Create Set from Cloud DB
           </Button>
           <Button variant="outline" onClick={() => setIsSetModalOpen(true)}>
@@ -260,7 +260,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
       </div>
 
       {/* Breadcrumbs */}
-      <div className="flex items-center gap-2 text-sm bg-muted/50 p-2 rounded-lg">
+      <div className="flex items-center gap-2 text-[13px] bg-muted/50 p-2 rounded-lg">
         <Button 
           variant="ghost" 
           size="sm" 
@@ -282,12 +282,12 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {/* Render Folders */}
         {(displayedFolders || []).map(folder => (
           <Card 
             key={folder.id} 
-            className={`hover:shadow-md transition-shadow border-yellow-200 cursor-pointer ${
+            className={`hover:card-hover transition-shadow border-yellow-200 cursor-pointer ${
               dragOverTargetId === folder.id ? 'bg-blue-50 border-blue-400 border-dashed border-2' : 'bg-yellow-50/30'
             }`} 
             onClick={() => setCurrentFolderId(folder.id)}
@@ -296,7 +296,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
             onDrop={(e) => handleDropOnFolder(e, folder.id)}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between text-lg">
+              <CardTitle className="flex items-center justify-between text-[15px]">
                 <div className="flex items-center gap-2">
                   <FolderOpen className="w-5 h-5 text-yellow-500 fill-yellow-500" />
                   {folder.name}
@@ -329,14 +329,14 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDropOnSet(e, set.id)}
             onDragEnd={handleDragEnd}
-            className={`hover:shadow-md transition-shadow flex flex-col cursor-grab active:cursor-grabbing ${
+            className={`hover:card-hover transition-shadow flex flex-col cursor-grab active:cursor-grabbing ${
               draggedSetId === set.id ? 'opacity-50' : ''
             } ${
               dragOverTargetId === set.id ? 'border-blue-400 border-dashed border-2 bg-blue-50/30' : ''
             }`}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg">
+              <CardTitle className="flex items-center gap-2 text-[15px]">
                 <FileText className="w-5 h-5 text-blue-500" />
                 <span className="truncate" title={set.name}>{set.name}</span>
               </CardTitle>
@@ -345,7 +345,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 flex-1 flex flex-col justify-end">
-              <div className="text-sm font-medium bg-muted/50 p-2 rounded flex justify-between">
+              <div className="text-[13px] font-medium bg-muted/50 p-2 rounded flex justify-between">
                 <span>Total Questions:</span>
                 <span>{set.questions.length}</span>
               </div>
@@ -377,7 +377,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
       <Dialog open={isFolderModalOpen} onOpenChange={setIsFolderModalOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Create New Folder</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-3">
             <Label>Folder Name</Label>
             <Input value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="e.g., Physics 2024" onKeyDown={e => e.key === 'Enter' && createFolder()} />
           </div>
@@ -392,7 +392,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
       <Dialog open={isSetModalOpen} onOpenChange={setIsSetModalOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Create New Set</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-3">
             <div className="space-y-2">
               <Label>Set Name</Label>
               <Input value={newSetName} onChange={e => setNewSetName(e.target.value)} placeholder="e.g., Chapter 1 Quiz" onKeyDown={e => e.key === 'Enter' && createSet()} />
@@ -429,7 +429,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
       <Dialog open={!!setToDelete} onOpenChange={(open) => !open && setSetToDelete(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Delete Question Set</DialogTitle></DialogHeader>
-          <div className="py-4">
+          <div className="py-3">
             Are you sure you want to delete this set? This action cannot be undone.
           </div>
           <DialogFooter>
@@ -443,7 +443,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
       <Dialog open={!!folderToDelete} onOpenChange={(open) => !open && setFolderToDelete(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Delete Folder</DialogTitle></DialogHeader>
-          <div className="py-4">
+          <div className="py-3">
             Delete this folder? All sets inside will be moved to the root directory.
           </div>
           <DialogFooter>
@@ -457,7 +457,7 @@ export default function QuestionSets({ onCreateSetClick }: { onCreateSetClick: (
       <Dialog open={!!alertMsg} onOpenChange={(open) => !open && setAlertMsg(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Alert</DialogTitle></DialogHeader>
-          <div className="py-4">{alertMsg}</div>
+          <div className="py-3">{alertMsg}</div>
           <DialogFooter>
             <Button onClick={() => setAlertMsg(null)}>OK</Button>
           </DialogFooter>
