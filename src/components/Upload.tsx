@@ -193,7 +193,7 @@ ${text}`;
 
         const processPage = async (pageNum: number): Promise<Question[]> => {
           const page = await pdf.getPage(pageNum);
-          const viewport = page.getViewport({ scale: 2.0 });
+          const viewport = page.getViewport({ scale: 3.0 });
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
           if (!context) return [];
@@ -202,21 +202,27 @@ ${text}`;
           
           await page.render({ canvasContext: context, viewport: viewport, canvas: canvas }).promise;
           
-          const pageBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+          const pageBase64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
 
-          const prompt = `CRITICAL INSTRUCTION: You MUST extract EVERY SINGLE QUESTION from this page. Do not skip, summarize, or omit any questions. There are typically around 20-25 questions per page. 
+          const prompt = `You are an expert at extracting exam questions from PDF documents. 
+CRITICAL: Extract EVERY SINGLE question from this page. Questions on this page are typically numbered (e.g., Q.46, Q.47, etc.) and in a two-column layout.
 
-The page has a two-column layout. Scan the left column completely from top to bottom, then scan the right column completely from top to bottom.
+INSTRUCTIONS:
+1. Scan the LEFT column completely from top to bottom.
+2. Scan the RIGHT column completely from top to bottom.
+3. Questions are in Hindi and/or English. Extract the full text for both if present.
+4. For each question, find its number/ID, the full text, all multiple-choice options, and the answer if indicated (usually by bolding, a symbol, or an answer key style).
 
-For each question, extract:
-- id: The question number (e.g., "Q.1", "Q.2").
-- question_text: The full question text.
-- options: An array of strings containing the options.
-- answer: The correct option (A/B/C/D/E), which is usually marked with a green tick or similar indicator.
+OUTPUT FORMAT:
+Return a JSON array of objects with these keys: 
+- "id": string (e.g., "Q.46")
+- "question_text": string (the complete question content)
+- "options": array of strings (the choices/options)
+- "answer": string (the correct choice letter like "A", "B", "C", "D")
 
-Return a JSON array of objects. Be extremely concise. Use null for empty fields. If there are no questions on this page, return an empty array []. Make sure to escape all quotes inside strings properly. DO NOT use literal newlines inside strings, use \\n instead.`;
+Do not summarize. Do not skip any question. If no questions are found, return [].`;
 
-          let retries = 3;
+          let retries = 4;
           while (retries > 0) {
             try {
               const response = await ai.models.generateContent({
@@ -278,7 +284,7 @@ Return a JSON array of objects. Be extremely concise. Use null for empty fields.
               const isHardQuota = err?.message?.includes('billing details') || err?.message?.includes('current quota');
               const isRateLimit = !isHardQuota && (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota') || err?.error?.code === 429 || err?.status === 'RESOURCE_EXHAUSTED');
               if (isRateLimit && retries > 1) {
-                const waitTime = (4 - retries) * 15000;
+                const waitTime = (5 - retries) * 10000;
                 console.warn(`Rate limit hit on page ${pageNum}. Waiting ${waitTime/1000}s...`);
                 await new Promise(resolve => setTimeout(resolve, waitTime));
                 retries--;
@@ -287,14 +293,14 @@ Return a JSON array of objects. Be extremely concise. Use null for empty fields.
                 if (isHardQuota) {
                   throw new Error("Gemini API quota exhausted. Please check your billing details or wait for the daily reset.");
                 }
-                return []; // Return empty array instead of failing the whole batch
+                return []; 
               }
             }
           }
           return [];
         };
 
-        const CONCURRENCY_LIMIT = 3;
+        const CONCURRENCY_LIMIT = 2;
         for (let i = 1; i <= total; i += CONCURRENCY_LIMIT) {
           const batchPromises: Promise<Question[]>[] = [];
           for (let j = 0; j < CONCURRENCY_LIMIT && i + j <= total; j++) {
